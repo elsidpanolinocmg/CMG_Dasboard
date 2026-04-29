@@ -1,0 +1,37 @@
+import VideoRotator from "@/components/VideoRotator";
+
+export const dynamic = "force-dynamic";
+
+interface VideoApiResponse {
+  videos: {
+    id: string;
+    title: string;
+    thumbnail: string;
+    width: number;
+    height: number;
+  }[];
+}
+
+async function fetchClassified(dept: string, format: "long-form" | "shorts") {
+  const url = `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/videos/classified?department=${encodeURIComponent(dept)}&format=${format}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) return [] as VideoApiResponse["videos"];
+  const json = (await res.json()) as VideoApiResponse;
+  return json.videos ?? [];
+}
+
+export default async function DepartmentVideosPage({
+  params,
+}: {
+  params: Promise<{ department: string }>;
+}) {
+  const { department: rawDept } = await params;
+  const dept = decodeURIComponent(rawDept).toLowerCase();
+  const videos = await fetchClassified(dept, "long-form");
+  return (
+    <div className="max-w-5xl mx-auto flex flex-col gap-4">
+      <h2 className="text-sm uppercase tracking-wide opacity-60">Videos</h2>
+      <VideoRotator videos={videos} aspectRatio="16/9" intervalMs={45_000} />
+    </div>
+  );
+}
