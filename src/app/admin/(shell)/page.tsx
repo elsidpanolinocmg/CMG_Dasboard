@@ -3,11 +3,7 @@ import { getDb } from "@/lib/db";
 
 const SUMMARY = [
   { collection: "people", label: "People", href: "/admin/people" },
-  { collection: "departments", label: "Departments", href: "/admin/departments" },
   { collection: "brands", label: "Brands", href: "/admin/brands" },
-  { collection: "dashboards", label: "Dashboards", href: "/admin/dashboards" },
-  { collection: "external_data_sources", label: "Data sources", href: "/admin/data-sources" },
-  { collection: "data_source_bindings", label: "Bindings", href: "/admin/bindings" },
   { collection: "admin_references", label: "Admin references", href: "/admin/admin-references" },
   { collection: "saved_references", label: "Saved references", href: "/admin/saved-references" },
   { collection: "cache_entries", label: "Cache entries", href: "/admin/cache" },
