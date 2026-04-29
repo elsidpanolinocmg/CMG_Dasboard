@@ -18,6 +18,15 @@ async function main() {
   await client.connect();
   try {
     const db = client.db(dbName);
+
+    // One-time cleanup: legacy person_departments join collection was replaced
+    // by an embedded array on the people doc. Drop the empty orphan if present.
+    const legacy = await db.listCollections({ name: "person_departments" }).toArray();
+    if (legacy.length > 0) {
+      await db.dropCollection("person_departments");
+      console.log("Dropped legacy person_departments collection.");
+    }
+
     console.log(`Applying ${indexSpecs.length} index specs to ${dbName}...`);
     await applyIndexes(db);
     console.log("Indexes applied.");

@@ -1,7 +1,6 @@
 export * from "./common";
 export * from "./person";
 export * from "./department";
-export * from "./personDepartment";
 export * from "./brand";
 export * from "./brandGroup";
 export * from "./departmentBrand";

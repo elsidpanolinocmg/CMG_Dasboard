@@ -11,19 +11,14 @@ export const indexSpecs: IndexSpec[] = [
   { collection: "people", keys: { username: 1 }, options: { unique: true } },
   { collection: "people", keys: { nameKeys: 1 } },
   { collection: "people", keys: { active: 1 } },
+  { collection: "people", keys: { "departments.departmentSlug": 1 } },
+  {
+    collection: "people",
+    keys: { "departments.departmentSlug": 1, "departments.role": 1 },
+  },
 
   { collection: "departments", keys: { slug: 1 }, options: { unique: true } },
   { collection: "departments", keys: { order: 1 } },
-
-  {
-    collection: "person_departments",
-    keys: { personUsername: 1, departmentSlug: 1 },
-    options: { unique: true },
-  },
-  {
-    collection: "person_departments",
-    keys: { departmentSlug: 1, role: 1 },
-  },
 
   { collection: "brands", keys: { slug: 1 }, options: { unique: true } },
   { collection: "brands", keys: { groupSlug: 1 } },

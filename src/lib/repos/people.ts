@@ -1,5 +1,9 @@
 import { getDb } from "@/lib/db";
-import type { Person } from "@/lib/entities";
+import type {
+  Person,
+  PersonDepartmentMembership,
+  PersonDepartmentRole,
+} from "@/lib/entities";
 
 const COLLECTION = "people";
 
@@ -17,14 +21,37 @@ export async function findByNameKey(key: string): Promise<Person | null> {
 }
 
 export async function listActive(): Promise<Person[]> {
-  return (await col()).find({ active: true }).toArray();
+  return (await col()).find({ active: true }).sort({ username: 1 }).toArray();
 }
 
 export async function listAll(): Promise<Person[]> {
   return (await col()).find({}).sort({ username: 1 }).toArray();
 }
 
-export async function upsert(person: Omit<Person, "createdAt" | "updatedAt">): Promise<void> {
+export async function listByDepartment(deptSlug: string): Promise<Person[]> {
+  return (await col())
+    .find({ "departments.departmentSlug": deptSlug })
+    .sort({ username: 1 })
+    .toArray();
+}
+
+export async function listByDepartmentRole(
+  deptSlug: string,
+  role: PersonDepartmentRole,
+): Promise<Person[]> {
+  return (await col())
+    .find({
+      departments: {
+        $elemMatch: { departmentSlug: deptSlug, role },
+      },
+    })
+    .sort({ username: 1 })
+    .toArray();
+}
+
+export async function upsert(
+  person: Omit<Person, "createdAt" | "updatedAt">,
+): Promise<void> {
   const now = new Date();
   await (await col()).updateOne(
     { username: person.username },
@@ -55,6 +82,69 @@ export async function setActive(username: string, active: boolean): Promise<void
     { username },
     { $set: { active, updatedAt: new Date() } },
   );
+}
+
+export async function addDepartment(
+  username: string,
+  deptSlug: string,
+  role: PersonDepartmentRole,
+  since?: Date,
+): Promise<void> {
+  const now = new Date();
+  const membership: PersonDepartmentMembership = {
+    departmentSlug: deptSlug,
+    role,
+    since: since ?? now,
+  };
+  // Pull any existing membership for this dept first, then push the new one — replaces in place.
+  await (await col()).updateOne(
+    { username },
+    { $pull: { departments: { departmentSlug: deptSlug } } },
+  );
+  await (await col()).updateOne(
+    { username },
+    {
+      $push: { departments: membership },
+      $set: { updatedAt: now },
+    },
+  );
+}
+
+export async function setDepartmentRole(
+  username: string,
+  deptSlug: string,
+  role: PersonDepartmentRole,
+): Promise<void> {
+  await (await col()).updateOne(
+    { username, "departments.departmentSlug": deptSlug },
+    {
+      $set: {
+        "departments.$.role": role,
+        updatedAt: new Date(),
+      },
+    },
+  );
+}
+
+export async function removeDepartment(username: string, deptSlug: string): Promise<void> {
+  await (await col()).updateOne(
+    { username },
+    {
+      $pull: { departments: { departmentSlug: deptSlug } },
+      $set: { updatedAt: new Date() },
+    },
+  );
+}
+
+export async function removeDepartmentEverywhere(deptSlug: string): Promise<number> {
+  const res = await (await col()).updateMany(
+    { "departments.departmentSlug": deptSlug },
+    {
+      $pull: { departments: { departmentSlug: deptSlug } },
+      $set: { updatedAt: new Date() },
+    },
+  );
+  return res.modifiedCount ?? 0;
 }
 
 export async function remove(username: string): Promise<void> {
