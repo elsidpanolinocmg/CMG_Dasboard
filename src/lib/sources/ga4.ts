@@ -2,10 +2,15 @@ import { BetaAnalyticsDataClient } from "@google-analytics/data";
 
 let client: BetaAnalyticsDataClient | null = null;
 
-function getCredentials(): object {
+function getCredentials(): { client_email: string; private_key: string } {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON not set");
-  return JSON.parse(raw);
+  const parsed = JSON.parse(raw) as { client_email: string; private_key: string };
+  // If the env loader left `\n` as literal backslash-n inside the PEM, fix it.
+  if (parsed.private_key && parsed.private_key.includes("\\n")) {
+    parsed.private_key = parsed.private_key.replace(/\\n/g, "\n");
+  }
+  return parsed;
 }
 
 export function getGAClient(): BetaAnalyticsDataClient {
@@ -18,27 +23,69 @@ function fmtPropertyId(id: string): string {
   return id.startsWith("properties/") ? id : `properties/${id}`;
 }
 
-export async function fetchActiveNow(propertyId: string): Promise<number> {
-  const ga = getGAClient();
-  const [resp] = await ga.runRealtimeReport({
-    property: fmtPropertyId(propertyId),
-    metrics: [{ name: "activeUsers" }],
-  });
-  const cell = resp.rows?.[0]?.metricValues?.[0]?.value;
-  return cell ? Number(cell) : 0;
+export interface Ga4DimensionFilter {
+  fieldName: string;
+  matchType: string;
+  value: string;
 }
 
-export async function fetchActiveWindow(propertyId: string, days: number): Promise<number> {
-  const ga = getGAClient();
-  const [resp] = await ga.runReport({
-    property: fmtPropertyId(propertyId),
-    metrics: [{ name: "activeUsers" }],
-    dateRanges: [{ startDate: `${days}daysAgo`, endDate: "today" }],
-  });
-  const cell = resp.rows?.[0]?.metricValues?.[0]?.value;
-  return cell ? Number(cell) : 0;
+function buildDimensionFilter(filter?: Ga4DimensionFilter) {
+  if (!filter) return undefined;
+  return {
+    filter: {
+      fieldName: filter.fieldName,
+      stringFilter: { matchType: filter.matchType, value: filter.value },
+    },
+  };
 }
 
-export async function fetchActiveToday(propertyId: string): Promise<number> {
-  return fetchActiveWindow(propertyId, 0);
+export async function fetchActiveNow(
+  propertyId: string,
+  filter?: Ga4DimensionFilter,
+): Promise<number> {
+  const ga = getGAClient();
+  const req: Record<string, unknown> = {
+    property: fmtPropertyId(propertyId),
+    metrics: [{ name: "activeUsers" }],
+  };
+  const df = buildDimensionFilter(filter);
+  if (df) req.dimensionFilter = df;
+  try {
+    const [resp] = await ga.runRealtimeReport(req as never);
+    const value =
+      resp.totals?.[0]?.metricValues?.[0]?.value ??
+      resp.rows?.[0]?.metricValues?.[0]?.value;
+    return value ? Number(value) : 0;
+  } catch (err) {
+    console.error("[ga4.fetchActiveNow] property=", propertyId, "err=", err);
+    throw err;
+  }
+}
+
+export async function fetchActiveWindow(
+  propertyId: string,
+  days: number,
+  filter?: Ga4DimensionFilter,
+): Promise<number> {
+  const ga = getGAClient();
+  const startDate = days === 0 ? "today" : `${days}daysAgo`;
+  const req: Record<string, unknown> = {
+    property: fmtPropertyId(propertyId),
+    metrics: [{ name: "activeUsers" }],
+    dateRanges: [{ startDate, endDate: "today" }],
+  };
+  const df = buildDimensionFilter(filter);
+  if (df) req.dimensionFilter = df;
+  const [resp] = await ga.runReport(req as never);
+  const value =
+    resp.totals?.[0]?.metricValues?.[0]?.value ??
+    resp.rows?.[0]?.metricValues?.[0]?.value;
+  return value ? Number(value) : 0;
+}
+
+export async function fetchActiveToday(
+  propertyId: string,
+  filter?: Ga4DimensionFilter,
+): Promise<number> {
+  return fetchActiveWindow(propertyId, 0, filter);
 }

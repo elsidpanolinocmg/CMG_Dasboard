@@ -1,0 +1,36 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getCache, cacheKeys, ttls } from "@/lib/cache";
+import { findBySlug } from "@/lib/repos/brands";
+import { fetchActiveNow } from "@/lib/sources/ga4";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ brand: string }> },
+) {
+  const { brand: rawBrand } = await params;
+  const brand = decodeURIComponent(rawBrand).toLowerCase();
+  const row = await findBySlug(brand);
+  if (!row) {
+    return NextResponse.json({ error: "Unknown brand" }, { status: 404 });
+  }
+  if (!row.ga4PropertyId) {
+    return NextResponse.json({ brand, value: 0, note: "no ga4PropertyId on brand" });
+  }
+  try {
+    const value = await getCache().getOrLoad(
+      cacheKeys.activeNow(brand),
+      () => fetchActiveNow(row.ga4PropertyId!, row.ga4Filter),
+      { ttlMs: ttls.ACTIVE_NOW, staleMs: ttls.ACTIVE_NOW_STALE },
+    );
+    return NextResponse.json({ brand, value });
+  } catch (err) {
+    console.error("active-now error:", err);
+    return NextResponse.json(
+      { brand, error: err instanceof Error ? err.message : String(err) },
+      { status: 500 },
+    );
+  }
+}
