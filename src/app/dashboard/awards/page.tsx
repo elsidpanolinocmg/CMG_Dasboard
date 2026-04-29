@@ -1,20 +1,36 @@
-import Link from "next/link";
+import { Suspense } from "react";
+import * as brandsRepo from "@/lib/repos/brands";
+import { getCache, cacheKeys, ttls } from "@/lib/cache";
+import { getAwards, type AwardsBrand } from "@/lib/sources/drupalAwards";
+import LoadingPage from "@/components/LoadingPage";
+import AwardsGridClient from "./AwardsGridClient";
 
 export const dynamic = "force-dynamic";
 
+async function loadAwards() {
+  const list = await brandsRepo.findByDepartment("awards");
+  const sources: AwardsBrand[] = list
+    .filter((b) => !!b.url)
+    .map((b) => ({ brand: b.slug, name: b.displayName, url: b.url! }));
+  if (!sources.length) return [];
+  return getCache().getOrLoad(
+    cacheKeys.awardsList(),
+    () => getAwards(sources),
+    { ttlMs: ttls.AWARDS, staleMs: ttls.AWARDS_STALE },
+  );
+}
+
+async function AwardsContent() {
+  const awards = await loadAwards();
+  return <AwardsGridClient awards={awards} />;
+}
+
 export default function AwardsPage() {
   return (
-    <main className="min-h-screen p-8 max-w-5xl mx-auto flex flex-col gap-4">
-      <Link href="/dashboard" className="text-xs opacity-60 hover:opacity-100">
-        ← All departments
-      </Link>
-      <h1 className="text-3xl font-semibold">Awards</h1>
-      <p className="opacity-70 text-sm">
-        Awards grid (upcoming awards table from Drupal scraping) is built next.
-        Sub-pages: <Link href="/dashboard/awards/videos" className="underline">Videos</Link>{" "}
-        · <Link href="/dashboard/awards/shorts" className="underline">Shorts</Link> ·{" "}
-        <Link href="/dashboard/awards/leaderboard" className="underline">Leaderboard</Link>
-      </p>
-    </main>
+    <div className="min-h-screen max-w-screen overflow-auto bg-white text-gray-900">
+      <Suspense fallback={<LoadingPage loadingText="Loading Awards..." />}>
+        <AwardsContent />
+      </Suspense>
+    </div>
   );
 }

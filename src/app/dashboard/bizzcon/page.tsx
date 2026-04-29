@@ -1,22 +1,41 @@
-import Link from "next/link";
+import { Suspense } from "react";
+import * as brandsRepo from "@/lib/repos/brands";
+import { getCache, cacheKeys, ttls } from "@/lib/cache";
+import { getEvents, type EventBrand } from "@/lib/sources/drupalEvents";
+import LoadingPage from "@/components/LoadingPage";
+import BizzconGridClient from "./BizzconGridClient";
 
 export const dynamic = "force-dynamic";
 
+async function loadEvents() {
+  const list = await brandsRepo.findByDepartment("bizzcon");
+  const sources: EventBrand[] = list
+    .filter((b) => !!b.url)
+    .map((b) => ({
+      brand: b.slug,
+      name: b.displayName,
+      url: b.url!,
+      image: b.image,
+    }));
+  if (!sources.length) return [];
+  return getCache().getOrLoad(
+    cacheKeys.bizzconEvents(),
+    () => getEvents(sources),
+    { ttlMs: ttls.BIZZCON, staleMs: ttls.BIZZCON_STALE },
+  );
+}
+
+async function BizzconContent() {
+  const events = await loadEvents();
+  return <BizzconGridClient events={events} />;
+}
+
 export default function BizzconPage() {
   return (
-    <main className="min-h-screen p-8 max-w-5xl mx-auto flex flex-col gap-4">
-      <Link href="/dashboard" className="text-xs opacity-60 hover:opacity-100">
-        ← All departments
-      </Link>
-      <h1 className="text-3xl font-semibold">Bizzcon</h1>
-      <p className="opacity-70 text-sm">
-        Events grid (upcoming events from Drupal scraping) is built next.
-        Sub-pages:{" "}
-        <Link href="/dashboard/bizzcon/videos" className="underline">Videos</Link> ·{" "}
-        <Link href="/dashboard/bizzcon/shorts" className="underline">Shorts</Link> ·{" "}
-        <Link href="/dashboard/bizzcon/leaderboard" className="underline">Leaderboard</Link> ·{" "}
-        <Link href="/dashboard/bizzcon/sponsorship" className="underline">Sponsorship</Link>
-      </p>
-    </main>
+    <div className="min-h-screen max-w-screen overflow-auto bg-white text-gray-900">
+      <Suspense fallback={<LoadingPage loadingText="Loading Events..." />}>
+        <BizzconContent />
+      </Suspense>
+    </div>
   );
 }
