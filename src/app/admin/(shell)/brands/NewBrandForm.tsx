@@ -71,7 +71,7 @@ export default function NewBrandForm({
       onSubmit={onSubmit}
       className="border border-black/10 dark:border-white/10 rounded-lg p-4 flex flex-col gap-3"
     >
-      <h2 className="font-medium">Add brand</h2>
+      <h2 className="font-medium">Add publication</h2>
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1 text-sm">
           <span className="opacity-70">Slug</span>

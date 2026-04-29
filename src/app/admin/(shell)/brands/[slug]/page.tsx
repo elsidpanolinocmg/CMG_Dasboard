@@ -6,7 +6,7 @@ import BrandEditor from "../BrandEditor";
 
 export const dynamic = "force-dynamic";
 
-export default async function BrandDetailPage({
+export default async function PublicationDetailPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -23,11 +23,16 @@ export default async function BrandDetailPage({
   const safe = {
     slug: brand.slug,
     displayName: brand.displayName,
+    url: brand.url ?? "",
+    color: brand.color ?? "",
     image: brand.image ?? "",
     group: brand.group ?? "",
     ga4PropertyId: brand.ga4PropertyId ?? "",
-    ga4FilterId: brand.ga4FilterId ?? "",
+    ga4FilterFieldName: brand.ga4Filter?.fieldName ?? "",
+    ga4FilterMatchType: brand.ga4Filter?.matchType ?? "",
+    ga4FilterValue: brand.ga4Filter?.value ?? "",
     drupalDomain: brand.drupalDomain ?? "",
+    awardsShowcaseId: brand.awardsShowcaseId ?? "",
     departments: brand.departments ?? [],
     active: brand.active,
   };
@@ -36,10 +41,9 @@ export default async function BrandDetailPage({
     <div className="flex flex-col gap-6 max-w-3xl">
       <div>
         <Link href="/admin/brands" className="text-sm opacity-60 hover:opacity-100">
-          ← Brands
+          ← Publications
         </Link>
         <h1 className="text-2xl font-semibold mt-2">{brand.displayName}</h1>
-        <p className="text-sm opacity-60 font-mono mt-1">{brand.slug}</p>
       </div>
       <BrandEditor
         brand={safe}

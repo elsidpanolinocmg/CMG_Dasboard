@@ -37,7 +37,6 @@ export default async function PersonDetailPage({
           ← People
         </Link>
         <h1 className="text-2xl font-semibold mt-2">{person.displayName}</h1>
-        <p className="text-sm opacity-60 font-mono mt-1">{person.username}</p>
       </div>
       <PersonEditor person={safe} departmentSlugs={depts.map((d) => d.slug)} />
     </div>

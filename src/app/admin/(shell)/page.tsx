@@ -3,7 +3,7 @@ import { getDb } from "@/lib/db";
 
 const SUMMARY = [
   { collection: "people", label: "People", href: "/admin/people" },
-  { collection: "brands", label: "Brands", href: "/admin/brands" },
+  { collection: "brands", label: "Publications", href: "/admin/brands" },
   { collection: "departments", label: "Departments", href: "/admin/departments" },
   { collection: "admin_references", label: "Admin references", href: "/admin/admin-references" },
   { collection: "saved_references", label: "Saved references", href: "/admin/saved-references" },
@@ -35,7 +35,6 @@ export default async function AdminOverviewPage() {
           >
             <div className="text-xs uppercase tracking-wide opacity-60">{s.label}</div>
             <div className="text-2xl font-semibold mt-1">{counts[s.collection] ?? 0}</div>
-            <div className="text-xs opacity-50 mt-1">{s.collection}</div>
           </Link>
         ))}
       </div>

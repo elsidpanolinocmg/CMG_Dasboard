@@ -185,10 +185,16 @@ async function importBrands(oldDb: Db, newDb: Db, counts: Counts) {
     slug: string;
     name?: string;
     image?: string;
+    url?: string;
+    color?: string;
     group?: string;
     drupalDomain?: string;
-    ga4FilterId?: string;
+    ga4_filter?: {
+      fieldName?: string;
+      stringFilter?: { matchType?: string; value?: string };
+    };
     ga4PropertyId?: string;
+    awards_showcase_id?: string;
     editorial?: boolean;
     awards?: boolean;
     events?: boolean;
@@ -220,7 +226,18 @@ async function importBrands(oldDb: Db, newDb: Db, counts: Counts) {
     const group =
       groupSlugRaw && seedGroups[groupSlugRaw] ? seedGroups[groupSlugRaw].name : groupSlugRaw;
     const drupalDomain = runtime?.drupalDomain;
-    const ga4FilterId = runtime?.ga4FilterId;
+    const url = runtime?.url;
+    const color = runtime?.color;
+    const awardsShowcaseId = runtime?.awards_showcase_id;
+    const rawFilter = runtime?.ga4_filter;
+    const ga4Filter =
+      rawFilter?.fieldName && rawFilter.stringFilter?.value
+        ? {
+            fieldName: rawFilter.fieldName,
+            matchType: rawFilter.stringFilter.matchType ?? "EXACT",
+            value: rawFilter.stringFilter.value,
+          }
+        : undefined;
     const active = true;
     const displayName = runtime?.name || props.name;
     const image = runtime?.image || props.image;
@@ -244,10 +261,13 @@ async function importBrands(oldDb: Db, newDb: Db, counts: Counts) {
             slug,
             displayName,
             ...(image ? { image } : {}),
+            ...(url ? { url } : {}),
+            ...(color ? { color } : {}),
             ...(group ? { group } : {}),
             ...(ga4PropertyId ? { ga4PropertyId } : {}),
-            ...(ga4FilterId ? { ga4FilterId } : {}),
+            ...(ga4Filter ? { ga4Filter } : {}),
             ...(drupalDomain ? { drupalDomain } : {}),
+            ...(awardsShowcaseId ? { awardsShowcaseId } : {}),
             departments: memberships,
             active,
             updatedAt: now,

@@ -1,6 +1,6 @@
+import Link from "next/link";
 import * as departments from "@/lib/repos/departments";
 import DepartmentForm from "./DepartmentForm";
-import RemoveButton from "../_widgets/RemoveButton";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export default async function DepartmentsPage() {
       <div>
         <h1 className="text-2xl font-semibold">Departments</h1>
         <p className="text-sm opacity-60 mt-1">
-          The three verticals: editorial, awards, bizzcon. Adding a row makes a department first-class.
+          Click a department to see its team and publications.
         </p>
       </div>
 
@@ -19,18 +19,16 @@ export default async function DepartmentsPage() {
         <table className="w-full text-sm">
           <thead className="bg-black/5 dark:bg-white/5">
             <tr className="text-left">
-              <th className="px-3 py-2 font-medium">Slug</th>
               <th className="px-3 py-2 font-medium">Display name</th>
               <th className="px-3 py-2 font-medium">Route prefix</th>
               <th className="px-3 py-2 font-medium">Order</th>
               <th className="px-3 py-2 font-medium">Enabled</th>
-              <th className="px-3 py-2 font-medium w-12"></th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center opacity-60">
+                <td colSpan={4} className="px-3 py-6 text-center opacity-60">
                   No departments yet. Add one below.
                 </td>
               </tr>
@@ -38,16 +36,19 @@ export default async function DepartmentsPage() {
             {rows.map((d) => (
               <tr
                 key={d.slug}
-                className="border-t border-black/10 dark:border-white/10"
+                className="border-t border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
               >
-                <td className="px-3 py-2 font-mono text-xs">{d.slug}</td>
-                <td className="px-3 py-2">{d.displayName}</td>
-                <td className="px-3 py-2 font-mono text-xs">{d.routePrefix}</td>
+                <td className="px-3 py-2">
+                  <Link
+                    href={`/admin/departments/${encodeURIComponent(d.slug)}`}
+                    className="block underline-offset-2 hover:underline"
+                  >
+                    {d.displayName}
+                  </Link>
+                </td>
+                <td className="px-3 py-2 font-mono text-xs opacity-70">{d.routePrefix}</td>
                 <td className="px-3 py-2">{d.order}</td>
                 <td className="px-3 py-2">{d.enabled ? "yes" : "no"}</td>
-                <td className="px-3 py-2 text-right">
-                  <RemoveButton entity="departments" payload={{ slug: d.slug }} />
-                </td>
               </tr>
             ))}
           </tbody>

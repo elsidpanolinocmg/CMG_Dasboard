@@ -41,7 +41,7 @@ export default async function SavedReferencesPage() {
                 <td className="px-3 py-2 font-mono text-xs truncate max-w-xs">
                   {r.spreadsheetId}
                 </td>
-                <td className="px-3 py-2 text-xs opacity-70">{r.sheetName ?? "—"}</td>
+                <td className="px-3 py-2 text-xs opacity-70">{r.sheetName ?? ""}</td>
                 <td className="px-3 py-2 text-right">
                   <RemoveButton entity="saved-references" payload={{ id: r.id }} />
                 </td>

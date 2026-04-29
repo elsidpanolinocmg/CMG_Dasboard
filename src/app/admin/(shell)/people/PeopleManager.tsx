@@ -110,12 +110,12 @@ export default function PeopleManager({ people }: { people: ClientPerson[] }) {
                   </Link>
                 </td>
                 <td className="px-3 py-2">{p.displayName}</td>
-                <td className="px-3 py-2 text-xs opacity-70">{p.email || "—"}</td>
+                <td className="px-3 py-2 text-xs opacity-70">{p.email || ""}</td>
                 <td className="px-3 py-2">{p.active ? "yes" : "no"}</td>
-                <td className="px-3 py-2">{p.canLogin ? "yes" : "—"}</td>
+                <td className="px-3 py-2">{p.canLogin ? "yes" : ""}</td>
                 <td className="px-3 py-2 text-xs">
                   {p.departments.length === 0
-                    ? "—"
+                    ? null
                     : p.departments.map((d) => (
                         <span
                           key={d.departmentSlug}
