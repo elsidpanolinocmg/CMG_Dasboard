@@ -1,0 +1,78 @@
+import type { Db, IndexSpecification, CreateIndexesOptions } from "mongodb";
+
+export interface IndexSpec {
+  collection: string;
+  name?: string;
+  keys: IndexSpecification;
+  options?: CreateIndexesOptions;
+}
+
+export const indexSpecs: IndexSpec[] = [
+  { collection: "people", keys: { username: 1 }, options: { unique: true } },
+  { collection: "people", keys: { nameKeys: 1 } },
+  { collection: "people", keys: { active: 1 } },
+
+  { collection: "departments", keys: { slug: 1 }, options: { unique: true } },
+  { collection: "departments", keys: { order: 1 } },
+
+  {
+    collection: "person_departments",
+    keys: { personUsername: 1, departmentSlug: 1 },
+    options: { unique: true },
+  },
+  {
+    collection: "person_departments",
+    keys: { departmentSlug: 1, role: 1 },
+  },
+
+  { collection: "brands", keys: { slug: 1 }, options: { unique: true } },
+  { collection: "brands", keys: { groupSlug: 1 } },
+  { collection: "brands", keys: { active: 1 } },
+
+  { collection: "brand_groups", keys: { slug: 1 }, options: { unique: true } },
+
+  {
+    collection: "department_brands",
+    keys: { departmentSlug: 1, brandSlug: 1 },
+    options: { unique: true },
+  },
+  { collection: "department_brands", keys: { departmentSlug: 1, enabled: 1 } },
+
+  {
+    collection: "dashboards",
+    keys: { departmentSlug: 1, slug: 1 },
+    options: { unique: true },
+  },
+  { collection: "dashboards", keys: { departmentSlug: 1, order: 1 } },
+
+  {
+    collection: "external_data_sources",
+    keys: { kind: 1 },
+    options: { unique: true },
+  },
+
+  {
+    collection: "data_source_bindings",
+    keys: { departmentSlug: 1, purpose: 1, dataSourceKind: 1 },
+    options: { unique: true },
+  },
+
+  { collection: "admin_references", keys: { id: 1 }, options: { unique: true } },
+  { collection: "admin_references", keys: { order: 1 } },
+
+  { collection: "saved_references", keys: { id: 1 }, options: { unique: true } },
+
+  { collection: "cache_entries", keys: { key: 1 }, options: { unique: true } },
+  {
+    collection: "cache_entries",
+    keys: { expiresAt: 1 },
+    options: { expireAfterSeconds: 0 },
+  },
+];
+
+export async function applyIndexes(db: Db): Promise<void> {
+  for (const spec of indexSpecs) {
+    const col = db.collection(spec.collection);
+    await col.createIndex(spec.keys, spec.options);
+  }
+}

@@ -99,6 +99,10 @@ export class MongoAdapter implements DbAdapter {
     return new MongoCollection<T>(this.db, name);
   }
 
+  getDb(): Db {
+    return this.db;
+  }
+
   async listCollectionNames(): Promise<string[]> {
     const cols = await this.db.listCollections({}, { nameOnly: true }).toArray();
     return cols.map((c) => c.name).sort();

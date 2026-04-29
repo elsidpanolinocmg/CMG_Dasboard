@@ -1,0 +1,26 @@
+export const cacheKeys = {
+  activeNow: (brand: string) => `ga4:active-now:${brand}`,
+  activeWindow: (brand: string, days: number) => `ga4:active:${days}d:${brand}`,
+  allActive: () => `ga4:all-active`,
+  videosByDepartment: (dept: string, format: string) =>
+    `vimeo:videos:${dept}:${format}`,
+  videosByBrand: (brand: string) => `vimeo:videos:brand:${brand}`,
+  videosAll: () => `vimeo:videos:all`,
+  awardsByBrand: (brand: string) => `awards:brand:${brand}`,
+  awardsAll: () => `awards:all`,
+  awardsLeaderboard: () => `awards:leaderboard`,
+  bizzconByBrand: (brand: string) => `bizzcon:brand:${brand}`,
+  bizzconAll: () => `bizzcon:all`,
+  bizzconLeaderboard: () => `bizzcon:leaderboard`,
+  sponsorshipSheet: () => `bizzcon:sponsorship`,
+  editorialPageviews: (brand: string) => `ga4:editorial:pageviews:${brand}`,
+  drupalAuthors: (brand: string) => `drupal:authors:${brand}`,
+} as const;
+
+export const cachePrefixes = {
+  ga4: "ga4:",
+  vimeo: "vimeo:",
+  awards: "awards:",
+  bizzcon: "bizzcon:",
+  drupal: "drupal:",
+} as const;
