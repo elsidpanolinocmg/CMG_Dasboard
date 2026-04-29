@@ -1,12 +1,10 @@
 import * as people from "@/lib/repos/people";
-import * as departments from "@/lib/repos/departments";
 import PeopleManager from "./PeopleManager";
 
 export const dynamic = "force-dynamic";
 
 export default async function PeoplePage() {
-  const [rows, depts] = await Promise.all([people.listAll(), departments.listAll()]);
-  // Strip the password hash before sending to the client.
+  const rows = await people.listAll();
   const safe = rows.map((p) => ({
     username: p.username,
     displayName: p.displayName,
@@ -22,14 +20,11 @@ export default async function PeoplePage() {
       <div>
         <h1 className="text-2xl font-semibold">People</h1>
         <p className="text-sm opacity-60 mt-1">
-          Editorial team plus admins. Login is enabled by setting a password.
-          Department memberships and roles live on each person.
+          Click a row to edit. Department memberships and login passwords are
+          managed on the detail page.
         </p>
       </div>
-      <PeopleManager
-        people={safe}
-        departmentSlugs={depts.map((d) => d.slug)}
-      />
+      <PeopleManager people={safe} />
     </div>
   );
 }

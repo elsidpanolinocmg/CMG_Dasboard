@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 const SUMMARY = [
   { collection: "people", label: "People", href: "/admin/people" },
   { collection: "brands", label: "Brands", href: "/admin/brands" },
+  { collection: "departments", label: "Departments", href: "/admin/departments" },
   { collection: "admin_references", label: "Admin references", href: "/admin/admin-references" },
   { collection: "saved_references", label: "Saved references", href: "/admin/saved-references" },
   { collection: "cache_entries", label: "Cache entries", href: "/admin/cache" },

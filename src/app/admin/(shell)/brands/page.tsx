@@ -1,7 +1,7 @@
+import Link from "next/link";
 import * as brands from "@/lib/repos/brands";
 import * as departments from "@/lib/repos/departments";
-import BrandForm from "./BrandForm";
-import RemoveButton from "../_widgets/RemoveButton";
+import NewBrandForm from "./NewBrandForm";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export default async function BrandsPage() {
       <div>
         <h1 className="text-2xl font-semibold">Brands</h1>
         <p className="text-sm opacity-60 mt-1">
-          Canonical brand list. Departments and group are stored on the brand
+          Click a brand to edit. Departments and group are stored on the brand
           itself — no separate join collections.
         </p>
       </div>
@@ -32,13 +32,12 @@ export default async function BrandsPage() {
               <th className="px-3 py-2 font-medium">GA4 property</th>
               <th className="px-3 py-2 font-medium">Drupal domain</th>
               <th className="px-3 py-2 font-medium">Active</th>
-              <th className="px-3 py-2 font-medium w-12"></th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center opacity-60">
+                <td colSpan={7} className="px-3 py-6 text-center opacity-60">
                   No brands yet.
                 </td>
               </tr>
@@ -46,10 +45,24 @@ export default async function BrandsPage() {
             {rows.map((b) => (
               <tr
                 key={b.slug}
-                className="border-t border-black/10 dark:border-white/10"
+                className="border-t border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
               >
-                <td className="px-3 py-2 font-mono text-xs">{b.slug}</td>
-                <td className="px-3 py-2">{b.displayName}</td>
+                <td className="px-3 py-2 font-mono text-xs">
+                  <Link
+                    href={`/admin/brands/${encodeURIComponent(b.slug)}`}
+                    className="block underline-offset-2 hover:underline"
+                  >
+                    {b.slug}
+                  </Link>
+                </td>
+                <td className="px-3 py-2">
+                  <Link
+                    href={`/admin/brands/${encodeURIComponent(b.slug)}`}
+                    className="block"
+                  >
+                    {b.displayName}
+                  </Link>
+                </td>
                 <td className="px-3 py-2 text-xs">
                   {(b.departments ?? []).length === 0
                     ? "—"
@@ -70,16 +83,13 @@ export default async function BrandsPage() {
                   {b.drupalDomain ?? "—"}
                 </td>
                 <td className="px-3 py-2">{b.active ? "yes" : "no"}</td>
-                <td className="px-3 py-2 text-right">
-                  <RemoveButton entity="brands" payload={{ slug: b.slug }} />
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </section>
 
-      <BrandForm
+      <NewBrandForm
         departmentSlugs={depts.map((d) => d.slug)}
         knownGroups={groups}
       />

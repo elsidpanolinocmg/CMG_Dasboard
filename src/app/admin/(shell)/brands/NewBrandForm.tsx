@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-export default function BrandForm({
+export default function NewBrandForm({
   departmentSlugs,
   knownGroups,
 }: {
@@ -54,6 +54,7 @@ export default function BrandForm({
       setError(b?.error || "Save failed");
       return;
     }
+    const created = slug.trim();
     setSlug("");
     setDisplayName("");
     setGroup("");
@@ -61,7 +62,7 @@ export default function BrandForm({
     setDrupalDomain("");
     setActive(true);
     setSelectedDepts(new Set());
-    router.refresh();
+    router.push(`/admin/brands/${encodeURIComponent(created)}`);
   }
 
   return (
@@ -69,7 +70,7 @@ export default function BrandForm({
       onSubmit={onSubmit}
       className="border border-black/10 dark:border-white/10 rounded-lg p-4 flex flex-col gap-3"
     >
-      <h2 className="font-medium">Add or update</h2>
+      <h2 className="font-medium">Add brand</h2>
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1 text-sm">
           <span className="opacity-70">Slug</span>
