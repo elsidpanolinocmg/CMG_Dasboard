@@ -1,0 +1,131 @@
+{
+    "sbr": {
+        "name": "Singapore Business Review",
+        "image": "logo/SBR.png"
+    },
+    "hkb": {
+        "name": "Hong Kong Business",
+        "image": "logo/HKB.png"
+    },
+    "abf": {
+        "name": "Asian Banking & Finance",
+        "image": "logo/ABF.png"
+    },
+    "abr": {
+        "name": "Asian Business Review",
+        "image": "logo/ABR.png",
+        "ga4_filter": {
+            "fieldName": "hostName",
+            "stringFilter": {
+                "matchType": "EXACT",
+                "value": "asianbusinessreview.com"
+            }
+        }
+    },
+    "ia": {
+        "name": "Insurance Asia",
+        "image": "logo/IA.png"
+    },
+    "ra": {
+        "name": "Retail Asia",
+        "image": "logo/RA.png"
+    },
+    "ap": {
+        "name": "Asian Power",
+        "image": "logo/AP.png"
+    },
+    "hca": {
+        "name": "Healthcare Asia",
+        "image": "logo/HCA.png"
+    },
+    "qsr": {
+        "name": "QSR Media",
+        "image": "logo/QSR-MEDIA.png",
+        "group": "qsr_media_group"
+
+    },
+    "qsr-asia": {
+        "name": "QSR Asia",
+        "image": "logo/QSR-ASIA.png",
+        "group": "qsr_media_group"
+    },
+    "qsr-aus": {
+        "name": "QSR Australia",
+        "image": "logo/QSR-AUS.png",
+        "group": "qsr_media_group"
+    },
+    "qsr-uk": {
+        "name": "QSR UK",
+        "image": "logo/QSR-UK.png",
+        "group": "qsr_media_group"
+    },
+    "agri": {
+        "name": "Agribusiness World"
+    },
+    "apb": {
+        "name": "Asia-Pacific Broadcasting+",
+        "image": "logo/APB+.png"
+    },
+    "at": {
+        "name": "Asian Telecom",
+        "image": "logo/AT.png"
+    },
+    "awards": {
+        "name": "Awards Info",
+        "image": "logo/Awards-Info.png"
+    },
+    "cmg": {
+        "name": "Charlton Media Group",
+        "image": "logo/cmg.png"
+    },
+    "drinks": {
+        "name": "DrinksAsia",
+        "image": "logo/Drinks-Asia.png"
+    },
+    "esgb": {
+        "name": "ESGBusiness",
+        "image": "logo/ESG business.png"
+    },
+    "fmcg": {
+        "name": "FMCG Asia",
+        "image": "logo/fmcgasia.png"
+    },
+    "food": {
+        "name": "FoodAsia",
+        "image": "logo/Food-Asia.png"
+    },
+    "gm": {
+        "name": "GovMedia",
+        "image": "logo/Gov Media.png"
+    },
+    "invest": {
+        "name": "Investment Asia",
+        "image": "logo/investmentasia.png"
+    },
+    "ma": {
+        "name": "Manufacturing Asia",
+        "image": "logo/manufacture-asia.png"
+    },
+    "mir": {
+        "name": "Marine & Industrial Report",
+        "image": "logo/mir.png"
+    },
+    "maritime": {
+        "name": "Maritime World"
+    },
+    "middle-east": {
+        "name": "Middle East Business"
+    },
+    "newsflash": {
+        "name": "Newsflash Asia",
+        "image": "logo/Newsflash Asia.png"
+    },
+    "rea": {
+        "name": "Real Estate Asia",
+        "image": "logo/REA.png"
+    },
+    "tdm": {
+        "name": "Travel Daily Media",
+        "image": "logo/TDM.png"
+    }
+}

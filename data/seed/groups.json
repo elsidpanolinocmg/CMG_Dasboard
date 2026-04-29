@@ -1,0 +1,10 @@
+{
+  "qsr_media_group": {
+    "name": "QSR Media",
+    "main": "qsr"
+  },
+  "default": {
+    "name": "Default Group",
+    "main": "default"
+  }
+}
