@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { humanize } from "@/lib/util/format";
 
 const ROLES = [
   "managing_editor",
@@ -151,9 +152,9 @@ export default function PersonEditor({
               key={d.departmentSlug}
               className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-black/5 dark:bg-white/5"
             >
-              <span className="font-mono">{d.departmentSlug}</span>
+              <span className="font-mono">{humanize(d.departmentSlug)}</span>
               <span className="opacity-50">·</span>
-              <span>{d.role}</span>
+              <span>{humanize(d.role)}</span>
               <button
                 type="button"
                 onClick={() =>
@@ -183,7 +184,7 @@ export default function PersonEditor({
               {departmentSlugs.length === 0 && <option value="">(none)</option>}
               {departmentSlugs.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {humanize(s)}
                 </option>
               ))}
             </select>
@@ -197,7 +198,7 @@ export default function PersonEditor({
             >
               {ROLES.map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {humanize(r)}
                 </option>
               ))}
             </select>

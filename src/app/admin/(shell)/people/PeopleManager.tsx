@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { humanize } from "@/lib/util/format";
 
 type ClientPerson = {
   username: string;
@@ -115,9 +116,16 @@ export default function PeopleManager({ people }: { people: ClientPerson[] }) {
                 <td className="px-3 py-2 text-xs">
                   {p.departments.length === 0
                     ? "—"
-                    : p.departments
-                        .map((d) => `${d.departmentSlug}:${d.role}`)
-                        .join(", ")}
+                    : p.departments.map((d) => (
+                        <span
+                          key={d.departmentSlug}
+                          className="inline-block mr-1 px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-[11px]"
+                        >
+                          <span>{humanize(d.departmentSlug)}</span>
+                          <span className="opacity-50"> · </span>
+                          <span>{humanize(d.role)}</span>
+                        </span>
+                      ))}
                 </td>
               </tr>
             ))}

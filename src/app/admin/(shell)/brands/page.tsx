@@ -1,6 +1,7 @@
 import Link from "next/link";
 import * as brands from "@/lib/repos/brands";
 import * as departments from "@/lib/repos/departments";
+import { humanize } from "@/lib/util/format";
 import NewBrandForm from "./NewBrandForm";
 
 export const dynamic = "force-dynamic";
@@ -69,9 +70,9 @@ export default async function BrandsPage() {
                     : (b.departments ?? []).map((d) => (
                         <span
                           key={d}
-                          className="inline-block mr-1 px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 font-mono text-[10px]"
+                          className="inline-block mr-1 px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-[11px]"
                         >
-                          {d}
+                          {humanize(d)}
                         </span>
                       ))}
                 </td>

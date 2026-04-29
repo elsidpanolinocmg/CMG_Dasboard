@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { humanize } from "@/lib/util/format";
 
 export type ClientBrand = {
   slug: string;
@@ -170,7 +171,7 @@ export default function BrandEditor({
                   checked={selectedDepts.has(d)}
                   onChange={() => toggleDept(d)}
                 />
-                <span className="font-mono text-xs">{d}</span>
+                <span className="text-sm">{humanize(d)}</span>
               </label>
             ))}
           </div>
