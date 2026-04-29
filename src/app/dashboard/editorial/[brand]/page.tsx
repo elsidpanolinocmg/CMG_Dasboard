@@ -1,10 +1,8 @@
 import { notFound } from "next/navigation";
-import nextDynamic from "next/dynamic";
 import { Suspense } from "react";
 import * as brandsRepo from "@/lib/repos/brands";
 import LoadingPage from "@/components/LoadingPage";
-
-const BrandDashboard = nextDynamic(() => import("@/components/BrandDashboard"));
+import EditorialBrandClient from "./EditorialBrandClient";
 
 export const dynamic = "force-dynamic";
 
@@ -20,16 +18,14 @@ export default async function EditorialBrandPage({
 
   return (
     <Suspense fallback={<LoadingPage loadingText={`Loading ${row.displayName}…`} />}>
-      <div className="flex flex-col w-screen min-h-screen overflow-hidden">
-        <BrandDashboard
-          brand={brand}
-          siteConfig={{
-            name: row.displayName,
-            url: row.url,
-            image: row.image,
-          }}
-        />
-      </div>
+      <EditorialBrandClient
+        brand={brand}
+        siteConfig={{
+          name: row.displayName,
+          url: row.url,
+          image: row.image,
+        }}
+      />
     </Suspense>
   );
 }

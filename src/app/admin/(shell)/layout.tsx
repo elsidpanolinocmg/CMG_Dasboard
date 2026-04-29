@@ -41,9 +41,17 @@ export default async function AdminShellLayout({
             ))}
           </div>
         ))}
-        <div className="mt-auto pt-4 border-t border-black/10 dark:border-white/10 flex items-center justify-between">
-          <span className="text-xs opacity-60 truncate">{session.username}</span>
-          <LogoutButton />
+        <div className="mt-auto pt-4 border-t border-black/10 dark:border-white/10 flex flex-col gap-2">
+          <Link
+            href="/dashboard"
+            className="text-xs opacity-70 hover:opacity-100 px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/5"
+          >
+            ↗ Open dashboards
+          </Link>
+          <div className="flex items-center justify-between">
+            <span className="text-xs opacity-60 truncate">{session.username}</span>
+            <LogoutButton />
+          </div>
         </div>
       </aside>
       <main className="flex-1 p-8 overflow-auto">{children}</main>
