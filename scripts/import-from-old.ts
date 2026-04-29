@@ -54,7 +54,6 @@ const HARDCODED_DASHBOARDS: { departmentSlug: string; slug: string; routePath: s
   { departmentSlug: "bizzcon", slug: "videos", routePath: "/dashboard/bizzcon/videos", order: 2, enabled: true },
   { departmentSlug: "bizzcon", slug: "shorts", routePath: "/dashboard/bizzcon/shorts", order: 3, enabled: true },
   { departmentSlug: "bizzcon", slug: "leaderboard", routePath: "/dashboard/bizzcon/leaderboard", order: 4, enabled: true },
-  { departmentSlug: "bizzcon", slug: "sponsorship", routePath: "/dashboard/bizzcon/sponsorship", order: 5, enabled: true },
 ];
 
 const HARDCODED_SOURCES = [

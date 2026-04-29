@@ -57,7 +57,6 @@ export default async function Home() {
             { label: "Bizzcon Videos", href: "/dashboard/bizzcon/videos" },
             { label: "Bizzcon Shorts", href: "/dashboard/bizzcon/shorts" },
             { label: "Leaderboard", href: "/dashboard/bizzcon/leaderboard" },
-            { label: "Sponsorship", href: "/dashboard/bizzcon/sponsorship" },
           ]}
         />
 
