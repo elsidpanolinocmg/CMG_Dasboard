@@ -2,6 +2,7 @@ import * as departments from "@/lib/repos/departments";
 import * as dataSourceBindings from "@/lib/repos/dataSourceBindings";
 import * as externalDataSources from "@/lib/repos/externalDataSources";
 import BindingForm from "./BindingForm";
+import TestBindingButton from "./TestBindingButton";
 import RemoveButton from "../_widgets/RemoveButton";
 
 export const dynamic = "force-dynamic";
@@ -30,13 +31,14 @@ export default async function BindingsPage() {
               <th className="px-3 py-2 font-medium">Purpose</th>
               <th className="px-3 py-2 font-medium">Source kind</th>
               <th className="px-3 py-2 font-medium">Config</th>
+              <th className="px-3 py-2 font-medium">Probe</th>
               <th className="px-3 py-2 font-medium w-12"></th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center opacity-60">
+                <td colSpan={6} className="px-3 py-6 text-center opacity-60">
                   No bindings yet.
                 </td>
               </tr>
@@ -51,6 +53,13 @@ export default async function BindingsPage() {
                 <td className="px-3 py-2 font-mono text-xs">{r.dataSourceKind}</td>
                 <td className="px-3 py-2 font-mono text-xs opacity-70 truncate max-w-md">
                   {JSON.stringify(r.config)}
+                </td>
+                <td className="px-3 py-2">
+                  <TestBindingButton
+                    departmentSlug={r.departmentSlug}
+                    purpose={r.purpose}
+                    dataSourceKind={r.dataSourceKind}
+                  />
                 </td>
                 <td className="px-3 py-2 text-right">
                   <RemoveButton
