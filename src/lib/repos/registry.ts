@@ -1,8 +1,6 @@
 import * as people from "./people";
 import * as departments from "./departments";
 import * as brands from "./brands";
-import * as brandGroups from "./brandGroups";
-import * as departmentBrands from "./departmentBrands";
 import * as dashboards from "./dashboards";
 import * as externalDataSources from "./externalDataSources";
 import * as dataSourceBindings from "./dataSourceBindings";
@@ -30,17 +28,6 @@ export const repoRegistry: Record<string, RepoEntry> = {
     list: () => brands.listAll(),
     upsert: (doc) => brands.upsert(doc),
     remove: (input) => brands.remove(input.slug),
-  },
-  "brand-groups": {
-    list: () => brandGroups.listAll(),
-    upsert: (doc) => brandGroups.upsert(doc),
-    remove: (input) => brandGroups.remove(input.slug),
-  },
-  "department-brands": {
-    list: () => listAllDepartmentBrands(),
-    upsert: (doc) => departmentBrands.upsert(doc),
-    remove: (input) =>
-      departmentBrands.remove(input.departmentSlug, input.brandSlug),
   },
   dashboards: {
     list: () => listAllDashboards(),
@@ -73,16 +60,6 @@ export const repoRegistry: Record<string, RepoEntry> = {
     remove: (input) => savedReferences.remove(input.id),
   },
 };
-
-async function listAllDepartmentBrands() {
-  const depts = await departments.listAll();
-  const all: unknown[] = [];
-  for (const d of depts) {
-    const links = await departmentBrands.listByDepartment(d.slug);
-    all.push(...links);
-  }
-  return all;
-}
 
 async function listAllDashboards() {
   const depts = await departments.listAll();

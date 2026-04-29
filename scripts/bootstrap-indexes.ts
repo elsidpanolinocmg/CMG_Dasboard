@@ -1,7 +1,7 @@
 import { config as loadEnv } from "dotenv";
 import { resolve } from "node:path";
 import { MongoClient } from "mongodb";
-import { applyIndexes, indexSpecs } from "../src/lib/repos/indexes";
+import { applyIndexes, indexSpecs, LEGACY_COLLECTIONS_TO_DROP } from "../src/lib/repos/indexes";
 
 loadEnv({ path: resolve(process.cwd(), ".env.local") });
 loadEnv({ path: resolve(process.cwd(), ".env") });
@@ -19,12 +19,13 @@ async function main() {
   try {
     const db = client.db(dbName);
 
-    // One-time cleanup: legacy person_departments join collection was replaced
-    // by an embedded array on the people doc. Drop the empty orphan if present.
-    const legacy = await db.listCollections({ name: "person_departments" }).toArray();
-    if (legacy.length > 0) {
-      await db.dropCollection("person_departments");
-      console.log("Dropped legacy person_departments collection.");
+    // Drop any legacy collections superseded by embedded fields.
+    for (const name of LEGACY_COLLECTIONS_TO_DROP) {
+      const found = await db.listCollections({ name }).toArray();
+      if (found.length > 0) {
+        await db.dropCollection(name);
+        console.log(`Dropped legacy collection: ${name}`);
+      }
     }
 
     console.log(`Applying ${indexSpecs.length} index specs to ${dbName}...`);

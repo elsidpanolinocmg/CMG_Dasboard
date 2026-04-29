@@ -5,8 +5,6 @@ const SUMMARY = [
   { collection: "people", label: "People", href: "/admin/people" },
   { collection: "departments", label: "Departments", href: "/admin/departments" },
   { collection: "brands", label: "Brands", href: "/admin/brands" },
-  { collection: "brand_groups", label: "Brand groups", href: "/admin/brand-groups" },
-  { collection: "department_brands", label: "Department brands", href: "/admin/department-brands" },
   { collection: "dashboards", label: "Dashboards", href: "/admin/dashboards" },
   { collection: "external_data_sources", label: "Data sources", href: "/admin/data-sources" },
   { collection: "data_source_bindings", label: "Bindings", href: "/admin/bindings" },

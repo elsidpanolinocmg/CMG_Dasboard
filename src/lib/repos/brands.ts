@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/db";
-import type { Brand, DepartmentBrand } from "@/lib/entities";
+import type { Brand } from "@/lib/entities";
 
 const COLLECTION = "brands";
 
@@ -17,19 +17,21 @@ export async function listAll(opts?: { active?: boolean }): Promise<Brand[]> {
   return (await col()).find(filter).sort({ slug: 1 }).toArray();
 }
 
-export async function findByGroup(groupSlug: string): Promise<Brand[]> {
-  return (await col()).find({ groupSlug }).sort({ slug: 1 }).toArray();
+export async function findByDepartment(deptSlug: string): Promise<Brand[]> {
+  return (await col())
+    .find({ departments: deptSlug, active: true })
+    .sort({ slug: 1 })
+    .toArray();
 }
 
-export async function findByDepartment(deptSlug: string): Promise<Brand[]> {
+export async function findByGroup(group: string): Promise<Brand[]> {
+  return (await col()).find({ group }).sort({ slug: 1 }).toArray();
+}
+
+export async function listGroups(): Promise<string[]> {
   const db = await getDb();
-  const links = await db
-    .collection<DepartmentBrand>("department_brands")
-    .find({ departmentSlug: deptSlug, enabled: true })
-    .toArray();
-  if (links.length === 0) return [];
-  const slugs = links.map((l) => l.brandSlug);
-  return (await col()).find({ slug: { $in: slugs }, active: true }).toArray();
+  const groups = (await db.collection<Brand>(COLLECTION).distinct("group")) as (string | null | undefined)[];
+  return groups.filter((g): g is string => typeof g === "string" && g.length > 0).sort();
 }
 
 export async function upsert(
@@ -51,6 +53,44 @@ export async function setActive(slug: string, active: boolean): Promise<void> {
     { slug },
     { $set: { active, updatedAt: new Date() } },
   );
+}
+
+export async function setDepartments(slug: string, departments: string[]): Promise<void> {
+  await (await col()).updateOne(
+    { slug },
+    { $set: { departments, updatedAt: new Date() } },
+  );
+}
+
+export async function addToDepartment(slug: string, deptSlug: string): Promise<void> {
+  await (await col()).updateOne(
+    { slug },
+    {
+      $addToSet: { departments: deptSlug },
+      $set: { updatedAt: new Date() },
+    },
+  );
+}
+
+export async function removeFromDepartment(slug: string, deptSlug: string): Promise<void> {
+  await (await col()).updateOne(
+    { slug },
+    {
+      $pull: { departments: deptSlug },
+      $set: { updatedAt: new Date() },
+    },
+  );
+}
+
+export async function removeDepartmentEverywhere(deptSlug: string): Promise<number> {
+  const res = await (await col()).updateMany(
+    { departments: deptSlug },
+    {
+      $pull: { departments: deptSlug },
+      $set: { updatedAt: new Date() },
+    },
+  );
+  return res.modifiedCount ?? 0;
 }
 
 export async function remove(slug: string): Promise<void> {

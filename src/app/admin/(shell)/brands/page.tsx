@@ -1,18 +1,23 @@
 import * as brands from "@/lib/repos/brands";
-import * as brandGroups from "@/lib/repos/brandGroups";
+import * as departments from "@/lib/repos/departments";
 import BrandForm from "./BrandForm";
 import RemoveButton from "../_widgets/RemoveButton";
 
 export const dynamic = "force-dynamic";
 
 export default async function BrandsPage() {
-  const [rows, groups] = await Promise.all([brands.listAll(), brandGroups.listAll()]);
+  const [rows, depts, groups] = await Promise.all([
+    brands.listAll(),
+    departments.listAll(),
+    brands.listGroups(),
+  ]);
   return (
-    <div className="flex flex-col gap-8 max-w-5xl">
+    <div className="flex flex-col gap-8 max-w-6xl">
       <div>
         <h1 className="text-2xl font-semibold">Brands</h1>
         <p className="text-sm opacity-60 mt-1">
-          Canonical brand list. GA4 property and Drupal domain travel with the brand.
+          Canonical brand list. Departments and group are stored on the brand
+          itself — no separate join collections.
         </p>
       </div>
 
@@ -22,6 +27,7 @@ export default async function BrandsPage() {
             <tr className="text-left">
               <th className="px-3 py-2 font-medium">Slug</th>
               <th className="px-3 py-2 font-medium">Display name</th>
+              <th className="px-3 py-2 font-medium">Departments</th>
               <th className="px-3 py-2 font-medium">Group</th>
               <th className="px-3 py-2 font-medium">GA4 property</th>
               <th className="px-3 py-2 font-medium">Drupal domain</th>
@@ -32,7 +38,7 @@ export default async function BrandsPage() {
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center opacity-60">
+                <td colSpan={8} className="px-3 py-6 text-center opacity-60">
                   No brands yet.
                 </td>
               </tr>
@@ -44,9 +50,19 @@ export default async function BrandsPage() {
               >
                 <td className="px-3 py-2 font-mono text-xs">{b.slug}</td>
                 <td className="px-3 py-2">{b.displayName}</td>
-                <td className="px-3 py-2 font-mono text-xs opacity-70">
-                  {b.groupSlug ?? "—"}
+                <td className="px-3 py-2 text-xs">
+                  {(b.departments ?? []).length === 0
+                    ? "—"
+                    : (b.departments ?? []).map((d) => (
+                        <span
+                          key={d}
+                          className="inline-block mr-1 px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 font-mono text-[10px]"
+                        >
+                          {d}
+                        </span>
+                      ))}
                 </td>
+                <td className="px-3 py-2 text-xs opacity-70">{b.group ?? "—"}</td>
                 <td className="px-3 py-2 font-mono text-xs opacity-70">
                   {b.ga4PropertyId ?? "—"}
                 </td>
@@ -63,7 +79,10 @@ export default async function BrandsPage() {
         </table>
       </section>
 
-      <BrandForm groups={groups.map((g) => g.slug)} />
+      <BrandForm
+        departmentSlugs={depts.map((d) => d.slug)}
+        knownGroups={groups}
+      />
     </div>
   );
 }

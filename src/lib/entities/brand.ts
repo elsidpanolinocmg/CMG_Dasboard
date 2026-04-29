@@ -7,6 +7,7 @@ export interface Brand extends Timestamped {
   ga4FilterId?: string;
   ga4PropertyId?: string;
   drupalDomain?: string;
-  groupSlug?: Slug;
+  group?: string;
+  departments: Slug[];
   active: boolean;
 }

@@ -21,17 +21,9 @@ export const indexSpecs: IndexSpec[] = [
   { collection: "departments", keys: { order: 1 } },
 
   { collection: "brands", keys: { slug: 1 }, options: { unique: true } },
-  { collection: "brands", keys: { groupSlug: 1 } },
+  { collection: "brands", keys: { departments: 1 } },
+  { collection: "brands", keys: { group: 1 } },
   { collection: "brands", keys: { active: 1 } },
-
-  { collection: "brand_groups", keys: { slug: 1 }, options: { unique: true } },
-
-  {
-    collection: "department_brands",
-    keys: { departmentSlug: 1, brandSlug: 1 },
-    options: { unique: true },
-  },
-  { collection: "department_brands", keys: { departmentSlug: 1, enabled: 1 } },
 
   {
     collection: "dashboards",
@@ -63,6 +55,12 @@ export const indexSpecs: IndexSpec[] = [
     keys: { expiresAt: 1 },
     options: { expireAfterSeconds: 0 },
   },
+];
+
+export const LEGACY_COLLECTIONS_TO_DROP = [
+  "person_departments",
+  "department_brands",
+  "brand_groups",
 ];
 
 export async function applyIndexes(db: Db): Promise<void> {

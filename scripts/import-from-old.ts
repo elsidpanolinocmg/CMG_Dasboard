@@ -176,7 +176,7 @@ async function importPeople(oldDb: Db, newDb: Db, counts: Counts) {
   counts.people = n;
 }
 
-async function importBrandsAndGroups(oldDb: Db, newDb: Db, counts: Counts) {
+async function importBrands(oldDb: Db, newDb: Db, counts: Counts) {
   const seedBrands = readSeedJson<SeedBrandProps>("brand_properties.json");
   const seedGa4 = readSeedJson<SeedGa4Props>("brand_ga4_properties.json");
   const seedGroups = readSeedJson<SeedGroups>("groups.json");
@@ -208,39 +208,32 @@ async function importBrandsAndGroups(oldDb: Db, newDb: Db, counts: Counts) {
   })();
   const runtimeBySlug = new Map(runtimeRows.map((r) => [r.slug, r]));
 
-  // Brand groups
-  if (!DRY_RUN) {
-    const groupsCol = newDb.collection("brand_groups");
-    let gn = 0;
-    for (const [slug, g] of Object.entries(seedGroups)) {
-      if (slug === "default") continue;
-      const now = nowDate();
-      await groupsCol.updateOne(
-        { slug },
-        { $set: { slug, displayName: g.name, updatedAt: now }, $setOnInsert: { createdAt: now } },
-        { upsert: true },
-      );
-      gn++;
-    }
-    counts.brand_groups = gn;
-  } else {
-    counts.brand_groups = Object.keys(seedGroups).filter((k) => k !== "default").length;
-  }
-
-  // Brands
+  // Brands (with embedded department memberships and group as plain string)
   const brandsCol = newDb.collection("brands");
-  const deptBrandsCol = newDb.collection("department_brands");
   let bn = 0;
-  let dbn = 0;
+  let membershipCount = 0;
   for (const [slug, props] of Object.entries(seedBrands)) {
     const runtime = runtimeBySlug.get(slug);
     const ga4PropertyId = runtime?.ga4PropertyId || seedGa4[slug];
-    const groupSlug = runtime?.group || props.group;
+    const groupRaw = runtime?.group || props.group;
+    const groupSlugRaw = groupRaw && groupRaw !== "default" ? groupRaw : undefined;
+    const group =
+      groupSlugRaw && seedGroups[groupSlugRaw] ? seedGroups[groupSlugRaw].name : groupSlugRaw;
     const drupalDomain = runtime?.drupalDomain;
     const ga4FilterId = runtime?.ga4FilterId;
     const active = true;
     const displayName = runtime?.name || props.name;
     const image = runtime?.image || props.image;
+
+    const flags: Record<string, boolean | undefined> = {
+      editorial: runtime?.editorial,
+      awards: runtime?.awards,
+      bizzcon: runtime?.events,
+    };
+    const memberships = Object.entries(flags)
+      .filter(([, v]) => v === true)
+      .map(([k]) => k);
+    membershipCount += memberships.length;
 
     if (!DRY_RUN) {
       const now = nowDate();
@@ -251,10 +244,11 @@ async function importBrandsAndGroups(oldDb: Db, newDb: Db, counts: Counts) {
             slug,
             displayName,
             ...(image ? { image } : {}),
-            ...(groupSlug && groupSlug !== "default" ? { groupSlug } : {}),
+            ...(group ? { group } : {}),
             ...(ga4PropertyId ? { ga4PropertyId } : {}),
             ...(ga4FilterId ? { ga4FilterId } : {}),
             ...(drupalDomain ? { drupalDomain } : {}),
+            departments: memberships,
             active,
             updatedAt: now,
           },
@@ -264,31 +258,9 @@ async function importBrandsAndGroups(oldDb: Db, newDb: Db, counts: Counts) {
       );
     }
     bn++;
-
-    // department_brands from runtime flags
-    const flags: Record<string, boolean | undefined> = {
-      editorial: runtime?.editorial,
-      awards: runtime?.awards,
-      bizzcon: runtime?.events,
-    };
-    for (const [deptSlug, enabled] of Object.entries(flags)) {
-      if (enabled !== true) continue;
-      if (!DRY_RUN) {
-        const nowL = nowDate();
-        await deptBrandsCol.updateOne(
-          { departmentSlug: deptSlug, brandSlug: slug },
-          {
-            $set: { departmentSlug: deptSlug, brandSlug: slug, enabled: true, updatedAt: nowL },
-            $setOnInsert: { createdAt: nowL },
-          },
-          { upsert: true },
-        );
-      }
-      dbn++;
-    }
   }
   counts.brands = bn;
-  counts.department_brands = dbn;
+  counts.brand_department_memberships = membershipCount;
 }
 
 async function importHardcoded(newDb: Db, counts: Counts) {
@@ -433,7 +405,7 @@ async function main() {
     const counts: Counts = {};
 
     await importHardcoded(newDb, counts);
-    await importBrandsAndGroups(oldDb, newDb, counts);
+    await importBrands(oldDb, newDb, counts);
     await importPeople(oldDb, newDb, counts);
     await importReferences(oldDb, newDb, counts);
 

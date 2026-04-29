@@ -3,16 +3,32 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-export default function BrandForm({ groups }: { groups: string[] }) {
+export default function BrandForm({
+  departmentSlugs,
+  knownGroups,
+}: {
+  departmentSlugs: string[];
+  knownGroups: string[];
+}) {
   const router = useRouter();
   const [slug, setSlug] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [groupSlug, setGroupSlug] = useState("");
+  const [group, setGroup] = useState("");
   const [ga4PropertyId, setGa4PropertyId] = useState("");
   const [drupalDomain, setDrupalDomain] = useState("");
   const [active, setActive] = useState(true);
+  const [selectedDepts, setSelectedDepts] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function toggleDept(slug: string) {
+    setSelectedDepts((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -22,8 +38,9 @@ export default function BrandForm({ groups }: { groups: string[] }) {
       slug: slug.trim(),
       displayName: displayName.trim(),
       active,
+      departments: Array.from(selectedDepts),
     };
-    if (groupSlug.trim()) body.groupSlug = groupSlug.trim();
+    if (group.trim()) body.group = group.trim();
     if (ga4PropertyId.trim()) body.ga4PropertyId = ga4PropertyId.trim();
     if (drupalDomain.trim()) body.drupalDomain = drupalDomain.trim();
     const res = await fetch("/api/admin/brands", {
@@ -39,10 +56,11 @@ export default function BrandForm({ groups }: { groups: string[] }) {
     }
     setSlug("");
     setDisplayName("");
-    setGroupSlug("");
+    setGroup("");
     setGa4PropertyId("");
     setDrupalDomain("");
     setActive(true);
+    setSelectedDepts(new Set());
     router.refresh();
   }
 
@@ -74,16 +92,16 @@ export default function BrandForm({ groups }: { groups: string[] }) {
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="opacity-70">Group slug</span>
+          <span className="opacity-70">Group</span>
           <input
-            className="border border-black/15 dark:border-white/15 rounded px-2 py-1 bg-transparent font-mono"
-            value={groupSlug}
-            onChange={(e) => setGroupSlug(e.target.value)}
-            list="brand-group-slugs"
+            className="border border-black/15 dark:border-white/15 rounded px-2 py-1 bg-transparent"
+            value={group}
+            onChange={(e) => setGroup(e.target.value)}
+            list="brand-groups"
             placeholder="(optional)"
           />
-          <datalist id="brand-group-slugs">
-            {groups.map((g) => (
+          <datalist id="brand-groups">
+            {knownGroups.map((g) => (
               <option key={g} value={g} />
             ))}
           </datalist>
@@ -107,6 +125,28 @@ export default function BrandForm({ groups }: { groups: string[] }) {
           />
         </label>
       </div>
+
+      <div className="flex flex-col gap-2 text-sm">
+        <span className="opacity-70">Departments</span>
+        <div className="flex flex-wrap gap-3">
+          {departmentSlugs.length === 0 && (
+            <span className="text-xs opacity-60">
+              No departments defined yet — create one first.
+            </span>
+          )}
+          {departmentSlugs.map((d) => (
+            <label key={d} className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedDepts.has(d)}
+                onChange={() => toggleDept(d)}
+              />
+              <span className="font-mono text-xs">{d}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"

@@ -2,8 +2,6 @@ export * from "./common";
 export * from "./person";
 export * from "./department";
 export * from "./brand";
-export * from "./brandGroup";
-export * from "./departmentBrand";
 export * from "./dashboard";
 export * from "./externalDataSource";
 export * from "./dataSourceBinding";
