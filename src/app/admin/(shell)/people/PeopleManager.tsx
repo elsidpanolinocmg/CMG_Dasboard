@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { humanize } from "@/lib/util/format";
+import ToggleCheckbox from "../_widgets/ToggleCheckbox";
 
 type ClientPerson = {
   username: string;
@@ -111,8 +112,18 @@ export default function PeopleManager({ people }: { people: ClientPerson[] }) {
                 </td>
                 <td className="px-3 py-2">{p.displayName}</td>
                 <td className="px-3 py-2 text-xs opacity-70">{p.email || ""}</td>
-                <td className="px-3 py-2">{p.active ? "yes" : "no"}</td>
-                <td className="px-3 py-2">{p.canLogin ? "yes" : ""}</td>
+                <td className="px-3 py-2">
+                  <ToggleCheckbox
+                    entity="people"
+                    field="active"
+                    identifier={{ username: p.username }}
+                    initial={p.active}
+                    title="Toggle active"
+                  />
+                </td>
+                <td className="px-3 py-2 text-xs opacity-70">
+                  {p.canLogin ? "enabled" : ""}
+                </td>
                 <td className="px-3 py-2 text-xs">
                   {p.departments.length === 0
                     ? null

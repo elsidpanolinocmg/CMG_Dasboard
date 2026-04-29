@@ -1,6 +1,7 @@
 import Link from "next/link";
 import * as departments from "@/lib/repos/departments";
 import DepartmentForm from "./DepartmentForm";
+import ToggleCheckbox from "../_widgets/ToggleCheckbox";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,15 @@ export default async function DepartmentsPage() {
                 </td>
                 <td className="px-3 py-2 font-mono text-xs opacity-70">{d.routePrefix}</td>
                 <td className="px-3 py-2">{d.order}</td>
-                <td className="px-3 py-2">{d.enabled ? "yes" : "no"}</td>
+                <td className="px-3 py-2">
+                  <ToggleCheckbox
+                    entity="departments"
+                    field="enabled"
+                    identifier={{ slug: d.slug }}
+                    initial={d.enabled}
+                    title="Toggle enabled"
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
