@@ -2,18 +2,20 @@ import Link from "next/link";
 import * as departments from "@/lib/repos/departments";
 import DepartmentForm from "./DepartmentForm";
 import ToggleCheckbox from "../_widgets/ToggleCheckbox";
+import CollapsibleAdd from "../_widgets/CollapsibleAdd";
+import Hint from "../_widgets/Hint";
 
 export const dynamic = "force-dynamic";
 
 export default async function DepartmentsPage() {
   const rows = await departments.listAll();
   return (
-    <div className="flex flex-col gap-8 max-w-4xl">
+    <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold">Departments</h1>
-        <p className="text-sm opacity-60 mt-1">
-          Click a department to see its team and publications.
-        </p>
+        <h1 className="font-semibold">
+          Departments
+          <Hint>Click a department to see its team and publications.</Hint>
+        </h1>
       </div>
 
       <section className="border border-black/10 dark:border-white/10 rounded-lg overflow-hidden">
@@ -64,7 +66,9 @@ export default async function DepartmentsPage() {
         </table>
       </section>
 
-      <DepartmentForm />
+      <CollapsibleAdd label="+ Add department">
+        <DepartmentForm />
+      </CollapsibleAdd>
     </div>
   );
 }

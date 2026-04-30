@@ -2,6 +2,8 @@ import * as departments from "@/lib/repos/departments";
 import * as dashboards from "@/lib/repos/dashboards";
 import DashboardForm from "./DashboardForm";
 import RemoveButton from "../_widgets/RemoveButton";
+import Hint from "../_widgets/Hint";
+import CollapsibleAdd from "../_widgets/CollapsibleAdd";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +31,12 @@ export default async function DashboardsAdminPage() {
   return (
     <div className="flex flex-col gap-8 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-semibold">Dashboards</h1>
-        <p className="text-sm opacity-60 mt-1">
-          Sub-page registry per department. Drives /dashboard/[department]/[subpage].
-        </p>
+        <h1 className="font-semibold">
+          Dashboards
+          <Hint>
+            Sub-page registry per department. Drives /dashboard/[department]/[subpage].
+          </Hint>
+        </h1>
       </div>
 
       <section className="border border-black/10 dark:border-white/10 rounded-lg overflow-hidden">
@@ -77,7 +81,9 @@ export default async function DashboardsAdminPage() {
         </table>
       </section>
 
-      <DashboardForm departmentSlugs={depts.map((d) => d.slug)} />
+      <CollapsibleAdd label="+ Add dashboard">
+        <DashboardForm departmentSlugs={depts.map((d) => d.slug)} />
+      </CollapsibleAdd>
     </div>
   );
 }

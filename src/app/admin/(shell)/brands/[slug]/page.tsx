@@ -25,6 +25,7 @@ export default async function PublicationDetailPage({
     displayName: brand.displayName,
     url: brand.url ?? "",
     color: brand.color ?? "",
+    secondaryColor: brand.secondaryColor ?? "",
     image: brand.image ?? "",
     group: brand.group ?? "",
     ga4PropertyId: brand.ga4PropertyId ?? "",

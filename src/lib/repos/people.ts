@@ -20,6 +20,18 @@ export async function findByNameKey(key: string): Promise<Person | null> {
   return (await col()).findOne({ nameKeys: key });
 }
 
+export async function findByNameKeys(keys: string[]): Promise<Person[]> {
+  if (keys.length === 0) return [];
+  return (await col()).find({ nameKeys: { $in: keys } }).toArray();
+}
+
+export async function setNameKeys(username: string, nameKeys: string[]): Promise<void> {
+  await (await col()).updateOne(
+    { username },
+    { $set: { nameKeys, updatedAt: new Date() } },
+  );
+}
+
 export async function listActive(): Promise<Person[]> {
   return (await col()).find({ active: true }).sort({ username: 1 }).toArray();
 }
@@ -120,6 +132,22 @@ export async function setDepartmentRole(
     {
       $set: {
         "departments.$.role": role,
+        updatedAt: new Date(),
+      },
+    },
+  );
+}
+
+export async function setDepartmentProperties(
+  username: string,
+  deptSlug: string,
+  properties: Record<string, string>,
+): Promise<void> {
+  await (await col()).updateOne(
+    { username, "departments.departmentSlug": deptSlug },
+    {
+      $set: {
+        "departments.$.properties": properties,
         updatedAt: new Date(),
       },
     },

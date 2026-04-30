@@ -2,8 +2,9 @@ import * as departments from "@/lib/repos/departments";
 import * as dataSourceBindings from "@/lib/repos/dataSourceBindings";
 import * as externalDataSources from "@/lib/repos/externalDataSources";
 import BindingForm from "./BindingForm";
-import TestBindingButton from "./TestBindingButton";
-import RemoveButton from "../_widgets/RemoveButton";
+import BindingsTable, { type ClientBinding } from "./BindingsTable";
+import CollapsibleAdd from "../_widgets/CollapsibleAdd";
+import Hint from "../_widgets/Hint";
 
 export const dynamic = "force-dynamic";
 
@@ -13,74 +14,33 @@ export default async function BindingsPage() {
     externalDataSources.listAll(),
     dataSourceBindings.listAll(),
   ]);
+  const safe: ClientBinding[] = rows.map((r) => ({
+    departmentSlug: r.departmentSlug,
+    purpose: r.purpose,
+    dataSourceKind: r.dataSourceKind,
+    config: (r.config ?? {}) as Record<string, unknown>,
+  }));
   return (
-    <div className="flex flex-col gap-8 max-w-5xl">
+    <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold">Data source bindings</h1>
-        <p className="text-sm opacity-60 mt-1">
-          Wires a department to a data source for a specific purpose. Replaces
-          hardcoded sheet IDs and domain maps with config rows.
-        </p>
+        <h1 className="font-semibold">
+          Data source bindings
+          <Hint>
+            Wires a department to a data source for a specific purpose. Click{" "}
+            <em>Edit</em> on a row to change the sheet ID, gid, tab name, or
+            range. <em>Probe</em> tests the binding live.
+          </Hint>
+        </h1>
       </div>
 
-      <section className="border border-black/10 dark:border-white/10 rounded-lg overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-black/5 dark:bg-white/5">
-            <tr className="text-left">
-              <th className="px-3 py-2 font-medium">Department</th>
-              <th className="px-3 py-2 font-medium">Purpose</th>
-              <th className="px-3 py-2 font-medium">Source kind</th>
-              <th className="px-3 py-2 font-medium">Config</th>
-              <th className="px-3 py-2 font-medium">Probe</th>
-              <th className="px-3 py-2 font-medium w-12"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center opacity-60">
-                  No bindings yet.
-                </td>
-              </tr>
-            )}
-            {rows.map((r) => (
-              <tr
-                key={`${r.departmentSlug}/${r.purpose}/${r.dataSourceKind}`}
-                className="border-t border-black/10 dark:border-white/10"
-              >
-                <td className="px-3 py-2 font-mono text-xs">{r.departmentSlug}</td>
-                <td className="px-3 py-2 font-mono text-xs">{r.purpose}</td>
-                <td className="px-3 py-2 font-mono text-xs">{r.dataSourceKind}</td>
-                <td className="px-3 py-2 font-mono text-xs opacity-70 truncate max-w-md">
-                  {JSON.stringify(r.config)}
-                </td>
-                <td className="px-3 py-2">
-                  <TestBindingButton
-                    departmentSlug={r.departmentSlug}
-                    purpose={r.purpose}
-                    dataSourceKind={r.dataSourceKind}
-                  />
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <RemoveButton
-                    entity="bindings"
-                    payload={{
-                      departmentSlug: r.departmentSlug,
-                      purpose: r.purpose,
-                      dataSourceKind: r.dataSourceKind,
-                    }}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      <BindingsTable rows={safe} />
 
-      <BindingForm
-        departmentSlugs={depts.map((d) => d.slug)}
-        sourceKinds={sources.map((s) => s.kind)}
-      />
+      <CollapsibleAdd label="+ Add binding">
+        <BindingForm
+          departmentSlugs={depts.map((d) => d.slug)}
+          sourceKinds={sources.map((s) => s.kind)}
+        />
+      </CollapsibleAdd>
     </div>
   );
 }

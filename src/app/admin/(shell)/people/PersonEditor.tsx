@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { humanize } from "@/lib/util/format";
+import Hint from "../_widgets/Hint";
 
 const ROLES = [
   "managing_editor",
@@ -18,7 +19,12 @@ export type ClientPerson = {
   email: string;
   active: boolean;
   nameKeys: string[];
-  departments: { departmentSlug: string; role: string; since: string | Date }[];
+  departments: {
+    departmentSlug: string;
+    role: string;
+    since: string | Date;
+    properties?: Record<string, string>;
+  }[];
   canLogin: boolean;
   lastLoginAt: string | null;
 };
@@ -44,12 +50,11 @@ export default function PersonEditor({
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  const [newDept, setNewDept] = useState(
-    departmentSlugs.find((s) => !person.departments.some((d) => d.departmentSlug === s)) ??
-      departmentSlugs[0] ??
-      "",
-  );
-  const [newRole, setNewRole] = useState<string>(ROLES[1]);
+  const [synonymInput, setSynonymInput] = useState("");
+  const [synonyms, setSynonyms] = useState<string[]>(person.nameKeys);
+
+  const [newDept, setNewDept] = useState("");
+  const [newRole, setNewRole] = useState<string>("");
   const [pwd, setPwd] = useState("");
 
   async function call(path: string, payload: unknown, message?: string) {
@@ -73,7 +78,7 @@ export default function PersonEditor({
     e.preventDefault();
     const nameKeys = Array.from(
       new Set([
-        ...person.nameKeys,
+        ...synonyms,
         normalizeKey(person.username),
         normalizeKey(displayName),
         normalizeKey(email),
@@ -97,7 +102,7 @@ export default function PersonEditor({
     <div className="flex flex-col gap-6">
       <form
         onSubmit={onSaveProfile}
-        className="flex flex-col gap-3 border border-black/10 dark:border-white/10 rounded-lg p-4"
+        className="flex flex-col gap-3 border border-black/10 dark:border-white/10 rounded-2xl p-6 bg-black/[0.015] dark:bg-white/[0.02]"
       >
         <h2 className="font-medium">Profile</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -135,13 +140,104 @@ export default function PersonEditor({
         <button
           type="submit"
           disabled={busy}
-          className="self-start rounded bg-foreground text-background px-4 py-1.5 text-sm font-medium disabled:opacity-50"
+          className="self-start rounded-lg bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-40"
         >
           {busy ? "Saving…" : "Save profile"}
         </button>
       </form>
 
-      <section className="flex flex-col gap-3 border border-black/10 dark:border-white/10 rounded-lg p-4">
+      <section className="flex flex-col gap-3 border border-black/10 dark:border-white/10 rounded-2xl p-6 bg-black/[0.015] dark:bg-white/[0.02]">
+        <h2 className="font-medium">
+          Synonyms
+          <Hint>
+            Alternate names that should resolve to this person on leaderboards.
+            Each synonym must be unique across all people. Username, display name
+            and email are auto-included on profile save.
+          </Hint>
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {synonyms.length === 0 && (
+            <span className="text-xs opacity-60">No synonyms.</span>
+          )}
+          {synonyms.map((k) => (
+            <span
+              key={k}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-black/5 dark:bg-white/5 font-mono"
+            >
+              {k}
+              <button
+                type="button"
+                onClick={() => setSynonyms((prev) => prev.filter((x) => x !== k))}
+                className="ml-1 opacity-60 hover:opacity-100"
+                title="Remove"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2 items-end">
+          <label className="flex flex-col gap-1 text-sm flex-1 min-w-[16rem]">
+            <span className="opacity-70 text-xs">Add synonym (free text — will be normalized)</span>
+            <input
+              className="border border-black/15 dark:border-white/15 rounded px-2 py-1 bg-transparent"
+              value={synonymInput}
+              onChange={(e) => setSynonymInput(e.target.value)}
+              placeholder="e.g. Sam Bernardo"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const k = normalizeKey(synonymInput);
+                  if (k && !synonyms.includes(k)) {
+                    setSynonyms((prev) => [...prev, k]);
+                    setSynonymInput("");
+                  }
+                }
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              const k = normalizeKey(synonymInput);
+              if (k && !synonyms.includes(k)) {
+                setSynonyms((prev) => [...prev, k]);
+                setSynonymInput("");
+              }
+            }}
+            className="rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 px-4 py-2 text-sm"
+          >
+            Add
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              const res = await fetch("/api/admin/people/name-keys", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: person.username, nameKeys: synonyms }),
+              });
+              setBusy(false);
+              if (res.ok) {
+                const body = await res.json();
+                setSynonyms(body.nameKeys ?? synonyms);
+                setFeedback("Synonyms saved.");
+                router.refresh();
+              } else {
+                const body = await res.json().catch(() => ({}));
+                setFeedback(body?.error || "Save failed");
+              }
+            }}
+            className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40"
+          >
+            Save synonyms
+          </button>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-3 border border-black/10 dark:border-white/10 rounded-2xl p-6 bg-black/[0.015] dark:bg-white/[0.02]">
         <h2 className="font-medium">Departments</h2>
         <div className="flex flex-wrap gap-2">
           {person.departments.length === 0 && (
@@ -173,6 +269,19 @@ export default function PersonEditor({
           ))}
         </div>
 
+        {person.departments.map((d) => (
+          <DepartmentPropertiesEditor
+            key={`props-${d.departmentSlug}`}
+            username={person.username}
+            departmentSlug={d.departmentSlug}
+            initial={d.properties ?? {}}
+            onSaved={(msg) => {
+              setFeedback(msg);
+              router.refresh();
+            }}
+          />
+        ))}
+
         <div className="flex flex-wrap gap-2 items-end">
           <label className="flex flex-col gap-1 text-sm">
             <span className="opacity-70 text-xs">Add or update</span>
@@ -181,7 +290,7 @@ export default function PersonEditor({
               value={newDept}
               onChange={(e) => setNewDept(e.target.value)}
             >
-              {departmentSlugs.length === 0 && <option value="">(none)</option>}
+              <option value="">(none)</option>
               {departmentSlugs.map((s) => (
                 <option key={s} value={s}>
                   {humanize(s)}
@@ -196,6 +305,7 @@ export default function PersonEditor({
               value={newRole}
               onChange={(e) => setNewRole(e.target.value)}
             >
+              <option value="">(none)</option>
               {ROLES.map((r) => (
                 <option key={r} value={r}>
                   {humanize(r)}
@@ -205,7 +315,7 @@ export default function PersonEditor({
           </label>
           <button
             type="button"
-            disabled={!newDept || busy}
+            disabled={!newDept || !newRole || busy}
             onClick={() =>
               call(
                 "/api/admin/people/department/add",
@@ -217,20 +327,22 @@ export default function PersonEditor({
                 `Set ${newDept} → ${newRole}.`,
               )
             }
-            className="rounded bg-foreground text-background px-3 py-1 text-sm font-medium disabled:opacity-50"
+            className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40"
           >
             Apply
           </button>
         </div>
       </section>
 
-      <section className="flex flex-col gap-3 border border-black/10 dark:border-white/10 rounded-lg p-4">
-        <h2 className="font-medium">Password</h2>
-        <p className="text-xs opacity-60">
-          {person.canLogin
-            ? "Login enabled. Set a new password to reset."
-            : "No password set. Setting one enables login."}
-        </p>
+      <section className="flex flex-col gap-3 border border-black/10 dark:border-white/10 rounded-2xl p-6 bg-black/[0.015] dark:bg-white/[0.02]">
+        <h2 className="font-medium">
+          Password
+          <Hint>
+            {person.canLogin
+              ? "Login enabled. Set a new password to reset."
+              : "No password set. Setting one enables login."}
+          </Hint>
+        </h2>
         <div className="flex flex-wrap gap-2 items-end">
           <input
             type="password"
@@ -251,14 +363,14 @@ export default function PersonEditor({
               );
               setPwd("");
             }}
-            className="rounded bg-foreground text-background px-3 py-1 text-sm font-medium disabled:opacity-50"
+            className="rounded-lg bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40"
           >
             Save password
           </button>
         </div>
       </section>
 
-      <section className="flex flex-col gap-3 border border-red-500/20 rounded-lg p-4">
+      <section className="flex flex-col gap-3 border border-red-500/30 rounded-2xl p-6 bg-red-500/[0.04]">
         <h2 className="font-medium text-red-500">Danger zone</h2>
         <button
           type="button"
@@ -284,6 +396,108 @@ export default function PersonEditor({
       </section>
 
       {feedback && <p className="text-xs opacity-70">{feedback}</p>}
+    </div>
+  );
+}
+
+function DepartmentPropertiesEditor({
+  username,
+  departmentSlug,
+  initial,
+  onSaved,
+}: {
+  username: string;
+  departmentSlug: string;
+  initial: Record<string, string>;
+  onSaved: (msg: string) => void;
+}) {
+  const [rows, setRows] = useState<{ k: string; v: string }[]>(() => {
+    const entries = Object.entries(initial);
+    return entries.length > 0 ? entries.map(([k, v]) => ({ k, v })) : [];
+  });
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    setBusy(true);
+    const properties: Record<string, string> = {};
+    for (const r of rows) {
+      const k = r.k.trim();
+      if (!k) continue;
+      properties[k] = r.v;
+    }
+    const res = await fetch("/api/admin/people/department/properties", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, departmentSlug, properties }),
+    });
+    setBusy(false);
+    if (res.ok) {
+      onSaved(`${humanize(departmentSlug)} properties saved.`);
+    } else {
+      const body = await res.json().catch(() => ({}));
+      onSaved(body?.error || "Save failed");
+    }
+  }
+
+  return (
+    <div className="border-t border-black/10 dark:border-white/10 pt-3 mt-1">
+      <div className="text-xs opacity-70 mb-2">
+        <span className="font-mono">{humanize(departmentSlug)}</span> properties
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {rows.length === 0 && (
+          <span className="text-xs opacity-60">No properties.</span>
+        )}
+        {rows.map((row, idx) => (
+          <div key={idx} className="flex gap-2 items-center">
+            <input
+              className="border border-black/15 dark:border-white/15 rounded px-2 py-1 bg-transparent text-sm font-mono w-40"
+              value={row.k}
+              placeholder="key"
+              onChange={(e) =>
+                setRows((prev) =>
+                  prev.map((r, i) => (i === idx ? { ...r, k: e.target.value } : r)),
+                )
+              }
+            />
+            <input
+              className="border border-black/15 dark:border-white/15 rounded px-2 py-1 bg-transparent text-sm flex-1"
+              value={row.v}
+              placeholder="value"
+              onChange={(e) =>
+                setRows((prev) =>
+                  prev.map((r, i) => (i === idx ? { ...r, v: e.target.value } : r)),
+                )
+              }
+            />
+            <button
+              type="button"
+              onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))}
+              className="opacity-60 hover:opacity-100 text-sm px-2"
+              title="Remove"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 mt-2">
+        <button
+          type="button"
+          onClick={() => setRows((prev) => [...prev, { k: "", v: "" }])}
+          className="rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 px-3 py-1.5 text-xs"
+        >
+          + Add property
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={save}
+          className="rounded-lg bg-foreground text-background px-4 py-2 text-xs font-medium hover:opacity-90 disabled:opacity-40"
+        >
+          {busy ? "Saving…" : "Save properties"}
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/db";
 import { cachePrefixes } from "@/lib/cache";
 import CacheActions from "./CacheActions";
+import Hint from "../_widgets/Hint";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +29,13 @@ export default async function CachePage() {
   return (
     <div className="flex flex-col gap-8 max-w-5xl">
       <div>
-        <h1 className="text-2xl font-semibold">Cache</h1>
-        <p className="text-sm opacity-60 mt-1">
-          Persistent layer of the tiered cache. Memory layer hydrates from this on cold start.
-        </p>
+        <h1 className="font-semibold">
+          Cache
+          <Hint>
+            Persistent layer of the tiered cache. Memory layer hydrates from
+            this on cold start.
+          </Hint>
+        </h1>
       </div>
 
       <CacheActions prefixes={Object.values(cachePrefixes)} />

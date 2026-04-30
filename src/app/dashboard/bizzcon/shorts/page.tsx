@@ -1,21 +1,30 @@
-import VideoRotator from "@/components/VideoRotator";
+"use client";
 
-export const dynamic = "force-dynamic";
+import Link from "next/link";
+import ShortsPlayer from "@/components/ShortsPlayer";
+import EditorialVideosTicker from "@/components/EditorialVideosTicker";
+import DashboardControls from "@/components/DashboardControls";
+import WaitModeToggle from "@/components/WaitModeToggle";
 
-async function fetchClassified() {
-  const url = `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/api/videos/classified?department=bizzcon&format=shorts`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) return [];
-  const json = await res.json();
-  return json.videos ?? [];
-}
-
-export default async function BizzconShortsPage() {
-  const videos = await fetchClassified();
+export default function BizzconShortsPage() {
   return (
-    <div className="max-w-md mx-auto p-6 flex flex-col gap-4">
-      <h2 className="text-sm uppercase tracking-wide opacity-60">Bizzcon · Shorts</h2>
-      <VideoRotator videos={videos} aspectRatio="9/16" intervalMs={30_000} />
+    <div className="h-screen flex flex-col bg-white overflow-hidden">
+      <div className="flex-1 min-h-0">
+        <ShortsPlayer
+          className="h-full"
+          fetchUrl="/api/videos/classified?department=bizzcon&format=shorts"
+        />
+      </div>
+      <EditorialVideosTicker department="bizzcon" />
+      <DashboardControls>
+        <WaitModeToggle />
+        <Link
+          href="/dashboard/bizzcon"
+          className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60"
+        >
+          ← Back
+        </Link>
+      </DashboardControls>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import * as savedReferences from "@/lib/repos/savedReferences";
 import SavedReferenceForm from "./SavedReferenceForm";
 import RemoveButton from "../_widgets/RemoveButton";
+import Hint from "../_widgets/Hint";
+import CollapsibleAdd from "../_widgets/CollapsibleAdd";
 
 export const dynamic = "force-dynamic";
 
@@ -9,10 +11,10 @@ export default async function SavedReferencesPage() {
   return (
     <div className="flex flex-col gap-8 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-semibold">Saved references</h1>
-        <p className="text-sm opacity-60 mt-1">
-          Bookmarked Google Sheets used for ad-hoc reference.
-        </p>
+        <h1 className="font-semibold">
+          Saved references
+          <Hint>Bookmarked Google Sheets used for ad-hoc reference.</Hint>
+        </h1>
       </div>
 
       <section className="border border-black/10 dark:border-white/10 rounded-lg overflow-hidden">
@@ -51,7 +53,9 @@ export default async function SavedReferencesPage() {
         </table>
       </section>
 
-      <SavedReferenceForm />
+      <CollapsibleAdd label="+ Add saved reference">
+        <SavedReferenceForm />
+      </CollapsibleAdd>
     </div>
   );
 }

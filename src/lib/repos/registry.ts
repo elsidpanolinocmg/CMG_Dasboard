@@ -6,6 +6,7 @@ import * as externalDataSources from "./externalDataSources";
 import * as dataSourceBindings from "./dataSourceBindings";
 import * as adminReferences from "./adminReferences";
 import * as savedReferences from "./savedReferences";
+import * as pageSettings from "./pageSettings";
 
 export interface RepoEntry {
   list(): Promise<unknown[]>;
@@ -58,6 +59,11 @@ export const repoRegistry: Record<string, RepoEntry> = {
     list: () => savedReferences.listAll(),
     upsert: (doc) => savedReferences.upsert(doc),
     remove: (input) => savedReferences.remove(input.id),
+  },
+  "page-settings": {
+    list: () => pageSettings.listAll(),
+    upsert: (doc) => pageSettings.upsert(doc),
+    remove: (input) => pageSettings.remove(input.pageKey),
   },
 };
 

@@ -11,6 +11,7 @@ export interface Brand extends Timestamped {
   displayName: string;
   url?: string;
   color?: string;
+  secondaryColor?: string;
   image?: string;
   ga4PropertyId?: string;
   ga4Filter?: Ga4Filter;

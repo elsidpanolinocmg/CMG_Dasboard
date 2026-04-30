@@ -2,18 +2,33 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import LogoutButton from "../_components/LogoutButton";
 
-const NAV_GROUPS: { href: string; label: string }[][] = [
-  [{ href: "/admin", label: "Overview" }],
-  [
-    { href: "/admin/people", label: "People" },
-    { href: "/admin/brands", label: "Publications" },
-    { href: "/admin/departments", label: "Departments" },
-  ],
-  [
-    { href: "/admin/admin-references", label: "Admin references" },
-    { href: "/admin/saved-references", label: "Saved references" },
-    { href: "/admin/cache", label: "Cache" },
-  ],
+type NavGroup = {
+  label?: string;
+  items: { href: string; label: string }[];
+};
+
+const NAV_GROUPS: NavGroup[] = [
+  { items: [{ href: "/admin", label: "Overview" }] },
+  {
+    items: [
+      { href: "/admin/people", label: "People" },
+      { href: "/admin/brands", label: "Publications" },
+      { href: "/admin/departments", label: "Departments" },
+    ],
+  },
+  {
+    items: [
+      { href: "/admin/bindings", label: "Data bindings" },
+      { href: "/admin/page-settings", label: "Page settings" },
+    ],
+  },
+  {
+    items: [
+      { href: "/admin/cache", label: "Cache" },
+      { href: "/admin/logs", label: "Activity logs" },
+      { href: "/admin/others", label: "Others" },
+    ],
+  },
 ];
 
 export default async function AdminShellLayout({
@@ -24,37 +39,48 @@ export default async function AdminShellLayout({
   const session = await requireAdmin();
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-56 shrink-0 border-r border-black/10 dark:border-white/10 p-4 flex flex-col gap-1 text-sm">
-        <div className="mb-2 text-xs uppercase tracking-wide opacity-50">CMG Admin</div>
+    <div className="admin-shell min-h-screen flex bg-[var(--admin-bg)] text-[var(--admin-fg)]">
+      <aside className="w-72 shrink-0 border-r border-black/10 dark:border-white/10 p-6 flex flex-col gap-1 bg-black/[0.02] dark:bg-white/[0.02] sticky top-0 h-screen overflow-y-auto self-start">
+        <div className="mb-4 text-sm uppercase tracking-[0.18em] opacity-60 font-semibold">
+          CMG Admin
+        </div>
         {NAV_GROUPS.map((group, i) => (
           <div key={i} className="flex flex-col gap-1">
-            {i > 0 && <div className="my-2 border-t border-black/10 dark:border-white/10" />}
-            {group.map((item) => (
+            {i > 0 && <div className="my-3 border-t border-black/10 dark:border-white/10" />}
+            {group.label && (
+              <div className="px-3 pt-1 pb-1 text-[11px] uppercase tracking-wider opacity-60 font-medium">
+                {group.label}
+              </div>
+            )}
+            {group.items.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-2 py-1.5 rounded hover:bg-black/5 dark:hover:bg-white/5"
+                className="px-3 py-2.5 rounded-lg text-base hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               >
                 {item.label}
               </Link>
             ))}
           </div>
         ))}
-        <div className="mt-auto pt-4 border-t border-black/10 dark:border-white/10 flex flex-col gap-2">
+        <div className="mt-auto pt-5 border-t border-black/10 dark:border-white/10 flex flex-col gap-3">
           <Link
-            href="/dashboard"
-            className="text-xs opacity-70 hover:opacity-100 px-2 py-1 rounded hover:bg-black/5 dark:hover:bg-white/5"
+            href="/"
+            className="text-sm opacity-75 hover:opacity-100 px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
           >
             ↗ Open dashboards
           </Link>
-          <div className="flex items-center justify-between">
-            <span className="text-xs opacity-60 truncate">{session.username}</span>
+          <div className="flex items-center justify-between gap-2 px-1">
+            <span className="text-sm opacity-70 truncate">{session.username}</span>
             <LogoutButton />
           </div>
         </div>
       </aside>
-      <main className="flex-1 p-8 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto">
+        <div className="mx-auto w-full max-w-6xl px-8 py-12 md:px-12 md:py-14">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

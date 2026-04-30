@@ -44,10 +44,13 @@ export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }
   const [rotationMs, setRotationMs] = useState(15_000);
   const cancelledRef = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { fresh?: boolean }) => {
     setRefreshing(true);
     try {
-      const res = await fetch(fetchUrl, { cache: "no-store" });
+      const url = opts?.fresh
+        ? `${fetchUrl}${fetchUrl.includes("?") ? "&" : "?"}fresh=1`
+        : fetchUrl;
+      const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as Payload;
       if (!cancelledRef.current) {
@@ -64,7 +67,7 @@ export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }
   useEffect(() => {
     cancelledRef.current = false;
     load();
-    const id = setInterval(load, REFRESH_MS);
+    const id = setInterval(() => load(), REFRESH_MS);
     return () => {
       cancelledRef.current = true;
       clearInterval(id);
@@ -373,7 +376,7 @@ export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }
 
       <DashboardControls>
         <button
-          onClick={() => load()}
+          onClick={() => load({ fresh: true })}
           disabled={refreshing}
           className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 disabled:opacity-40 disabled:cursor-not-allowed"
         >

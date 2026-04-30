@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth/adminAuth";
+import { logActivity } from "@/lib/auth/activityLog";
 import { getRepo } from "@/lib/repos/registry";
 
 export const runtime = "nodejs";
@@ -20,5 +21,18 @@ export async function POST(
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
   await repo.remove(body);
+  await logActivity(req, {
+    action: `${entity}.delete`,
+    targetType: entity,
+    targetId:
+      typeof body.username === "string"
+        ? body.username
+        : typeof body.slug === "string"
+          ? body.slug
+          : typeof body.id === "string"
+            ? body.id
+            : undefined,
+    before: body,
+  });
   return NextResponse.json({ ok: true });
 }

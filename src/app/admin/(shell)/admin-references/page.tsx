@@ -1,6 +1,8 @@
 import * as adminReferences from "@/lib/repos/adminReferences";
 import AdminReferenceForm from "./AdminReferenceForm";
 import RemoveButton from "../_widgets/RemoveButton";
+import Hint from "../_widgets/Hint";
+import CollapsibleAdd from "../_widgets/CollapsibleAdd";
 
 export const dynamic = "force-dynamic";
 
@@ -9,10 +11,10 @@ export default async function AdminReferencesPage() {
   return (
     <div className="flex flex-col gap-8 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-semibold">Admin references</h1>
-        <p className="text-sm opacity-60 mt-1">
-          Quick-access links shown on the admin dashboard.
-        </p>
+        <h1 className="font-semibold">
+          Admin references
+          <Hint>Quick-access links shown on the admin dashboard.</Hint>
+        </h1>
       </div>
 
       <section className="border border-black/10 dark:border-white/10 rounded-lg overflow-hidden">
@@ -53,7 +55,9 @@ export default async function AdminReferencesPage() {
         </table>
       </section>
 
-      <AdminReferenceForm />
+      <CollapsibleAdd label="+ Add reference">
+        <AdminReferenceForm />
+      </CollapsibleAdd>
     </div>
   );
 }

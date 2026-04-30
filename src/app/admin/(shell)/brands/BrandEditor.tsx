@@ -9,6 +9,7 @@ export type ClientBrand = {
   displayName: string;
   url: string;
   color: string;
+  secondaryColor: string;
   image: string;
   group: string;
   ga4PropertyId: string;
@@ -36,6 +37,7 @@ export default function BrandEditor({
   const [displayName, setDisplayName] = useState(brand.displayName);
   const [url, setUrl] = useState(brand.url);
   const [color, setColor] = useState(brand.color);
+  const [secondaryColor, setSecondaryColor] = useState(brand.secondaryColor);
   const [group, setGroup] = useState(brand.group);
   const [ga4PropertyId, setGa4PropertyId] = useState(brand.ga4PropertyId);
   const [ga4FilterFieldName, setGa4FilterFieldName] = useState(brand.ga4FilterFieldName);
@@ -72,6 +74,7 @@ export default function BrandEditor({
     };
     if (url.trim()) body.url = url.trim();
     if (color.trim()) body.color = color.trim();
+    if (secondaryColor.trim()) body.secondaryColor = secondaryColor.trim();
     if (group.trim()) body.group = group.trim();
     if (ga4PropertyId.trim()) body.ga4PropertyId = ga4PropertyId.trim();
     if (drupalDomain.trim()) body.drupalDomain = drupalDomain.trim();
@@ -153,6 +156,23 @@ export default function BrandEditor({
                 className="flex-1 border border-black/15 dark:border-white/15 rounded px-2 py-1 bg-transparent font-mono text-xs"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
+                placeholder="#FF0000"
+              />
+            </div>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="opacity-70">Secondary color</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                className="w-10 h-8 rounded border border-black/15 dark:border-white/15 bg-transparent"
+                value={secondaryColor || "#000000"}
+                onChange={(e) => setSecondaryColor(e.target.value)}
+              />
+              <input
+                className="flex-1 border border-black/15 dark:border-white/15 rounded px-2 py-1 bg-transparent font-mono text-xs"
+                value={secondaryColor}
+                onChange={(e) => setSecondaryColor(e.target.value)}
                 placeholder="#FF0000"
               />
             </div>

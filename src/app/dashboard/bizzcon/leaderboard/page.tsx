@@ -1,4 +1,4 @@
-import SalesLeaderboardClient from "@/components/SalesLeaderboardClient";
+import SponsorshipLeaderboard from "@/components/SponsorshipLeaderboard";
 
 export const dynamic = "force-dynamic";
 
@@ -8,9 +8,9 @@ export default function BizzconLeaderboardPage() {
       className="min-h-screen max-w-screen overflow-auto"
       style={{ backgroundColor: "#2a2a2a" }}
     >
-      <SalesLeaderboardClient
+      <SponsorshipLeaderboard
         fetchUrl="/api/leaderboard/bizzcon"
-        backLabel="Bizzcon"
+        backLabel="Events"
         backHref="/dashboard/bizzcon"
       />
     </div>

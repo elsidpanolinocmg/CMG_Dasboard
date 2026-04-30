@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getAdminSession } from "@/lib/auth/adminAuth";
+import { logActivity } from "@/lib/auth/activityLog";
 import { setPassword } from "@/lib/repos/people";
 
 export const runtime = "nodejs";
@@ -17,5 +18,11 @@ export async function POST(req: NextRequest) {
   }
   const hash = await bcrypt.hash(password, 12);
   await setPassword(username, hash);
+  await logActivity(req, {
+    action: "people.password.set",
+    targetType: "people",
+    targetId: username,
+    metadata: { reset: true },
+  });
   return NextResponse.json({ ok: true });
 }

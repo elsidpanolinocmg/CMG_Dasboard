@@ -124,7 +124,7 @@ async function buildLeaderboard(dept: string): Promise<Payload> {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ department: string }> },
 ) {
   const { department: rawDept } = await params;
@@ -134,13 +134,16 @@ export async function GET(
     return NextResponse.json({ error: "Unknown department" }, { status: 400 });
   }
   try {
+    const fresh = req.nextUrl.searchParams.get("fresh") === "1";
     const key =
       dept === "awards"
         ? cacheKeys.awardsLeaderboard()
         : dept === "bizzcon"
           ? cacheKeys.bizzconLeaderboard()
           : `leaderboard:${dept}`;
-    const payload = await getCache().getOrLoad<Payload>(
+    const cache = getCache();
+    if (fresh) await cache.invalidate(key);
+    const payload = await cache.getOrLoad<Payload>(
       key,
       () => buildLeaderboard(dept),
       { ttlMs: ttls.LEADERBOARD, staleMs: ttls.LEADERBOARD_STALE },

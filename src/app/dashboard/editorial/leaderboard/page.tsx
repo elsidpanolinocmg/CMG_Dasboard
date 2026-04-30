@@ -1,28 +1,57 @@
-import { Suspense } from "react";
-import * as cheerio from "cheerio";
 import { BetaAnalyticsDataClient } from "@google-analytics/data";
-import * as brandsRepo from "@/lib/repos/brands";
+import * as cheerio from "cheerio";
+import BRAND_PROPERTIES_RAW from "../../../../../data/seed/brand_properties.json";
+import GA4_PROPERTIES_RAW from "../../../../../data/seed/brand_ga4_properties.json";
 import * as peopleRepo from "@/lib/repos/people";
-import { getCache, ttls } from "@/lib/cache";
 import { normalizeKey } from "@/lib/util/normalizeKey";
 import EditorialLeaderboard, {
-  type ArticleRow,
   type AuthorRow,
+  type ArticleRow,
 } from "./EditorialLeaderboard";
 import AutoHideBanner from "./AutoHideBanner";
-import LoadingPage from "@/components/LoadingPage";
-import {
-  RANGE_OPTIONS,
-  SECTION_OPTIONS,
-  pathMatchesSection,
-  type RangeKey,
-} from "./range";
+import { RANGE_OPTIONS, SECTION_OPTIONS, pathMatchesSection, type RangeKey } from "./range";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+const SOURCE_DOMAIN = "asianbankingandfinance.net"; // any one brand works — view is CMG-wide
 const MAX_PAGES = 60;
 const PAGE_BATCH_SIZE = 10;
+
+const BRAND_DOMAINS: Record<string, string> = {
+  sbr: "sbr.com.sg",
+  hkb: "hongkongbusiness.hk",
+  abf: "asianbankingandfinance.net",
+  abr: "asianbusinessreview.com",
+  ia: "insuranceasia.com",
+  ra: "retailasia.com",
+  ap: "asian-power.com",
+  hca: "healthcareasiamagazine.com",
+  qsr: "qsrmedia.com",
+  "qsr-asia": "qsrmedia.asia",
+  "qsr-aus": "qsrmedia.com.au",
+  "qsr-uk": "qsrmedia.co.uk",
+  esgb: "esgbusiness.com",
+  gm: "govmedia.asia",
+  invest: "investmentasia.net",
+  mir: "marineindustrial.com",
+  rea: "realestateasia.com",
+  ma: "manufacturing.asia",
+};
+
+const BRAND_PROPERTIES = BRAND_PROPERTIES_RAW as Record<string, { name: string }>;
+const GA4_PROPS = GA4_PROPERTIES_RAW as Record<string, string>;
+
+const HOST_TO_BRAND = new Map<string, string>(
+  Object.entries(BRAND_DOMAINS).map(([brand, host]) => [host, brand]),
+);
+
+type ScrapedArticle = {
+  title: string;
+  alias: string;
+  host: string;
+  authorName: string;
+};
 
 const BROWSER_HEADERS = {
   "User-Agent":
@@ -30,26 +59,13 @@ const BROWSER_HEADERS = {
   "Accept-Language": "en-US,en;q=0.9",
 };
 
-interface ScrapedArticle {
-  title: string;
-  alias: string;
-  host: string;
-  authorName: string;
-}
-
-interface BrandInfo {
-  slug: string;
-  displayName: string;
-  domain: string;
-  ga4PropertyId?: string;
-}
-
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
 function computeDateRange(key: RangeKey): { from: string; to: string; label: string } {
   const now = new Date();
+  const today = isoDate(now);
   let from: Date;
   let label: string;
   switch (key) {
@@ -76,22 +92,17 @@ function computeDateRange(key: RangeKey): { from: string; to: string; label: str
       from = new Date(now.getTime() - 30 * 86400000);
       label = "last 30 days";
   }
-  return { from: isoDate(from), to: isoDate(now), label };
+  return { from: isoDate(from), to: today, label };
 }
 
-async function fetchPage(
-  sourceDomain: string,
-  page: number,
-  from: string,
-  to: string,
-): Promise<ScrapedArticle[]> {
+async function fetchPage(page: number, from: string, to: string): Promise<ScrapedArticle[]> {
   const url =
-    `https://${sourceDomain}/article_summary?show=28706` +
+    `https://${SOURCE_DOMAIN}/article_summary?show=28706` +
     `&exposed_from_date=${from}&exposed_to_date=${to}` +
     (page > 0 ? `&page=${page}` : "");
   try {
     const res = await fetch(url, {
-      headers: { ...BROWSER_HEADERS, Accept: "text/html,application/xhtml+xml", Referer: `https://${sourceDomain}/` },
+      headers: { ...BROWSER_HEADERS, Accept: "text/html,application/xhtml+xml", Referer: `https://${SOURCE_DOMAIN}/` },
       redirect: "follow",
       cache: "no-store",
       signal: AbortSignal.timeout(15000),
@@ -117,18 +128,14 @@ async function fetchPage(
   }
 }
 
-async function fetchAllArticles(
-  sourceDomain: string,
-  from: string,
-  to: string,
-): Promise<ScrapedArticle[]> {
+async function fetchAllArticles(from: string, to: string): Promise<ScrapedArticle[]> {
   const all: ScrapedArticle[] = [];
   for (let start = 0; start < MAX_PAGES; start += PAGE_BATCH_SIZE) {
     const pages = Array.from(
       { length: Math.min(PAGE_BATCH_SIZE, MAX_PAGES - start) },
       (_, i) => start + i,
     );
-    const batch = await Promise.all(pages.map((p) => fetchPage(sourceDomain, p, from, to)));
+    const batch = await Promise.all(pages.map((p) => fetchPage(p, from, to)));
     let sawEmpty = false;
     for (const rows of batch) {
       if (rows.length === 0) sawEmpty = true;
@@ -180,29 +187,25 @@ function normalizeSection(s: string | undefined): string {
   return SECTION_OPTIONS.some((o) => o.value === v) ? v : "";
 }
 
-async function buildLeaderboard(
-  rangeKey: RangeKey,
-  sectionSlug: string,
-): Promise<{
-  authors: AuthorRow[];
-  rangeLabel: string;
-  brandCount: number;
-  rosterError: string | null;
-  rosterCount: number;
-  brandErrors: { brand: string; error: string }[];
-}> {
+export default async function EditorialLeaderboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cache?: string; range?: string; section?: string }>;
+}) {
+  const params = await searchParams;
+  const rangeKey: RangeKey = isValidRange(params.range) ? params.range : "30d";
+  const sectionSlug = normalizeSection(params.section);
   const { from, to, label } = computeDateRange(rangeKey);
 
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!raw) {
-    return {
-      authors: [],
-      rangeLabel: label,
-      brandCount: 0,
-      rosterError: "GOOGLE_SERVICE_ACCOUNT_JSON env var not set",
-      rosterCount: 0,
-      brandErrors: [],
-    };
+    return (
+      <div className="min-h-screen bg-white text-gray-900 flex items-center justify-center px-6">
+        <div className="rounded border border-red-300 bg-red-50 p-6 text-red-800 text-sm">
+          GOOGLE_SERVICE_ACCOUNT_JSON env var not set.
+        </div>
+      </div>
+    );
   }
   const creds = JSON.parse(raw) as { private_key: string; client_email: string };
   if (creds.private_key && creds.private_key.includes("\\n")) {
@@ -210,54 +213,47 @@ async function buildLeaderboard(
   }
   const client = new BetaAnalyticsDataClient({ credentials: creds });
 
-  const editorialBrands = await brandsRepo.findByDepartment("editorial");
-  const brands: BrandInfo[] = editorialBrands
-    .filter((b) => b.drupalDomain)
-    .map((b) => ({
-      slug: b.slug,
-      displayName: b.displayName,
-      domain: b.drupalDomain!,
-      ga4PropertyId: b.ga4PropertyId,
-    }));
-  const hostToBrand = new Map(brands.map((b) => [b.domain, b]));
-  const sourceDomain = brands[0]?.domain ?? "asianbankingandfinance.net";
-
-  const team = await peopleRepo.listByDepartment("editorial");
-  const rosterError: string | null =
-    team.length === 0 ? "no editorial team members in people collection" : null;
-
+  // Editorial roster sourced from CMG people collection.
+  let rosterError: string | null = null;
+  let rosterCount = 0;
   const teamByKey = new Map<string, { displayName: string }>();
-  for (const p of team) {
-    for (const k of p.nameKeys ?? []) {
-      if (!teamByKey.has(k)) teamByKey.set(k, { displayName: p.displayName });
+  try {
+    const team = await peopleRepo.listByDepartment("editorial");
+    rosterCount = team.length;
+    if (rosterCount === 0) {
+      rosterError = "no editorial team members in people collection";
     }
+    for (const p of team) {
+      for (const k of p.nameKeys ?? []) {
+        if (!teamByKey.has(k)) teamByKey.set(k, { displayName: p.displayName });
+      }
+    }
+  } catch (e) {
+    rosterError = e instanceof Error ? e.message : String(e);
   }
 
-  const scraped = await fetchAllArticles(sourceDomain, from, to);
+  const scraped = await fetchAllArticles(from, to);
+
   const articlesByBrand = new Map<string, ScrapedArticle[]>();
   for (const a of scraped) {
-    const brand = hostToBrand.get(a.host);
+    const brand = HOST_TO_BRAND.get(a.host);
     if (!brand) continue;
     if (!pathMatchesSection(a.alias, sectionSlug)) continue;
-    const list = articlesByBrand.get(brand.slug) ?? [];
+    const list = articlesByBrand.get(brand) ?? [];
     list.push(a);
-    articlesByBrand.set(brand.slug, list);
+    articlesByBrand.set(brand, list);
   }
 
   const ga4Results = await Promise.all(
-    Array.from(articlesByBrand.entries()).map(async ([slug, articles]) => {
-      const brand = brands.find((b) => b.slug === slug);
-      if (!brand?.ga4PropertyId) return { brand: slug, views: new Map(), error: "no GA4 property" };
+    Array.from(articlesByBrand.entries()).map(async ([brand, articles]) => {
+      const propertyId = GA4_PROPS[brand];
+      if (!propertyId) return { brand, error: "no GA4 property", views: new Map() };
       try {
         const paths = articles.map((a) => a.alias);
-        const views = await fetchPageViews(client, brand.ga4PropertyId, paths, from, to);
-        return { brand: slug, views, error: null as string | null };
+        const views = await fetchPageViews(client, propertyId, paths, from, to);
+        return { brand, views, error: null as string | null };
       } catch (e) {
-        return {
-          brand: slug,
-          views: new Map<string, number>(),
-          error: e instanceof Error ? e.message : String(e),
-        };
+        return { brand, views: new Map<string, number>(), error: e instanceof Error ? e.message : String(e) };
       }
     }),
   );
@@ -268,15 +264,15 @@ async function buildLeaderboard(
 
   const allRows: ArticleRow[] = [];
   let nidCounter = 0;
-  for (const [slug, articles] of articlesByBrand) {
-    const brand = brands.find((b) => b.slug === slug);
-    if (!brand) continue;
-    const views = viewsByBrand.get(slug) ?? new Map();
+  for (const [brand, articles] of articlesByBrand) {
+    const brandName = BRAND_PROPERTIES[brand]?.name ?? brand;
+    const domain = BRAND_DOMAINS[brand];
+    const views = viewsByBrand.get(brand) ?? new Map();
     for (const a of articles) {
       allRows.push({
-        brand: slug,
-        brandName: brand.displayName,
-        domain: brand.domain,
+        brand,
+        brandName,
+        domain,
         nid: nidCounter++,
         title: a.title,
         alias: a.alias,
@@ -286,8 +282,10 @@ async function buildLeaderboard(
     }
   }
 
+  // Strict editorial-only: if the roster wasn't loaded, no rows survive.
+  // This avoids accidentally surfacing non-editorial authors on a DB hiccup.
   const authorMap = new Map<string, AuthorRow>();
-  if (team.length > 0) {
+  if (!rosterError && rosterCount > 0) {
     for (const row of allRows) {
       if (!row.authorName) continue;
       const k = normalizeKey(row.authorName);
@@ -315,74 +313,36 @@ async function buildLeaderboard(
     a.articles.sort((x, y) => y.views - x.views);
   }
 
-  return {
-    authors,
-    rangeLabel: label,
-    brandCount: brands.length,
-    rosterError,
-    rosterCount: team.length,
-    brandErrors,
-  };
-}
-
-async function LeaderboardContent({
-  rangeKey,
-  sectionSlug,
-}: {
-  rangeKey: RangeKey;
-  sectionSlug: string;
-}) {
-  const cacheKey = `editorial:leaderboard:${rangeKey}:${sectionSlug || "all"}`;
-  const result = await getCache().getOrLoad(
-    cacheKey,
-    () => buildLeaderboard(rangeKey, sectionSlug),
-    { ttlMs: ttls.LEADERBOARD, staleMs: ttls.LEADERBOARD_STALE },
-  );
-
   return (
     <div className="min-h-screen max-w-screen overflow-auto bg-white text-gray-900">
-      {(result.rosterError || result.rosterCount > 0 || result.brandErrors.length > 0) && (
+      {(rosterError || rosterCount > 0 || brandErrors.length > 0) && (
         <AutoHideBanner>
-          {result.rosterError && (
+          {rosterError && (
             <div className="bg-red-50 border-b border-red-200 text-red-900 text-xs px-4 py-2">
-              Editorial roster unavailable — {result.rosterError}.
+              Editorial roster unavailable — {rosterError}. Leaderboard will be empty until
+              the editorial people collection is populated.
             </div>
           )}
-          {!result.rosterError && result.rosterCount > 0 && (
+          {!rosterError && rosterCount > 0 && (
             <div className="bg-emerald-50 border-b border-emerald-200 text-emerald-900 text-xs px-4 py-2">
-              Filtering to {result.rosterCount} editorial team members.
+              Filtering to {rosterCount} editorial team members from the DB roster.
             </div>
           )}
-          {result.brandErrors.length > 0 && (
+          {brandErrors.length > 0 && (
             <div className="bg-amber-50 border-b border-amber-200 text-amber-900 text-xs px-4 py-2">
-              {result.brandErrors.length} brand{result.brandErrors.length === 1 ? "" : "s"} skipped:{" "}
-              {result.brandErrors.map((e) => `${e.brand} (${e.error})`).join(", ")}
+              {brandErrors.length} brand{brandErrors.length === 1 ? "" : "s"} skipped:{" "}
+              {brandErrors.map((e) => `${e.brand} (${e.error})`).join(", ")}
             </div>
           )}
         </AutoHideBanner>
       )}
       <EditorialLeaderboard
-        authors={result.authors}
+        authors={authors}
         rangeKey={rangeKey}
-        rangeLabel={result.rangeLabel}
+        rangeLabel={label}
         sectionSlug={sectionSlug}
-        brandCount={result.brandCount}
+        brandCount={Object.keys(BRAND_DOMAINS).length}
       />
     </div>
-  );
-}
-
-export default async function EditorialLeaderboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ range?: string; section?: string }>;
-}) {
-  const params = await searchParams;
-  const rangeKey: RangeKey = isValidRange(params.range) ? params.range : "30d";
-  const sectionSlug = normalizeSection(params.section);
-  return (
-    <Suspense fallback={<LoadingPage loadingText="Loading editorial leaderboard…" />}>
-      <LeaderboardContent rangeKey={rangeKey} sectionSlug={sectionSlug} />
-    </Suspense>
   );
 }
