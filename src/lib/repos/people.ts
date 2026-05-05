@@ -16,6 +16,20 @@ export async function findByUsername(username: string): Promise<Person | null> {
   return (await col()).findOne({ username });
 }
 
+export async function findAuthByUsername(
+  username: string,
+): Promise<{ passwordHash: string | undefined; active: boolean } | null> {
+  const doc = await (await col()).findOne<{
+    active?: boolean;
+    auth?: { passwordHash?: string };
+  }>(
+    { username },
+    { projection: { _id: 0, active: 1, "auth.passwordHash": 1 } },
+  );
+  if (!doc) return null;
+  return { passwordHash: doc.auth?.passwordHash, active: !!doc.active };
+}
+
 export async function findByNameKey(key: string): Promise<Person | null> {
   return (await col()).findOne({ nameKeys: key });
 }

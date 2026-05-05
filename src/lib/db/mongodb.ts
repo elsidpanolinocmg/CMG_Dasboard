@@ -91,7 +91,15 @@ export class MongoAdapter implements DbAdapter {
   }
 
   static async connect(uri: string, dbName: string): Promise<MongoAdapter> {
-    const client = await new MongoClient(uri).connect();
+    // Tuned for serverless: small pool (one client per warm lambda), faster
+    // failover during cold-start replica-set discovery.
+    const client = await new MongoClient(uri, {
+      maxPoolSize: 5,
+      minPoolSize: 0,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 30000,
+      connectTimeoutMS: 10000,
+    }).connect();
     return new MongoAdapter(client, client.db(dbName));
   }
 
