@@ -3,13 +3,31 @@ import * as cheerio from "cheerio";
 import BRAND_PROPERTIES_RAW from "../../../../../data/seed/brand_properties.json";
 import GA4_PROPERTIES_RAW from "../../../../../data/seed/brand_ga4_properties.json";
 import * as peopleRepo from "@/lib/repos/people";
+import * as pageSettings from "@/lib/repos/pageSettings";
 import { normalizeKey } from "@/lib/util/normalizeKey";
+import { getCache, cacheKeys, ttls } from "@/lib/cache";
+import {
+  parseAdvancedSettings,
+  passesBrandFilter,
+  isPathExcluded,
+  type AdvancedSettings,
+} from "@/lib/util/brandFilters";
 import EditorialLeaderboard, {
   type AuthorRow,
   type ArticleRow,
 } from "./EditorialLeaderboard";
 import AutoHideBanner from "./AutoHideBanner";
 import { RANGE_OPTIONS, SECTION_OPTIONS, pathMatchesSection, type RangeKey } from "./range";
+
+const PAGE_KEY = "dashboard/editorial/leaderboard";
+
+// Mirrors the schema defaultValue for the "advanced" field — applied when the
+// admin has never saved an override for this page. Saving an empty object in
+// the admin UI clears the filter.
+const DEFAULT_ADVANCED: AdvancedSettings = {
+  excludePathIncludes: ["/commentary/"],
+  dedupCrosspostsByPath: true,
+};
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -187,25 +205,25 @@ function normalizeSection(s: string | undefined): string {
   return SECTION_OPTIONS.some((o) => o.value === v) ? v : "";
 }
 
-export default async function EditorialLeaderboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ cache?: string; range?: string; section?: string }>;
-}) {
-  const params = await searchParams;
-  const rangeKey: RangeKey = isValidRange(params.range) ? params.range : "30d";
-  const sectionSlug = normalizeSection(params.section);
-  const { from, to, label } = computeDateRange(rangeKey);
+type LeaderboardSnapshot = {
+  authors: AuthorRow[];
+  brandErrors: { brand: string; error: string }[];
+  rosterError: string | null;
+  rosterCount: number;
+};
 
+async function loadLeaderboard({
+  from,
+  to,
+  sectionSlug,
+}: {
+  from: string;
+  to: string;
+  sectionSlug: string;
+}): Promise<LeaderboardSnapshot> {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!raw) {
-    return (
-      <div className="min-h-screen bg-white text-gray-900 flex items-center justify-center px-6">
-        <div className="rounded border border-red-300 bg-red-50 p-6 text-red-800 text-sm">
-          GOOGLE_SERVICE_ACCOUNT_JSON env var not set.
-        </div>
-      </div>
-    );
+    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON env var not set.");
   }
   const creds = JSON.parse(raw) as { private_key: string; client_email: string };
   if (creds.private_key && creds.private_key.includes("\\n")) {
@@ -232,12 +250,22 @@ export default async function EditorialLeaderboardPage({
     rosterError = e instanceof Error ? e.message : String(e);
   }
 
-  const scraped = await fetchAllArticles(from, to);
+  const [scraped, savedSettings] = await Promise.all([
+    fetchAllArticles(from, to),
+    pageSettings.findByKey(PAGE_KEY).catch(() => null),
+  ]);
+  const savedAdvanced = (savedSettings?.settings as Record<string, unknown> | undefined)?.advanced;
+  const advanced =
+    savedAdvanced !== undefined
+      ? parseAdvancedSettings(savedAdvanced)
+      : DEFAULT_ADVANCED;
 
   const articlesByBrand = new Map<string, ScrapedArticle[]>();
   for (const a of scraped) {
     const brand = HOST_TO_BRAND.get(a.host);
     if (!brand) continue;
+    if (isPathExcluded(a.alias, advanced)) continue;
+    if (!passesBrandFilter(brand, a.alias, advanced)) continue;
     if (!pathMatchesSection(a.alias, sectionSlug)) continue;
     const list = articlesByBrand.get(brand) ?? [];
     list.push(a);
@@ -305,6 +333,25 @@ export default async function EditorialLeaderboardPage({
       authorMap.set(key, g);
     }
   }
+
+  // Crosspost dedup: when the same article path appears across multiple QSR
+  // brand domains (e.g. qsrmedia.com vs qsrmedia.com.au), keep only the row
+  // with the largest views and recompute the author's totals/brand list. The
+  // page-level default is `true`; saved advanced JSON can opt out with
+  // `"dedupCrosspostsByPath": false`.
+  if (advanced.dedupCrosspostsByPath !== false) {
+    for (const author of authorMap.values()) {
+      const byPath = new Map<string, ArticleRow>();
+      for (const a of author.articles) {
+        const cur = byPath.get(a.alias);
+        if (!cur || a.views > cur.views) byPath.set(a.alias, a);
+      }
+      if (byPath.size === author.articles.length) continue;
+      author.articles = Array.from(byPath.values());
+      author.totalViews = author.articles.reduce((sum, a) => sum + a.views, 0);
+      author.brands = Array.from(new Set(author.articles.map((a) => a.brand)));
+    }
+  }
   const authors = Array.from(authorMap.values())
     .filter((a) => a.totalViews > 0)
     .sort((a, b) => b.totalViews - a.totalViews);
@@ -312,6 +359,48 @@ export default async function EditorialLeaderboardPage({
     a.brands.sort();
     a.articles.sort((x, y) => y.views - x.views);
   }
+
+  return { authors, brandErrors, rosterError, rosterCount };
+}
+
+export default async function EditorialLeaderboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cache?: string; range?: string; section?: string }>;
+}) {
+  const params = await searchParams;
+  const rangeKey: RangeKey = isValidRange(params.range) ? params.range : "30d";
+  const sectionSlug = normalizeSection(params.section);
+  const { from, to, label } = computeDateRange(rangeKey);
+
+  // Cache-first: the heavy work (HTML scrape + ~14 GA4 calls + roster join +
+  // dedup) runs through the tiered cache so warm requests skip it entirely.
+  // Stale-while-revalidate keeps slow refreshes off the request path; admins
+  // can force a clear via /admin/cache (prefix `editorial:`) and saving the
+  // page's settings auto-invalidates the prefix from the API route.
+  const cache = getCache();
+  const cacheKey = cacheKeys.editorialLeaderboard(rangeKey, sectionSlug);
+  if (params.cache === "clear") {
+    await cache.invalidate(cacheKey);
+  }
+  let snapshot: LeaderboardSnapshot;
+  try {
+    snapshot = await cache.getOrLoad<LeaderboardSnapshot>(
+      cacheKey,
+      () => loadLeaderboard({ from, to, sectionSlug }),
+      { ttlMs: ttls.LEADERBOARD, staleMs: ttls.LEADERBOARD_STALE },
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return (
+      <div className="min-h-screen bg-white text-gray-900 flex items-center justify-center px-6">
+        <div className="rounded border border-red-300 bg-red-50 p-6 text-red-800 text-sm">
+          {message}
+        </div>
+      </div>
+    );
+  }
+  const { authors, brandErrors, rosterError, rosterCount } = snapshot;
 
   return (
     <div className="min-h-screen max-w-screen overflow-auto bg-white text-gray-900">

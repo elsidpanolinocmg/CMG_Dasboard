@@ -74,6 +74,15 @@ async function invalidateCacheFor(
     await invalidateDeptCaches(...slugs);
     return;
   }
+  if (entity === "page-settings") {
+    // pageKey is shaped like "dashboard/{dept}/{view}". The department prefix
+    // is what scoped caches are keyed under, so changing a dashboard's advanced
+    // settings (filters, dedup, etc.) immediately busts any cached output.
+    const pageKey = typeof body.pageKey === "string" ? body.pageKey : "";
+    const m = /^dashboard\/([^/]+)\//.exec(pageKey);
+    if (m) await invalidateDeptCaches(m[1]);
+    return;
+  }
 }
 
 function extractTargetId(entity: string, body: Record<string, unknown>): string | undefined {

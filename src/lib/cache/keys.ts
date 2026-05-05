@@ -16,6 +16,8 @@ export const cacheKeys = {
   bizzconLeaderboard: () => `bizzcon:leaderboard`,
   sponsorshipSheet: () => `bizzcon:sponsorship`,
   editorialPageviews: (brand: string) => `ga4:editorial:pageviews:${brand}`,
+  editorialLeaderboard: (range: string, section: string) =>
+    `editorial:leaderboard:${range}:${section || "all"}`,
   drupalAuthors: (brand: string) => `drupal:authors:${brand}`,
 } as const;
 
@@ -24,5 +26,6 @@ export const cachePrefixes = {
   vimeo: "vimeo:",
   awards: "awards:",
   bizzcon: "bizzcon:",
+  editorial: "editorial:",
   drupal: "drupal:",
 } as const;

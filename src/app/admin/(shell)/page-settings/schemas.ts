@@ -35,11 +35,22 @@ export type FieldDef =
       type: "string";
       defaultValue?: string;
       help?: string;
+    }
+  | {
+      key: string;
+      label: string;
+      type: "json";
+      defaultValue?: unknown;
+      help?: string;
     };
 
 export type PageSchema = {
   label: string;
   fields: FieldDef[];
+  // Optional placeholder shown in the collapsible "Advanced (JSON)" section.
+  // Lets each page hint at the JSON shape without committing to it as a saved
+  // default. The shape is enforced by the page itself, not by the form.
+  advancedExample?: unknown;
 };
 
 const LEADERBOARD_FIELDS: FieldDef[] = [
@@ -137,6 +148,10 @@ export const PAGE_SCHEMAS: Record<string, PageSchema> = {
   },
   "dashboard/editorial/leaderboard": {
     label: "Editorial · Leaderboard",
+    advancedExample: {
+      excludePathIncludes: ["/commentary/"],
+      dedupCrosspostsByPath: true,
+    },
     fields: [
       ...LEADERBOARD_FIELDS,
       {
