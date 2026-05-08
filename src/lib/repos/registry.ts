@@ -7,6 +7,8 @@ import * as dataSourceBindings from "./dataSourceBindings";
 import * as adminReferences from "./adminReferences";
 import * as savedReferences from "./savedReferences";
 import * as pageSettings from "./pageSettings";
+import * as birthdays from "./birthdays";
+import * as holidays from "./holidays";
 
 export interface RepoEntry {
   list(): Promise<unknown[]>;
@@ -64,6 +66,16 @@ export const repoRegistry: Record<string, RepoEntry> = {
     list: () => pageSettings.listAll(),
     upsert: (doc) => pageSettings.upsert(doc),
     remove: (input) => pageSettings.remove(input.pageKey),
+  },
+  birthdays: {
+    list: () => birthdays.listAll(),
+    upsert: (doc) => birthdays.upsert(doc),
+    remove: (input) => birthdays.remove(input.id),
+  },
+  holidays: {
+    list: () => holidays.listAll(),
+    upsert: (doc) => holidays.upsert(doc),
+    remove: (input) => holidays.remove(input.date),
   },
 };
 

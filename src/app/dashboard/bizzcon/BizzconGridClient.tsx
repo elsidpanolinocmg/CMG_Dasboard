@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import DashboardControls from "@/components/DashboardControls";
+import BirthdaySlide, { type BirthdaySlideEntry } from "@/components/BirthdaySlide";
 
 export interface BizzconEvent {
   id: string;
@@ -19,6 +20,7 @@ export interface BizzconEvent {
 
 interface Props {
   events: BizzconEvent[];
+  birthdays?: BirthdaySlideEntry[];
 }
 
 function daysUntil(dateStr?: string | null): string {
@@ -53,13 +55,16 @@ const ROTATION_OPTIONS = [
   { label: "5 minutes", value: 300_000 },
 ];
 
-export default function BizzconGridClient({ events }: Props) {
+export default function BizzconGridClient({ events, birthdays = [] }: Props) {
   const tableRef = useRef<HTMLDivElement>(null);
   const [pageSize, setPageSize] = useState(5);
   const [pageIndex, setPageIndex] = useState(0);
   const [rotationInterval, setRotationInterval] = useState(60_000);
   const rotationTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const [birthdayShownIdx, setBirthdayShownIdx] = useState<number | null>(null);
+  const birthdayCursor = useRef(0);
+  const regularTicks = useRef(0);
 
   useEffect(() => {
     if (window.innerWidth < 768 && window.innerHeight > window.innerWidth) {
@@ -115,19 +120,42 @@ export default function BizzconGridClient({ events }: Props) {
 
   useEffect(() => {
     if (rotationTimer.current) clearInterval(rotationTimer.current);
-    if (rotationInterval <= 0 || totalPages <= 1) return;
-    rotationTimer.current = setInterval(
-      () => setPageIndex((i) => (i + 1) % totalPages),
-      rotationInterval,
-    );
+    if (rotationInterval <= 0) return;
+    if (totalPages <= 1 && birthdays.length === 0) return;
+    // Show birthday once every 5 regular pages; if there are fewer than 5 pages,
+    // show once per full cycle.
+    const BIRTHDAY_EVERY = 5;
+    const interval =
+      totalPages < BIRTHDAY_EVERY ? Math.max(1, totalPages) : BIRTHDAY_EVERY;
+    rotationTimer.current = setInterval(() => {
+      if (birthdayShownIdx !== null) {
+        setBirthdayShownIdx(null);
+        regularTicks.current = 0;
+        if (totalPages > 1) setPageIndex((i) => (i + 1) % totalPages);
+        return;
+      }
+      regularTicks.current += 1;
+      if (birthdays.length > 0 && regularTicks.current >= interval) {
+        const next = birthdayCursor.current % birthdays.length;
+        birthdayCursor.current = next + 1;
+        setBirthdayShownIdx(next);
+      } else if (totalPages > 1) {
+        setPageIndex((i) => (i + 1) % totalPages);
+      }
+    }, rotationInterval);
     return () => {
       if (rotationTimer.current) clearInterval(rotationTimer.current);
     };
-  }, [rotationInterval, totalPages]);
+  }, [rotationInterval, totalPages, birthdays.length, birthdayShownIdx]);
+
+  const activeBirthday =
+    birthdayShownIdx !== null && birthdays[birthdayShownIdx]
+      ? birthdays[birthdayShownIdx]
+      : null;
 
   return (
     <div
-      className="flex flex-col justify-center h-screen pt-4 pb-8 px-0 md:px-4 overflow-hidden"
+      className="relative flex flex-col justify-center h-screen pt-4 pb-8 px-0 md:px-4 overflow-hidden"
       style={{ backgroundColor: "#181818" }}
       ref={tableRef}
       onTouchStart={(e) => {
@@ -381,6 +409,12 @@ export default function BizzconGridClient({ events }: Props) {
           </Link>
         </div>
       </DashboardControls>
+
+      {activeBirthday && (
+        <div className="absolute inset-0 z-30">
+          <BirthdaySlide entry={activeBirthday} />
+        </div>
+      )}
     </div>
   );
 }

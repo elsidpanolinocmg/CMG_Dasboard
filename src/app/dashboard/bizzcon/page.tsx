@@ -4,6 +4,7 @@ import { getCache, cacheKeys, ttls } from "@/lib/cache";
 import { getEvents, type EventBrand } from "@/lib/sources/drupalEvents";
 import LoadingPage from "@/components/LoadingPage";
 import BizzconGridClient from "./BizzconGridClient";
+import { getTodaysBirthdaySlides } from "@/lib/birthdays/today";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +27,11 @@ async function loadEvents() {
 }
 
 async function BizzconContent() {
-  const events = await loadEvents();
-  return <BizzconGridClient events={events} />;
+  const [events, birthdays] = await Promise.all([
+    loadEvents(),
+    getTodaysBirthdaySlides(),
+  ]);
+  return <BizzconGridClient events={events} birthdays={birthdays} />;
 }
 
 export default function BizzconPage() {

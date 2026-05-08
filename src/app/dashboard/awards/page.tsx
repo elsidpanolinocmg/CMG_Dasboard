@@ -4,6 +4,7 @@ import { getCache, cacheKeys, ttls } from "@/lib/cache";
 import { getAwards, type AwardsBrand } from "@/lib/sources/drupalAwards";
 import LoadingPage from "@/components/LoadingPage";
 import AwardsGridClient from "./AwardsGridClient";
+import { getTodaysBirthdaySlides } from "@/lib/birthdays/today";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,11 @@ async function loadAwards() {
 }
 
 async function AwardsContent() {
-  const awards = await loadAwards();
-  return <AwardsGridClient awards={awards} />;
+  const [awards, birthdays] = await Promise.all([
+    loadAwards(),
+    getTodaysBirthdaySlides(),
+  ]);
+  return <AwardsGridClient awards={awards} birthdays={birthdays} />;
 }
 
 export default function AwardsPage() {

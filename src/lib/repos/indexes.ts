@@ -55,6 +55,12 @@ export const indexSpecs: IndexSpec[] = [
     keys: { expiresAt: 1 },
     options: { expireAfterSeconds: 0 },
   },
+
+  { collection: "birthdays", keys: { id: 1 }, options: { unique: true } },
+  { collection: "birthdays", keys: { birthMonth: 1, birthDay: 1 } },
+  { collection: "birthdays", keys: { active: 1 } },
+
+  { collection: "holidays", keys: { date: 1 }, options: { unique: true } },
 ];
 
 export const LEGACY_COLLECTIONS_TO_DROP = [

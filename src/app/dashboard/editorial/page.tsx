@@ -2,11 +2,15 @@ import { Suspense } from "react";
 import * as brands from "@/lib/repos/brands";
 import LoadingPage from "@/components/LoadingPage";
 import BrandRotationClient, { type BrandEntry } from "./BrandRotationClient";
+import { getTodaysBirthdaySlides } from "@/lib/birthdays/today";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditorialPage() {
-  const publications = await brands.findByDepartment("editorial");
+  const [publications, birthdaySlides] = await Promise.all([
+    brands.findByDepartment("editorial"),
+    getTodaysBirthdaySlides(),
+  ]);
   const entries: BrandEntry[] = publications.map((b) => ({
     brand: b.slug,
     siteConfig: {
@@ -17,7 +21,7 @@ export default async function EditorialPage() {
   }));
   return (
     <Suspense fallback={<LoadingPage loadingText="Loading Editorial…" />}>
-      <BrandRotationClient brands={entries} />
+      <BrandRotationClient brands={entries} birthdays={birthdaySlides} />
     </Suspense>
   );
 }
