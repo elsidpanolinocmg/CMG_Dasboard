@@ -44,3 +44,19 @@ export type AudienceMovement = {
   totals: { subscribed: number; unsubscribed: number; cleaned: number };
   error: string | null;
 };
+
+// Windowed campaign-report aggregates for one audience. Sums campaigns sent
+// during the window. All rates are in percent units (e.g. 20.6 = 20.6%).
+// Rates are null when sends == 0 so the UI can render "—" instead of 0%.
+export type CampaignWindowStats = {
+  title: string;
+  listId: string;
+  campaignsCount: number;
+  sends: number;
+  uniqueOpens: number;
+  uniqueClicks: number;
+  openRate: number | null;
+  clickRate: number | null;
+  ctor: number | null;
+  error: string | null;
+};

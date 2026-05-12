@@ -32,4 +32,8 @@ export const ttls = {
   // Last-N-days lead-source breakdown refreshes daily.
   MAILCHIMP_MOVEMENT: 24 * HOUR,
   MAILCHIMP_MOVEMENT_STALE: 1 * HOUR,
+  // Windowed campaign reports (sends/opens/clicks within N days) — sent
+  // campaigns are immutable history, daily refresh is plenty.
+  MAILCHIMP_REPORTS: 24 * HOUR,
+  MAILCHIMP_REPORTS_STALE: 1 * HOUR,
 } as const;

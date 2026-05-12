@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import DashboardControls from "@/components/DashboardControls";
 import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
 import { MAILCHIMP_WINDOW_OPTIONS } from "./windowDays";
@@ -447,6 +448,12 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
             </option>
           ))}
         </select>
+        <Link
+          href={`/dashboard/mailchimp/reports?days=${movement.windowDays}`}
+          className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60"
+        >
+          Reports →
+        </Link>
       </DashboardControls>
     </div>
   );

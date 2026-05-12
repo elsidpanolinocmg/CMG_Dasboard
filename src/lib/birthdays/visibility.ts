@@ -19,6 +19,7 @@ export const BIRTHDAY_PAGE_KEYS: { key: string; label: string }[] = [
   { key: "dashboard/bizzcon/leaderboard", label: "Bizzcon leaderboard" },
   { key: "dashboard/editorial/leaderboard", label: "Editorial leaderboard" },
   { key: "dashboard/mailchimp", label: "Mailchimp dashboard" },
+  { key: "dashboard/mailchimp/reports", label: "Mailchimp campaign reports (windowed)" },
   // Shorts
   { key: "dashboard/awards/shorts", label: "Awards shorts" },
   { key: "dashboard/bizzcon/shorts", label: "Bizzcon shorts" },

@@ -22,6 +22,7 @@ export const cacheKeys = {
   mailchimpAudiences: () => `mailchimp:audiences`,
   mailchimpEngagement: () => `mailchimp:engagement`,
   mailchimpMovement: (days: number) => `mailchimp:movement:${days}d`,
+  mailchimpCampaignReports: (days: number) => `mailchimp:reports:${days}d`,
 } as const;
 
 export const cachePrefixes = {

@@ -2,6 +2,7 @@ import "server-only";
 import {
   LEAD_SOURCE_BUCKETS,
   type AudienceMovement,
+  type CampaignWindowStats,
   type LeadSourceBucket,
   type LeadSourceMovement,
   type MailchimpAudienceStats,
@@ -12,6 +13,7 @@ import {
 export {
   LEAD_SOURCE_BUCKETS,
   type AudienceMovement,
+  type CampaignWindowStats,
   type LeadSourceBucket,
   type LeadSourceMovement,
   type MailchimpAudienceStats,
@@ -253,4 +255,128 @@ export async function fetchLeadSourceMovement(
     grandTotals.cleaned += aud.totals.cleaned;
   }
   return { perAudience, totals, grandTotals, windowDays: days };
+}
+
+type ReportsApiResponse = {
+  reports?: {
+    id?: string;
+    list_id?: string;
+    send_time?: string;
+    emails_sent?: number;
+    opens?: { unique_opens?: number };
+    clicks?: { unique_clicks?: number };
+  }[];
+  total_items?: number;
+};
+
+async function fetchOneReports(
+  title: string,
+  account: MailchimpAccountConfig,
+  sinceIso: string,
+): Promise<CampaignWindowStats> {
+  // Mailchimp's /reports endpoint pages with offset; 1000 is the max per page.
+  // For per-list filters within a 90-day window we expect well under 1000
+  // campaigns so a single page is normally enough.
+  const url =
+    `https://${account.server}.api.mailchimp.com/3.0/reports` +
+    `?count=1000&list_id=${encodeURIComponent(account.listId)}` +
+    `&since_send_time=${encodeURIComponent(sinceIso)}` +
+    `&fields=reports.emails_sent,reports.opens.unique_opens,reports.clicks.unique_clicks,total_items`;
+
+  const empty: CampaignWindowStats = {
+    title,
+    listId: account.listId,
+    campaignsCount: 0,
+    sends: 0,
+    uniqueOpens: 0,
+    uniqueClicks: 0,
+    openRate: null,
+    clickRate: null,
+    ctor: null,
+    error: null,
+  };
+
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: authHeader(account.apiKey), Accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return { ...empty, error: `HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ""}` };
+    }
+    const data = (await res.json()) as ReportsApiResponse;
+    const reports = data.reports ?? [];
+    let sends = 0;
+    let opens = 0;
+    let clicks = 0;
+    for (const r of reports) {
+      sends += r.emails_sent ?? 0;
+      opens += r.opens?.unique_opens ?? 0;
+      clicks += r.clicks?.unique_clicks ?? 0;
+    }
+    return {
+      ...empty,
+      campaignsCount: reports.length,
+      sends,
+      uniqueOpens: opens,
+      uniqueClicks: clicks,
+      openRate: sends > 0 ? (opens / sends) * 100 : null,
+      clickRate: sends > 0 ? (clicks / sends) * 100 : null,
+      ctor: opens > 0 ? (clicks / opens) * 100 : null,
+    };
+  } catch (e) {
+    return { ...empty, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function fetchCampaignWindowStats(
+  days: number,
+): Promise<{
+  perAudience: CampaignWindowStats[];
+  grandTotals: {
+    campaigns: number;
+    sends: number;
+    uniqueOpens: number;
+    uniqueClicks: number;
+    openRate: number | null;
+    clickRate: number | null;
+    ctor: number | null;
+  };
+  windowDays: number;
+}> {
+  const accounts = parseAccounts();
+  const sinceIso = new Date(Date.now() - days * 86400000).toISOString();
+  const perAudience = await Promise.all(
+    Object.entries(accounts).map(([title, cfg]) => fetchOneReports(title, cfg, sinceIso)),
+  );
+  perAudience.sort((a, b) => {
+    if (a.error && !b.error) return 1;
+    if (!a.error && b.error) return -1;
+    return b.sends - a.sends;
+  });
+  let campaigns = 0;
+  let sends = 0;
+  let opens = 0;
+  let clicks = 0;
+  for (const r of perAudience) {
+    campaigns += r.campaignsCount;
+    sends += r.sends;
+    opens += r.uniqueOpens;
+    clicks += r.uniqueClicks;
+  }
+  return {
+    perAudience,
+    grandTotals: {
+      campaigns,
+      sends,
+      uniqueOpens: opens,
+      uniqueClicks: clicks,
+      openRate: sends > 0 ? (opens / sends) * 100 : null,
+      clickRate: sends > 0 ? (clicks / sends) * 100 : null,
+      ctor: opens > 0 ? (clicks / opens) * 100 : null,
+    },
+    windowDays: days,
+  };
 }
