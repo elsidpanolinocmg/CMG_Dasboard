@@ -24,7 +24,7 @@ async function loadAwards() {
 async function AwardsContent() {
   const [awards, birthdays] = await Promise.all([
     loadAwards(),
-    getTodaysBirthdaySlides(),
+    getTodaysBirthdaySlides("dashboard/awards"),
   ]);
   return <AwardsGridClient awards={awards} birthdays={birthdays} />;
 }

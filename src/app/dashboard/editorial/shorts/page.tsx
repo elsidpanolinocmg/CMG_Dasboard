@@ -27,7 +27,7 @@ export default function EditorialShortsPage() {
           ← Back
         </Link>
       </DashboardControls>
-      <BirthdayOverlay />
+      <BirthdayOverlay pageKey="dashboard/editorial/shorts" />
     </div>
   );
 }

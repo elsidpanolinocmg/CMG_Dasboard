@@ -137,7 +137,7 @@ export default function EditorialVideosPage() {
           TV Mode: {tvMode ? "ON" : "OFF"}
         </button>
       </DashboardControls>
-      <BirthdayOverlay />
+      <BirthdayOverlay pageKey="dashboard/editorial/videos" />
       <style>{`
         .fg-video .video-title { display: none !important; }
         .fg-video .video-wrapper {

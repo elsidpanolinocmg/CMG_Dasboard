@@ -5,6 +5,8 @@ import BirthdaySlide, { type BirthdaySlideEntry } from "./BirthdaySlide";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 interface Props {
+  /** Page key matching one of BIRTHDAY_PAGE_KEYS. The API filters by this. */
+  pageKey: string;
   /** Optional — if provided, skip the API fetch. Useful for SSR-fed pages. */
   birthdays?: BirthdaySlideEntry[];
   /** How often to surface a birthday slide (ms). Default 5 min. */
@@ -23,6 +25,7 @@ const REFRESH_MS = 30 * 60 * 1000; // re-fetch list every 30 min
  * need to reserve any layout space.
  */
 export default function BirthdayOverlay({
+  pageKey,
   birthdays: birthdaysProp,
   showEveryMs = 5 * 60 * 1000,
   showForMs = 30 * 1000,
@@ -42,7 +45,8 @@ export default function BirthdayOverlay({
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch("/api/birthdays/today", { cache: "no-store" });
+        const url = `/api/birthdays/today?page=${encodeURIComponent(pageKey)}`;
+        const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) return;
         const data = (await res.json()) as BirthdaySlideEntry[];
         if (!cancelled) setFetched(data);
@@ -56,7 +60,7 @@ export default function BirthdayOverlay({
       cancelled = true;
       clearInterval(id);
     };
-  }, [birthdaysProp, isMobile]);
+  }, [birthdaysProp, isMobile, pageKey]);
 
   const list = isMobile ? [] : fetched ?? [];
 

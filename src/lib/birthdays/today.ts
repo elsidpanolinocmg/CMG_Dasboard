@@ -1,5 +1,6 @@
 import * as birthdaysRepo from "@/lib/repos/birthdays";
 import * as holidaysRepo from "@/lib/repos/holidays";
+import { isPageEnabled } from "@/lib/birthdays/visibility";
 import type { BirthdaySlideEntry } from "@/components/BirthdaySlide";
 
 const MAX_LOOKBACK_DAYS = 7;
@@ -22,8 +23,13 @@ async function isNonWorkingDay(d: Date, holidayDates: Set<string>): Promise<bool
 }
 
 export async function getTodaysBirthdaySlides(
+  pageKey?: string,
   now: Date = new Date(),
 ): Promise<BirthdaySlideEntry[]> {
+  // If the caller identified a page, honor the admin's per-page visibility.
+  // Pages without a key (legacy callers) bypass the gate and behave as before.
+  if (pageKey && !(await isPageEnabled(pageKey))) return [];
+
   // Pull all holidays once. The list is small (a few dozen rows per year).
   const holidays = await holidaysRepo.listAll();
   const holidayDates = new Set(holidays.map((h) => h.date));

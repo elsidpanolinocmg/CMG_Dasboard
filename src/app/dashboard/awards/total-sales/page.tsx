@@ -15,7 +15,7 @@ export default function AwardsTotalSalesPage() {
         backHref="/dashboard/awards"
         mode="currency"
       />
-      <BirthdayOverlay />
+      <BirthdayOverlay pageKey="dashboard/awards/total-sales" />
     </div>
   );
 }

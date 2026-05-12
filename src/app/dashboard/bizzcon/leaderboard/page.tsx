@@ -14,7 +14,7 @@ export default function BizzconLeaderboardPage() {
         backLabel="Events"
         backHref="/dashboard/bizzcon"
       />
-      <BirthdayOverlay />
+      <BirthdayOverlay pageKey="dashboard/bizzcon/leaderboard" />
     </div>
   );
 }

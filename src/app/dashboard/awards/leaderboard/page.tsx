@@ -15,7 +15,7 @@ export default function AwardsLeaderboardPage() {
         backHref="/dashboard/awards"
         mode="count"
       />
-      <BirthdayOverlay />
+      <BirthdayOverlay pageKey="dashboard/awards/leaderboard" />
     </div>
   );
 }

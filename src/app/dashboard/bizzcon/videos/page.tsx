@@ -59,7 +59,7 @@ export default function BizzconVideosPage() {
           ← Back
         </Link>
       </DashboardControls>
-      <BirthdayOverlay />
+      <BirthdayOverlay pageKey="dashboard/bizzcon/videos" />
       <style>{`
         .fg-video .video-title { display: none !important; }
         .fg-video .video-wrapper {

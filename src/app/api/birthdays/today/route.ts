@@ -1,15 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getTodaysBirthdaySlides } from "@/lib/birthdays/today";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 300; // 5 minutes
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const slides = await getTodaysBirthdaySlides();
+    const pageKey = req.nextUrl.searchParams.get("page") ?? undefined;
+    const slides = await getTodaysBirthdaySlides(pageKey);
     return NextResponse.json(slides, {
       headers: {
         // Allow CDN/edge caching for 5 min, allow stale for 1 hour while revalidating.
+        // Vary by query string so per-page filtering is cached separately.
         "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
       },
     });

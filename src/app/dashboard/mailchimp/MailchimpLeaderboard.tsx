@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import DashboardControls from "@/components/DashboardControls";
 import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
+import { MAILCHIMP_WINDOW_OPTIONS } from "./windowDays";
 import {
   LEAD_SOURCE_BUCKETS,
   type AudienceMovement,
@@ -116,6 +117,7 @@ function buildCombinedRows(
 
 export default function MailchimpLeaderboard({ audiences, engagement, movement }: Props) {
   const router = useRouter();
+  const [isRefreshing, startRefresh] = useTransition();
 
   const rows = useMemo(
     () => buildCombinedRows(audiences, engagement, movement.perAudience),
@@ -126,6 +128,23 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
   const [pageIndex, setPageIndex] = useState(0);
   const [rotationInterval, setRotationInterval] = useState(60_000);
   const rotationTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function handleRefresh() {
+    // Force-clear the server cache (page reads ?cache=clear), then drop the
+    // query so a subsequent reload doesn't keep clearing. Preserve current window.
+    startRefresh(() => {
+      router.replace(
+        `/dashboard/mailchimp?cache=clear&days=${movement.windowDays}&t=${Date.now()}`,
+      );
+    });
+  }
+
+  function handleWindowChange(nextDays: number) {
+    if (nextDays === movement.windowDays) return;
+    startRefresh(() => {
+      router.replace(`/dashboard/mailchimp?days=${nextDays}`);
+    });
+  }
 
   // After mount, drop to a phone-friendly page size if the viewport is small.
   // Done in useEffect (not useState init) so SSR and first client render match.
@@ -366,6 +385,13 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
 
       <DashboardControls>
         <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {isRefreshing ? "Refreshing..." : "↻ Refresh"}
+        </button>
+        <button
           onClick={() => setPageIndex((i) => Math.max(0, i - 1))}
           disabled={pageIndex === 0}
           className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -405,6 +431,19 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
           {ROTATION_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
               Rotate · {opt.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={movement.windowDays}
+          onChange={(e) => handleWindowChange(Number(e.target.value))}
+          disabled={isRefreshing}
+          title="Date range for the +/- columns"
+          className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 disabled:opacity-50 [&>option]:bg-gray-800 [&>option]:text-white"
+        >
+          {MAILCHIMP_WINDOW_OPTIONS.map((d) => (
+            <option key={d} value={d}>
+              Window · last {d} days
             </option>
           ))}
         </select>

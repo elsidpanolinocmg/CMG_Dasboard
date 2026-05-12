@@ -26,7 +26,7 @@ export default function BizzconShortsPage() {
           ← Back
         </Link>
       </DashboardControls>
-      <BirthdayOverlay />
+      <BirthdayOverlay pageKey="dashboard/bizzcon/shorts" />
     </div>
   );
 }

@@ -7,23 +7,24 @@ import { getCache, cacheKeys, ttls } from "@/lib/cache";
 import MailchimpLeaderboard from "./MailchimpLeaderboard";
 import BirthdayOverlay from "@/components/BirthdayOverlay";
 
+import { parseWindowDays } from "./windowDays";
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-
-const WINDOW_DAYS = 7;
 
 type MovementSnapshot = Awaited<ReturnType<typeof fetchLeadSourceMovement>>;
 
 export default async function MailchimpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cache?: string }>;
+  searchParams: Promise<{ cache?: string; days?: string }>;
 }) {
   const params = await searchParams;
+  const windowDays = parseWindowDays(params.days);
   const cache = getCache();
   const audiencesKey = cacheKeys.mailchimpAudiences();
   const engagementKey = cacheKeys.mailchimpEngagement();
-  const movementKey = cacheKeys.mailchimpMovement(WINDOW_DAYS);
+  const movementKey = cacheKeys.mailchimpMovement(windowDays);
 
   if (params.cache === "clear") {
     await Promise.all([
@@ -48,7 +49,7 @@ export default async function MailchimpPage({
       }),
       cache.getOrLoad<MovementSnapshot>(
         movementKey,
-        () => fetchLeadSourceMovement(WINDOW_DAYS),
+        () => fetchLeadSourceMovement(windowDays),
         { ttlMs: ttls.MAILCHIMP_MOVEMENT, staleMs: ttls.MAILCHIMP_MOVEMENT_STALE },
       ),
     ]);
@@ -66,7 +67,7 @@ export default async function MailchimpPage({
   return (
     <>
       <MailchimpLeaderboard audiences={audiences} engagement={engagement} movement={movement} />
-      <BirthdayOverlay />
+      <BirthdayOverlay pageKey="dashboard/mailchimp" />
     </>
   );
 }

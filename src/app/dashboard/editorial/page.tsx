@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function EditorialPage() {
   const [publications, birthdaySlides] = await Promise.all([
     brands.findByDepartment("editorial"),
-    getTodaysBirthdaySlides(),
+    getTodaysBirthdaySlides("dashboard/editorial"),
   ]);
   const entries: BrandEntry[] = publications.map((b) => ({
     brand: b.slug,

@@ -21,7 +21,7 @@ export default async function BrandDrillInPage({
   const brand = decodeURIComponent(rawBrand).toLowerCase();
   const [row, birthdays] = await Promise.all([
     brandsRepo.findBySlug(brand),
-    getTodaysBirthdaySlides(),
+    getTodaysBirthdaySlides("dashboard/[brand]"),
   ]);
   if (!row) notFound();
 

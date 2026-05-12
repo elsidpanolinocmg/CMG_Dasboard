@@ -29,7 +29,7 @@ async function loadEvents() {
 async function BizzconContent() {
   const [events, birthdays] = await Promise.all([
     loadEvents(),
-    getTodaysBirthdaySlides(),
+    getTodaysBirthdaySlides("dashboard/bizzcon"),
   ]);
   return <BizzconGridClient events={events} birthdays={birthdays} />;
 }

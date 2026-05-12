@@ -27,7 +27,7 @@ export default function AwardsShortsPage() {
           ← Back
         </Link>
       </DashboardControls>
-      <BirthdayOverlay />
+      <BirthdayOverlay pageKey="dashboard/awards/shorts" />
     </div>
   );
 }

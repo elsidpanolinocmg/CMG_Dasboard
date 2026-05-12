@@ -433,7 +433,7 @@ export default async function EditorialLeaderboardPage({
         sectionSlug={sectionSlug}
         brandCount={Object.keys(BRAND_DOMAINS).length}
       />
-      <BirthdayOverlay />
+      <BirthdayOverlay pageKey="dashboard/editorial/leaderboard" />
     </div>
   );
 }

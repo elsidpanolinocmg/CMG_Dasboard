@@ -59,7 +59,7 @@ export default function AwardsVideosPage() {
           ← Back
         </Link>
       </DashboardControls>
-      <BirthdayOverlay />
+      <BirthdayOverlay pageKey="dashboard/awards/videos" />
       <style>{`
         .fg-video .video-title { display: none !important; }
         .fg-video .video-wrapper {
