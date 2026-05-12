@@ -17,6 +17,7 @@ import EditorialLeaderboard, {
   type ArticleRow,
 } from "./EditorialLeaderboard";
 import AutoHideBanner from "./AutoHideBanner";
+import BirthdayOverlay from "@/components/BirthdayOverlay";
 import { RANGE_OPTIONS, SECTION_OPTIONS, pathMatchesSection, type RangeKey } from "./range";
 
 const PAGE_KEY = "dashboard/editorial/leaderboard";
@@ -50,7 +51,7 @@ const BRAND_DOMAINS: Record<string, string> = {
   "qsr-aus": "qsrmedia.com.au",
   "qsr-uk": "qsrmedia.co.uk",
   esgb: "esgbusiness.com",
-  gm: "govmedia.asia",
+  gm: "govmedia.com",
   invest: "investmentasia.net",
   mir: "marineindustrial.com",
   rea: "realestateasia.com",
@@ -115,7 +116,7 @@ function computeDateRange(key: RangeKey): { from: string; to: string; label: str
 
 async function fetchPage(page: number, from: string, to: string): Promise<ScrapedArticle[]> {
   const url =
-    `https://${SOURCE_DOMAIN}/article_summary?show=28706` +
+    `https://${SOURCE_DOMAIN}/article_summary?show=28707` +
     `&exposed_from_date=${from}&exposed_to_date=${to}` +
     (page > 0 ? `&page=${page}` : "");
   try {
@@ -432,6 +433,7 @@ export default async function EditorialLeaderboardPage({
         sectionSlug={sectionSlug}
         brandCount={Object.keys(BRAND_DOMAINS).length}
       />
+      <BirthdayOverlay />
     </div>
   );
 }

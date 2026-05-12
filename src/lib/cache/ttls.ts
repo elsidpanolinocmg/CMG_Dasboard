@@ -22,4 +22,14 @@ export const ttls = {
   EDITORIAL_PAGEVIEWS_STALE: 15 * MINUTE,
   DRUPAL_AUTHORS: 1 * DAY,
   DRUPAL_AUTHORS_STALE: 1 * HOUR,
+  // Subscriber counts refresh daily.
+  MAILCHIMP_AUDIENCES: 24 * HOUR,
+  MAILCHIMP_AUDIENCES_STALE: 1 * HOUR,
+  // Engagement (open/click/unsub rate) refreshes weekly — these are lifetime
+  // averages and barely move day-to-day.
+  MAILCHIMP_ENGAGEMENT: 7 * DAY,
+  MAILCHIMP_ENGAGEMENT_STALE: 1 * DAY,
+  // Last-N-days lead-source breakdown refreshes daily.
+  MAILCHIMP_MOVEMENT: 24 * HOUR,
+  MAILCHIMP_MOVEMENT_STALE: 1 * HOUR,
 } as const;

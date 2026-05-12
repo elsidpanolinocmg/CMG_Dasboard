@@ -28,36 +28,62 @@ function resolveExclusiveFeed(cfg: SiteConfig) {
 
 interface EditorialVideosTickerProps {
   department?: string;
+  newsSource?: "site" | "event-news";
 }
 
 export default function EditorialVideosTicker({
   department = "editorial",
+  newsSource = "site",
 }: EditorialVideosTickerProps) {
   const [configs, setConfigs] = useState<BrandConfigs>({});
 
   useEffect(() => {
-    const load = async () => {
+    let cancelled = false;
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+    const url = `${baseUrl}/api/brands/by-department/${encodeURIComponent(department)}`;
+    const delays = [0, 800, 2000, 4000];
+
+    const attempt = async (i: number): Promise<void> => {
+      if (cancelled) return;
+      if (delays[i] > 0) await new Promise((r) => setTimeout(r, delays[i]));
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-        const res = await fetch(
-          `${baseUrl}/api/brands/by-department/${encodeURIComponent(department)}`,
-          { cache: "force-cache" },
+        const res = await fetch(url, { cache: i === 0 ? "force-cache" : "no-store" });
+        const ct = res.headers.get("content-type") ?? "";
+        if (res.ok && ct.includes("application/json")) {
+          if (cancelled) return;
+          setConfigs((await res.json()) as BrandConfigs);
+          return;
+        }
+        if (i + 1 < delays.length) return attempt(i + 1);
+        console.warn(
+          `Brands API still returning ${res.status} after ${delays.length} attempts for department=${department}.`,
         );
-        setConfigs((await res.json()) as BrandConfigs);
       } catch (err) {
+        if (i + 1 < delays.length) return attempt(i + 1);
         console.error("Failed to load brand configs:", err);
       }
     };
-    load();
+
+    attempt(0);
+    return () => {
+      cancelled = true;
+    };
   }, [department]);
 
   const { exclusiveFeeds, newsFeeds } = useMemo(() => {
     const entries = Object.values(configs);
+    const sitNews =
+      newsSource === "event-news"
+        ? entries
+            .map((cfg) => stripTrailingSlash(cfg?.url))
+            .filter(Boolean)
+            .map((u) => `/api/event-news?url=${encodeURIComponent(u)}`)
+        : entries.map(resolveNewsFeed).filter(Boolean);
     return {
       exclusiveFeeds: entries.map(resolveExclusiveFeed).filter(Boolean),
-      newsFeeds: entries.map(resolveNewsFeed).filter(Boolean),
+      newsFeeds: sitNews,
     };
-  }, [configs]);
+  }, [configs, newsSource]);
 
   if (!exclusiveFeeds.length && !newsFeeds.length) return null;
 
@@ -72,8 +98,8 @@ export default function EditorialVideosTicker({
             <TickerCard
               feedUrl={exclusiveFeeds}
               duration={4000}
-              fontSize="clamp(20px, 2vw, 38px)"
-              height="clamp(65px, 6vh, 80px)"
+              fontSize="clamp(13px, 2vw, 38px)"
+              height="clamp(38px, 6vh, 80px)"
             />
           </div>
         )}
@@ -82,8 +108,8 @@ export default function EditorialVideosTicker({
             <TickerStrip
               feedUrl={newsFeeds}
               speed={60}
-              fontSize="clamp(20px, 2vw, 38px)"
-              height="clamp(65px, 6vh, 80px)"
+              fontSize="clamp(13px, 2vw, 38px)"
+              height="clamp(38px, 6vh, 80px)"
             />
           </div>
         )}

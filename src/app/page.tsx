@@ -36,8 +36,6 @@ export default async function Home() {
           title="Bizzcon"
           titleHref="/dashboard/bizzcon"
           subPages={[
-            { label: "Bizzcon Videos", href: "/dashboard/bizzcon/videos" },
-            { label: "Bizzcon Shorts", href: "/dashboard/bizzcon/shorts" },
             { label: "Leaderboard", href: "/dashboard/bizzcon/leaderboard" },
           ]}
         />
@@ -61,6 +59,10 @@ export default async function Home() {
           ))}
         </div>
       </div>
+
+      <Link href="/dashboard/mailchimp" className="font-semibold hover:underline">
+        Mailchimp
+      </Link>
 
       <Link href="/admin" className="text-sm text-neutral-500 hover:underline mt-4">
         Admin →

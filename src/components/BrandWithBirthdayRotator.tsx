@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
 import BirthdaySlide, { type BirthdaySlideEntry } from "./BirthdaySlide";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 const BrandDashboard = nextDynamic(() => import("./BrandDashboard"), { ssr: false });
 
@@ -22,9 +23,11 @@ const BIRTHDAY_EVERY = 5;
 export default function BrandWithBirthdayRotator({
   brand,
   siteConfig,
-  birthdays,
+  birthdays: birthdaysProp,
   intervalMs = 60_000,
 }: Props) {
+  const isMobile = useIsMobile();
+  const birthdays = isMobile ? [] : birthdaysProp;
   const [birthdayIdx, setBirthdayIdx] = useState<number | null>(null);
   const cursor = useRef(0);
   const regularTicks = useRef(0);

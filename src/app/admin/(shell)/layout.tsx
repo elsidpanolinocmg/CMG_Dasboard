@@ -12,10 +12,14 @@ const NAV_GROUPS: NavGroup[] = [
   {
     items: [
       { href: "/admin/people", label: "People" },
-      { href: "/admin/birthdays", label: "Birthdays" },
-      { href: "/admin/holidays", label: "Holidays" },
       { href: "/admin/brands", label: "Publications" },
       { href: "/admin/departments", label: "Departments" },
+    ],
+  },
+  {
+    items: [
+      { href: "/admin/birthdays", label: "Birthdays" },
+      { href: "/admin/holidays", label: "Holidays" },
     ],
   },
   {

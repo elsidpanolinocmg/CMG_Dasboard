@@ -105,7 +105,12 @@ export default function TickerCard({
         style={{
           ...styles.label,
           backgroundColor: labelColor,
-          ...(fontSize ? { fontSize, width: "clamp(240px, 18vw, 370px)" } : null),
+          ...(fontSize
+            ? {
+                fontSize: "clamp(11px, 1.4vw, 22px)",
+                width: "clamp(82px, 14vw, 240px)",
+              }
+            : null),
         }}
       >
         {label}

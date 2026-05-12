@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import DashboardControls from "@/components/DashboardControls";
+import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
 
 const REFRESH_MS = 30 * 60 * 1000;
 
@@ -22,6 +23,10 @@ function formatCurrency(n: number): string {
   return `$${Math.round(n).toLocaleString("en-US")}`;
 }
 
+function formatCount(n: number): string {
+  return n.toLocaleString("en-US");
+}
+
 function rankColor(rank: number): string {
   if (rank === 1) return "#FFD700";
   if (rank === 2) return "#C0C0C0";
@@ -29,13 +34,30 @@ function rankColor(rank: number): string {
   return "#ffffff";
 }
 
+type Mode = "currency" | "count";
+
 interface Props {
   fetchUrl: string;
   backLabel: string;
   backHref: string;
+  mode?: Mode;
+  desktopHeader?: string;
+  mobileHeader?: string;
 }
 
-export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }: Props) {
+export default function SalesLeaderboardClient({
+  fetchUrl,
+  backLabel,
+  backHref,
+  mode = "currency",
+  desktopHeader,
+  mobileHeader,
+}: Props) {
+  const isCount = mode === "count";
+  const desktopHeaderLabel = desktopHeader ?? (isCount ? "Number of Paying Nominations" : "Total Sales");
+  const mobileHeaderLabel = mobileHeader ?? (isCount ? "Nominations" : "Total");
+  const formatValue = isCount ? formatCount : formatCurrency;
+  const valueOf = (e: Entry) => (isCount ? e.deals : e.total);
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,6 +110,12 @@ export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }
     return () => clearInterval(id);
   }, [totalPagesForRotation, rotationMs]);
 
+  const swipe = useSwipeNav({
+    onNext: () => setPageIndex((p) => (p + 1) % totalPagesForRotation),
+    onPrev: () => setPageIndex((p) => (p - 1 + totalPagesForRotation) % totalPagesForRotation),
+    enabled: totalPagesForRotation > 1,
+  });
+
   if (error && !data) {
     return (
       <div
@@ -109,7 +137,12 @@ export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }
     );
   }
 
-  const entries = data.entries;
+  const entries = isCount
+    ? [...data.entries].sort((a, b) => b.deals - a.deals)
+    : data.entries;
+  const grandTotalValue = isCount
+    ? entries.reduce((s, e) => s + e.deals, 0)
+    : data.grandTotal;
   const resolvedPageSize = pageSize === "all" ? Math.max(1, entries.length) : pageSize;
   const totalPages = Math.max(1, Math.ceil(entries.length / resolvedPageSize));
   const currentPage = Math.min(pageIndex, totalPages - 1);
@@ -127,6 +160,7 @@ export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }
     <div
       className="flex flex-col justify-center h-screen px-0 md:px-4 overflow-hidden"
       style={{ backgroundColor: "#2a2a2a" }}
+      {...swipe}
     >
       <div className="hidden md:flex landscape-show flex-col flex-1 min-h-0">
         <table className="w-full border-collapse table-fixed h-full" style={{ fontSize }}>
@@ -137,7 +171,7 @@ export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }
             >
               <th className="px-2 py-3 w-[14%]">Rank</th>
               <th className="pl-0 pr-3 py-3 w-[56%] text-left">Person in Charge</th>
-              <th className="px-3 py-3 w-[30%] text-right">Total Sales</th>
+              <th className="px-3 py-3 w-[30%] text-right">{desktopHeaderLabel}</th>
             </tr>
             <tr>
               <td
@@ -188,14 +222,14 @@ export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }
                   <td
                     className="px-3 py-1 text-right font-mono font-bold"
                     style={{
-                      color: row.total > 0 ? "#00ff88" : "#bbbbbb",
+                      color: valueOf(row) > 0 ? "#00ff88" : "#bbbbbb",
                       textShadow:
-                        row.total > 0
+                        valueOf(row) > 0
                           ? "0 1px 3px rgba(0,0,0,0.8), 0 0 12px rgba(0,255,136,0.3)"
                           : "none",
                     }}
                   >
-                    {formatCurrency(row.total)}
+                    {formatValue(valueOf(row))}
                   </td>
                 </tr>
               );
@@ -244,7 +278,7 @@ export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }
                   textShadow: "0 1px 3px rgba(0,0,0,0.8), 0 0 8px #d4a85340, 0 0 20px #d4a85320",
                 }}
               >
-                {formatCurrency(data.grandTotal)}
+                {formatValue(grandTotalValue)}
               </td>
             </tr>
           </tbody>
@@ -260,7 +294,7 @@ export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }
             >
               <th className="px-1 py-2 w-[16%]">Rank</th>
               <th className="px-1 py-2 w-[50%] text-left">Person</th>
-              <th className="px-1 py-2 pr-3 w-[34%] text-right">Total</th>
+              <th className="px-1 py-2 pr-3 w-[34%] text-right">{mobileHeaderLabel}</th>
             </tr>
             <tr>
               <td
@@ -311,14 +345,14 @@ export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }
                   <td
                     className="px-1 py-1 pr-3 text-right font-mono font-bold"
                     style={{
-                      color: row.total > 0 ? "#00ff88" : "#bbbbbb",
+                      color: valueOf(row) > 0 ? "#00ff88" : "#bbbbbb",
                       textShadow:
-                        row.total > 0
+                        valueOf(row) > 0
                           ? "0 1px 3px rgba(0,0,0,0.8), 0 0 12px rgba(0,255,136,0.3)"
                           : "none",
                     }}
                   >
-                    {formatCurrency(row.total)}
+                    {formatValue(valueOf(row))}
                   </td>
                 </tr>
               );
@@ -367,7 +401,7 @@ export default function SalesLeaderboardClient({ fetchUrl, backLabel, backHref }
                   textShadow: "0 1px 3px rgba(0,0,0,0.8), 0 0 8px #d4a85340, 0 0 20px #d4a85320",
                 }}
               >
-                {formatCurrency(data.grandTotal)}
+                {formatValue(grandTotalValue)}
               </td>
             </tr>
           </tbody>

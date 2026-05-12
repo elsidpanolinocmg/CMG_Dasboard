@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import EditorialVideosRotator from "@/components/EditorialVideosRotator";
 import EditorialVideosTicker from "@/components/EditorialVideosTicker";
 import DashboardControls from "@/components/DashboardControls";
+import BirthdayOverlay from "@/components/BirthdayOverlay";
 
 interface SiteConfig {
   url?: string;
@@ -56,24 +57,42 @@ export default function EditorialVideosPage() {
   };
 
   useEffect(() => {
-    const fetchBrands = async () => {
+    let cancelled = false;
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+    const url = `${baseUrl}/api/brands/by-department/editorial`;
+    const delays = [0, 800, 2000, 4000];
+
+    const attempt = async (i: number): Promise<void> => {
+      if (cancelled) return;
+      if (delays[i] > 0) await new Promise((r) => setTimeout(r, delays[i]));
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-        const res = await fetch(`${baseUrl}/api/brands/by-department/editorial`, {
-          cache: "force-cache",
-        });
-        const config = (await res.json()) as Record<string, SiteConfig>;
-        setBrands(
-          Object.entries(config).map(([brand, siteConfig]) => ({
-            brand,
-            siteConfig,
-          })),
+        const res = await fetch(url, { cache: i === 0 ? "force-cache" : "no-store" });
+        const ct = res.headers.get("content-type") ?? "";
+        if (res.ok && ct.includes("application/json")) {
+          if (cancelled) return;
+          const config = (await res.json()) as Record<string, SiteConfig>;
+          setBrands(
+            Object.entries(config).map(([brand, siteConfig]) => ({
+              brand,
+              siteConfig,
+            })),
+          );
+          return;
+        }
+        if (i + 1 < delays.length) return attempt(i + 1);
+        console.warn(
+          `Brands API still returning ${res.status} after ${delays.length} attempts; reload the page.`,
         );
       } catch (err) {
+        if (i + 1 < delays.length) return attempt(i + 1);
         console.error("Failed to load brands:", err);
       }
     };
-    fetchBrands();
+
+    attempt(0);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!brands.length) {
@@ -118,6 +137,7 @@ export default function EditorialVideosPage() {
           TV Mode: {tvMode ? "ON" : "OFF"}
         </button>
       </DashboardControls>
+      <BirthdayOverlay />
       <style>{`
         .fg-video .video-title { display: none !important; }
         .fg-video .video-wrapper {
@@ -144,6 +164,15 @@ export default function EditorialVideosPage() {
           min-width: 177.78vh !important;
           transform: translate(-50%, -50%) !important;
           border: 0 !important;
+        }
+        @media (max-width: 767px) and (orientation: portrait) {
+          .fg-video .video-area { background: #fff !important; }
+          .fg-video .video-layer {
+            min-width: 0 !important;
+            min-height: 0 !important;
+            width: 100vw !important;
+            height: 56.25vw !important;
+          }
         }
       `}</style>
     </div>

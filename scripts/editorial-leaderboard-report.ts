@@ -38,7 +38,7 @@ const BRAND_DOMAINS: Record<string, string> = {
   "qsr-aus": "qsrmedia.com.au",
   "qsr-uk": "qsrmedia.co.uk",
   esgb: "esgbusiness.com",
-  gm: "govmedia.asia",
+  gm: "govmedia.com",
   invest: "investmentasia.net",
   mir: "marineindustrial.com",
   rea: "realestateasia.com",
@@ -109,7 +109,7 @@ function computeDateRange(key: RangeKey): { from: string; to: string; label: str
 
 async function fetchListPage(page: number, from: string, to: string): Promise<ScrapedArticle[]> {
   const url =
-    `https://${SOURCE_DOMAIN}/article_summary?show=28706` +
+    `https://${SOURCE_DOMAIN}/article_summary?show=28707` +
     `&exposed_from_date=${from}&exposed_to_date=${to}` +
     (page > 0 ? `&page=${page}` : "");
   try {

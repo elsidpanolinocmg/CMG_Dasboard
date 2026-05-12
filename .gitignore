@@ -9,6 +9,4 @@ node_modules/
 next-env.d.ts
 tsconfig.tsbuildinfo
 
-# Uploaded birthday media — keep dir, ignore content
-public/uploads/birthdays/*
-!public/uploads/birthdays/.gitkeep
+repots/

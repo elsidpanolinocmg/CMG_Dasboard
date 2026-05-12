@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import DashboardControls from "@/components/DashboardControls";
 import BirthdaySlide, { type BirthdaySlideEntry } from "@/components/BirthdaySlide";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 const BrandDashboard = dynamic(() => import("@/components/BrandDashboard"), { ssr: false });
 
@@ -58,7 +59,9 @@ function buildSlides(brands: BrandEntry[], birthdays: BirthdaySlideEntry[]): Sli
   return out;
 }
 
-export default function BrandRotationClient({ brands, birthdays = [] }: Props) {
+export default function BrandRotationClient({ brands, birthdays: birthdaysProp = [] }: Props) {
+  const isMobile = useIsMobile();
+  const birthdays = isMobile ? [] : birthdaysProp;
   const [rotationInterval, setRotationInterval] = useState(60_000);
   const [currentIndex, setCurrentIndex] = useState(0);
   const rotationTimer = useRef<ReturnType<typeof setInterval> | null>(null);

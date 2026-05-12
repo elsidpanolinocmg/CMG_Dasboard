@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import DashboardControls from "@/components/DashboardControls";
+import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
 import { RANGE_OPTIONS, SECTION_OPTIONS, type RangeKey } from "./range";
 
 export type ArticleRow = {
@@ -83,13 +84,17 @@ export default function EditorialLeaderboard({
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  const [pageSize, setPageSize] = useState<number>(() =>
-    typeof window !== "undefined" && window.innerWidth < 768 ? 4 : 6,
-  );
+  const [pageSize, setPageSize] = useState<number>(6);
   const [pageIndex, setPageIndex] = useState(0);
   const [rotationInterval, setRotationInterval] = useState(60_000);
   const rotationTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const touchStartX = useRef<number | null>(null);
+
+  // Phone-friendly page size after mount (avoids SSR/CSR hydration mismatch).
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setPageSize(4);
+    }
+  }, []);
 
   const totalPages = Math.max(1, Math.ceil(authors.length / pageSize));
   const displayed = authors.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
@@ -149,22 +154,17 @@ export default function EditorialLeaderboard({
   const totalSummarySize = `clamp(0.65rem, calc(0.3vw + ${3 / eff}vw), 1.1rem)`;
   const chipSize = `clamp(0.7rem, min(calc(0.35vw + ${3.5 / eff}vw), ${rowHeightVh * 0.18}vh), 1.3rem)`;
 
+  const swipe = useSwipeNav({
+    onNext: () => setPageIndex((i) => Math.min(totalPages - 1, i + 1)),
+    onPrev: () => setPageIndex((i) => Math.max(0, i - 1)),
+    enabled: totalPages > 1,
+  });
+
   return (
     <div
       className="flex flex-col justify-center h-screen px-0 md:px-6 overflow-hidden"
       style={{ backgroundColor: "#ffffff" }}
-      onTouchStart={(e) => {
-        touchStartX.current = e.touches[0].clientX;
-      }}
-      onTouchEnd={(e) => {
-        if (touchStartX.current === null) return;
-        const diff = e.changedTouches[0].clientX - touchStartX.current;
-        if (Math.abs(diff) > 50) {
-          if (diff < 0) setPageIndex((i) => Math.min(totalPages - 1, i + 1));
-          else setPageIndex((i) => Math.max(0, i - 1));
-        }
-        touchStartX.current = null;
-      }}
+      {...swipe}
     >
       {isPending && (
         <div

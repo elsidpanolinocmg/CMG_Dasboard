@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import DashboardControls from "@/components/DashboardControls";
 import BirthdaySlide, { type BirthdaySlideEntry } from "@/components/BirthdaySlide";
+import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 export interface Award {
   id: string;
@@ -63,19 +65,25 @@ const ROTATION_OPTIONS = [
   { label: "5 minutes", value: 300_000 },
 ];
 
-export default function AwardsGridClient({ awards, birthdays = [] }: Props) {
+export default function AwardsGridClient({ awards, birthdays: birthdaysProp = [] }: Props) {
+  const isMobile = useIsMobile();
+  const birthdays = isMobile ? [] : birthdaysProp;
   const now = new Date();
   const tableRef = useRef<HTMLDivElement>(null);
-  const [pageSize, setPageSize] = useState(() =>
-    typeof window !== "undefined" && window.innerWidth < 768 ? 6 : 5,
-  );
+  const [pageSize, setPageSize] = useState(5);
   const [pageIndex, setPageIndex] = useState(0);
   const [rotationInterval, setRotationInterval] = useState(60_000);
   const rotationTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const touchStartX = useRef<number | null>(null);
   const [birthdayShownIdx, setBirthdayShownIdx] = useState<number | null>(null);
   const birthdayCursor = useRef(0);
   const regularTicks = useRef(0);
+
+  // Phone-friendly page size after mount (avoids SSR/CSR hydration mismatch).
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setPageSize(6);
+    }
+  }, []);
 
   const upcomingAwards = useMemo(
     () => awards.filter((a) => new Date(a.field_date) > now),
@@ -137,23 +145,18 @@ export default function AwardsGridClient({ awards, birthdays = [] }: Props) {
       ? birthdays[birthdayShownIdx]
       : null;
 
+  const swipe = useSwipeNav({
+    onNext: () => setPageIndex((i) => Math.min(totalPages - 1, i + 1)),
+    onPrev: () => setPageIndex((i) => Math.max(0, i - 1)),
+    enabled: totalPages > 1,
+  });
+
   return (
     <div
       className="relative flex flex-col justify-center h-screen pt-4 pb-8 px-0 md:px-4 overflow-hidden"
       style={{ backgroundColor: "#0a1628" }}
       ref={tableRef}
-      onTouchStart={(e) => {
-        touchStartX.current = e.touches[0].clientX;
-      }}
-      onTouchEnd={(e) => {
-        if (touchStartX.current === null) return;
-        const diff = e.changedTouches[0].clientX - touchStartX.current;
-        if (Math.abs(diff) > 50) {
-          if (diff < 0) setPageIndex((i) => Math.min(totalPages - 1, i + 1));
-          else setPageIndex((i) => Math.max(0, i - 1));
-        }
-        touchStartX.current = null;
-      }}
+      {...swipe}
     >
       <div className="hidden md:flex landscape-show flex-col flex-1 min-h-0">
         <table className="w-full border-collapse table-fixed h-full" style={{ fontSize }}>

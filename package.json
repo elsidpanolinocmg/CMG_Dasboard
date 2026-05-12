@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "bootstrap": "tsx scripts/bootstrap-indexes.ts",
+    "test:db": "tsx scripts/test-db.ts",
     "import:dry-run": "tsx scripts/import-from-old.ts --dry-run",
     "import": "tsx scripts/import-from-old.ts"
   },

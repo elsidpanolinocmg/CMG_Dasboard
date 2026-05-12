@@ -32,7 +32,10 @@ export default function DashboardControls({
         e instanceof TouchEvent
           ? e.touches[0]?.clientY ?? e.changedTouches[0]?.clientY ?? 0
           : (e as MouseEvent).clientY;
-      if (y < window.innerHeight * 0.75) return;
+      const isPortraitMobile =
+        window.innerWidth < 768 && window.innerHeight > window.innerWidth;
+      const triggerThreshold = isPortraitMobile ? 0.5 : 0.75;
+      if (y < window.innerHeight * triggerThreshold) return;
       setVisible((v) => !v);
     };
     window.addEventListener("click", onActivity);
@@ -74,20 +77,20 @@ export default function DashboardControls({
   return (
     <div
       ref={containerRef}
-      className={`fixed bottom-32 left-1/2 -translate-x-1/2 z-50 flex flex-wrap items-center justify-center gap-3 px-3 py-2 rounded-xl bg-gray-500/30 backdrop-blur-md ring-1 ring-white/15 shadow-lg text-base ${className}`}
+      className={`fixed bottom-3 md:bottom-32 left-1/2 -translate-x-1/2 z-50 flex flex-wrap items-center justify-center gap-1.5 md:gap-3 px-2 md:px-3 py-1.5 md:py-2 rounded-xl bg-gray-500/30 backdrop-blur-md ring-1 ring-white/15 shadow-lg text-sm md:text-base max-w-[calc(100vw-1rem)] [&_button]:px-2 [&_button]:py-1 [&_button]:text-sm md:[&_button]:px-4 md:[&_button]:py-2 md:[&_button]:text-base [&_select]:px-2 [&_select]:py-1 [&_select]:text-sm md:[&_select]:px-4 md:[&_select]:py-2 md:[&_select]:text-base ${className}`}
       onClick={(e) => e.stopPropagation()}
     >
       {children}
-      {children && <span className="w-px h-8 bg-white/40" aria-hidden="true" />}
+      {children && <span className="w-px h-6 md:h-8 bg-white/40" aria-hidden="true" />}
       <button
         onClick={toggleFullscreen}
-        className="px-5 py-3 rounded bg-black/40 text-white text-lg hover:bg-black/60"
+        className="rounded bg-black/40 text-white hover:bg-black/60"
       >
         {isFullscreen ? "Exit ⛶" : "Fullscreen ⛶"}
       </button>
       <button
         onClick={() => router.push("/")}
-        className="px-5 py-3 rounded bg-black/40 text-white text-lg hover:bg-black/60"
+        className="rounded bg-black/40 text-white hover:bg-black/60"
       >
         Home
       </button>

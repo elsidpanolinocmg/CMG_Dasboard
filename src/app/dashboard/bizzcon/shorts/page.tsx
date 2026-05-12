@@ -5,11 +5,12 @@ import ShortsPlayer from "@/components/ShortsPlayer";
 import EditorialVideosTicker from "@/components/EditorialVideosTicker";
 import DashboardControls from "@/components/DashboardControls";
 import WaitModeToggle from "@/components/WaitModeToggle";
+import BirthdayOverlay from "@/components/BirthdayOverlay";
 
 export default function BizzconShortsPage() {
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 max-md:portrait:pb-[90px]">
         <ShortsPlayer
           className="h-full"
           fetchUrl="/api/videos/classified?department=bizzcon&format=shorts"
@@ -25,6 +26,7 @@ export default function BizzconShortsPage() {
           ← Back
         </Link>
       </DashboardControls>
+      <BirthdayOverlay />
     </div>
   );
 }

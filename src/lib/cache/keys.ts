@@ -19,6 +19,9 @@ export const cacheKeys = {
   editorialLeaderboard: (range: string, section: string) =>
     `editorial:leaderboard:${range}:${section || "all"}`,
   drupalAuthors: (brand: string) => `drupal:authors:${brand}`,
+  mailchimpAudiences: () => `mailchimp:audiences`,
+  mailchimpEngagement: () => `mailchimp:engagement`,
+  mailchimpMovement: (days: number) => `mailchimp:movement:${days}d`,
 } as const;
 
 export const cachePrefixes = {
@@ -28,4 +31,5 @@ export const cachePrefixes = {
   bizzcon: "bizzcon:",
   editorial: "editorial:",
   drupal: "drupal:",
+  mailchimp: "mailchimp:",
 } as const;

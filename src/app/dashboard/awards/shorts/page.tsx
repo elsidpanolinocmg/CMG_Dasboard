@@ -5,18 +5,19 @@ import ShortsPlayer from "@/components/ShortsPlayer";
 import EditorialVideosTicker from "@/components/EditorialVideosTicker";
 import DashboardControls from "@/components/DashboardControls";
 import WaitModeToggle from "@/components/WaitModeToggle";
+import BirthdayOverlay from "@/components/BirthdayOverlay";
 
 export default function AwardsShortsPage() {
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 max-md:portrait:pb-[90px]">
         <ShortsPlayer
           className="h-full"
           fetchUrl="/api/videos/classified?department=awards&format=shorts"
           slots={1}
         />
       </div>
-      <EditorialVideosTicker department="awards" />
+      <EditorialVideosTicker department="awards" newsSource="event-news" />
       <DashboardControls>
         <WaitModeToggle />
         <Link
@@ -26,6 +27,7 @@ export default function AwardsShortsPage() {
           ← Back
         </Link>
       </DashboardControls>
+      <BirthdayOverlay />
     </div>
   );
 }

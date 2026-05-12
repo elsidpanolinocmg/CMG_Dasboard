@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import EditorialVideosRotator from "@/components/EditorialVideosRotator";
 import EditorialVideosTicker from "@/components/EditorialVideosTicker";
 import DashboardControls from "@/components/DashboardControls";
+import BirthdayOverlay from "@/components/BirthdayOverlay";
 
 interface ApiVideo {
   id: string;
@@ -58,6 +59,7 @@ export default function BizzconVideosPage() {
           ← Back
         </Link>
       </DashboardControls>
+      <BirthdayOverlay />
       <style>{`
         .fg-video .video-title { display: none !important; }
         .fg-video .video-wrapper {
@@ -84,6 +86,15 @@ export default function BizzconVideosPage() {
           min-width: 177.78vh !important;
           transform: translate(-50%, -50%) !important;
           border: 0 !important;
+        }
+        @media (max-width: 767px) and (orientation: portrait) {
+          .fg-video .video-area { background: #fff !important; }
+          .fg-video .video-layer {
+            min-width: 0 !important;
+            min-height: 0 !important;
+            width: 100vw !important;
+            height: 56.25vw !important;
+          }
         }
       `}</style>
     </div>
