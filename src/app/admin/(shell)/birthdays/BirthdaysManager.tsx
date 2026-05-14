@@ -12,6 +12,7 @@ export type ClientBirthday = {
   mediaKind: "image" | "video";
   mediaPath: string;
   active: boolean;
+  hideGreeting?: boolean;
 };
 
 const MONTHS = [

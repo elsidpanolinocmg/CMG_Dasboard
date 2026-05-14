@@ -5,6 +5,7 @@ export interface BirthdaySlideEntry {
   displayName: string;
   mediaKind: "image" | "video";
   mediaPath: string;
+  hideGreeting?: boolean;
 }
 
 interface Props {
@@ -54,11 +55,13 @@ export default function BirthdaySlide({ entry, className }: Props) {
           />
         </>
       )}
-      <div className="absolute inset-x-0 bottom-0 p-8 md:p-12 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white text-center">
-        <div className="text-2xl md:text-4xl font-semibold tracking-wide drop-shadow">
-          🎉 Happy Birthday, {entry.displayName}! 🎂
+      {!entry.hideGreeting && (
+        <div className="absolute inset-x-0 bottom-0 p-8 md:p-12 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white text-center">
+          <div className="text-2xl md:text-4xl font-semibold tracking-wide drop-shadow">
+            🎉 Happy Birthday, {entry.displayName}! 🎂
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

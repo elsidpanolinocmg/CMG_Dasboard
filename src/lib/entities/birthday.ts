@@ -10,4 +10,7 @@ export interface Birthday extends Timestamped {
   mediaKind: BirthdayMediaKind;
   mediaPath: string;
   active: boolean;
+  // When true, the "Happy Birthday, {name}!" caption is hidden on the slide
+  // (image/video only). Missing/false on existing records keeps the caption.
+  hideGreeting?: boolean;
 }

@@ -43,6 +43,7 @@ export default function BirthdayEditor({ mode, initial, onSaved, onCancel }: Pro
   const [birthMonth, setBirthMonth] = useState(initial?.birthMonth ?? 1);
   const [birthDay, setBirthDay] = useState(initial?.birthDay ?? 1);
   const [active, setActive] = useState(initial?.active ?? true);
+  const [hideGreeting, setHideGreeting] = useState(initial?.hideGreeting ?? false);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +94,7 @@ export default function BirthdayEditor({ mode, initial, onSaved, onCancel }: Pro
       mediaKind,
       mediaPath,
       active,
+      hideGreeting,
     };
 
     const res = await fetch("/api/admin/birthdays", {
@@ -192,6 +194,22 @@ export default function BirthdayEditor({ mode, initial, onSaved, onCancel }: Pro
           onChange={(e) => setActive(e.target.checked)}
         />
         Active
+      </label>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={hideGreeting}
+          onChange={(e) => setHideGreeting(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span>
+          Hide greeting text
+          <span className="block opacity-60 text-xs">
+            When checked, the &ldquo;Happy Birthday, {displayName || "Name"}!&rdquo; caption
+            won&apos;t appear over the image/video.
+          </span>
+        </span>
       </label>
 
       {error && <p className="text-sm text-red-500">{error}</p>}

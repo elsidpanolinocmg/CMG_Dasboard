@@ -73,6 +73,7 @@ export async function getTodaysBirthdaySlides(
         displayName: r.displayName,
         mediaKind: r.mediaKind,
         mediaPath: r.mediaPath,
+        hideGreeting: r.hideGreeting ?? false,
       });
     }
   }
