@@ -201,6 +201,12 @@ export default function MailchimpReportsClient({ rows, grandTotals, windowDays }
             </tr>
           </tbody>
         </table>
+        <div
+          className="px-3 sm:px-4 py-2 text-sm italic"
+          style={{ color: MC_MUTED }}
+        >
+          Open % excludes Apple Mail auto-opens, matching Mailchimp&apos;s dashboard.
+        </div>
       </div>
 
       {/* ---- MOBILE CARDS ---- */}
@@ -223,6 +229,9 @@ export default function MailchimpReportsClient({ rows, grandTotals, windowDays }
             <TotalCell label="Click %" value={fmtPct(grandTotals.clickRate)} bold />
             <TotalCell label="CTOR" value={fmtPct(grandTotals.ctor)} bold />
           </div>
+        </div>
+        <div className="mt-2 text-xs leading-snug italic" style={{ color: MC_MUTED }}>
+          Open % excludes Apple Mail auto-opens.
         </div>
       </div>
 

@@ -263,7 +263,12 @@ type ReportsApiResponse = {
     list_id?: string;
     send_time?: string;
     emails_sent?: number;
-    opens?: { unique_opens?: number };
+    opens?: {
+      unique_opens?: number;
+      // Privacy-aware open count Mailchimp's own UI uses post-MPP. Falls back
+      // to unique_opens for older reports where this field isn't populated.
+      proxy_excluded_unique_opens?: number;
+    };
     clicks?: { unique_clicks?: number };
   }[];
   total_items?: number;
@@ -281,7 +286,7 @@ async function fetchOneReports(
     `https://${account.server}.api.mailchimp.com/3.0/reports` +
     `?count=1000&list_id=${encodeURIComponent(account.listId)}` +
     `&since_send_time=${encodeURIComponent(sinceIso)}` +
-    `&fields=reports.emails_sent,reports.opens.unique_opens,reports.clicks.unique_clicks,total_items`;
+    `&fields=reports.emails_sent,reports.opens.unique_opens,reports.opens.proxy_excluded_unique_opens,reports.clicks.unique_clicks,total_items`;
 
   const empty: CampaignWindowStats = {
     title,
@@ -313,7 +318,8 @@ async function fetchOneReports(
     let clicks = 0;
     for (const r of reports) {
       sends += r.emails_sent ?? 0;
-      opens += r.opens?.unique_opens ?? 0;
+      // Prefer the privacy-aware count so totals match Mailchimp's UI.
+      opens += r.opens?.proxy_excluded_unique_opens ?? r.opens?.unique_opens ?? 0;
       clicks += r.clicks?.unique_clicks ?? 0;
     }
     return {
