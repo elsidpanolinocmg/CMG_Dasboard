@@ -37,24 +37,28 @@ const ROTATION_OPTIONS = [
   { label: "5 minutes", value: 300_000 },
 ];
 
-const BIRTHDAY_INTERVAL = 5;
-
 function buildSlides(brands: BrandEntry[], birthdays: BirthdaySlideEntry[]): Slide[] {
-  const out: Slide[] = [];
-  if (birthdays.length === 0 || brands.length === 0) {
+  if (brands.length === 0) return [];
+  if (birthdays.length === 0) {
     return brands.map((b) => ({ kind: "brand", brand: b }));
   }
-  // Insert one birthday every BIRTHDAY_INTERVAL brand slides.
-  // If brands.length < BIRTHDAY_INTERVAL, fall back to "once per cycle" — i.e.
-  // append a single birthday at the end of the brand list.
-  const interval = brands.length < BIRTHDAY_INTERVAL ? brands.length : BIRTHDAY_INTERVAL;
+  // Spread birthdays evenly across the brand list so EVERY birthday surfaces
+  // within one full cycle. E.g. 4 brands + 2 birthdays → brand, brand, bday,
+  // brand, brand, bday.
+  const spacing = Math.max(1, Math.floor(brands.length / birthdays.length));
+  const out: Slide[] = [];
   let bi = 0;
   for (let i = 0; i < brands.length; i++) {
     out.push({ kind: "brand", brand: brands[i] });
-    if ((i + 1) % interval === 0) {
-      out.push({ kind: "birthday", entry: birthdays[bi % birthdays.length] });
+    if ((i + 1) % spacing === 0 && bi < birthdays.length) {
+      out.push({ kind: "birthday", entry: birthdays[bi] });
       bi++;
     }
+  }
+  // If there are more birthdays than slots created above (birthdays > brands),
+  // append the leftovers at the end of the cycle.
+  while (bi < birthdays.length) {
+    out.push({ kind: "birthday", entry: birthdays[bi++] });
   }
   return out;
 }

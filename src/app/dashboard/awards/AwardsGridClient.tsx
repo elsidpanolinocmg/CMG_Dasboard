@@ -114,25 +114,44 @@ export default function AwardsGridClient({ awards, birthdays: birthdaysProp = []
     if (rotationTimer.current) clearInterval(rotationTimer.current);
     if (rotationInterval <= 0) return;
     if (totalPages <= 1 && birthdays.length === 0) return;
-    // Show birthday once every 5 regular pages; if there are fewer than 5 pages,
-    // show once per full cycle.
-    const BIRTHDAY_EVERY = 5;
+    // Space birthdays evenly across the page cycle so EVERY birthday surfaces
+    // within one full pass through the pages. E.g. 4 pages + 2 birthdays →
+    // page, page, bday, page, page, bday.
     const interval =
-      totalPages < BIRTHDAY_EVERY ? Math.max(1, totalPages) : BIRTHDAY_EVERY;
+      birthdays.length > 0
+        ? Math.max(1, Math.floor(totalPages / birthdays.length))
+        : Math.max(1, totalPages);
     rotationTimer.current = setInterval(() => {
       if (birthdayShownIdx !== null) {
         setBirthdayShownIdx(null);
         regularTicks.current = 0;
-        if (totalPages > 1) setPageIndex((i) => (i + 1) % totalPages);
+        if (totalPages > 1) {
+          setPageIndex((i) => {
+            const nextIdx = (i + 1) % totalPages;
+            if (nextIdx === 0) birthdayCursor.current = 0;
+            return nextIdx;
+          });
+        }
         return;
       }
       regularTicks.current += 1;
-      if (birthdays.length > 0 && regularTicks.current >= interval) {
-        const next = birthdayCursor.current % birthdays.length;
+      if (
+        birthdays.length > 0 &&
+        regularTicks.current >= interval &&
+        birthdayCursor.current < birthdays.length
+      ) {
+        const next = birthdayCursor.current;
         birthdayCursor.current = next + 1;
         setBirthdayShownIdx(next);
       } else if (totalPages > 1) {
-        setPageIndex((i) => (i + 1) % totalPages);
+        setPageIndex((i) => {
+          const nextIdx = (i + 1) % totalPages;
+          if (nextIdx === 0) {
+            birthdayCursor.current = 0;
+            regularTicks.current = 0;
+          }
+          return nextIdx;
+        });
       }
     }, rotationInterval);
     return () => {
