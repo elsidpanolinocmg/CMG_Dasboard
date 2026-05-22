@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { upload } from "@vercel/blob/client";
 import type { ClientBirthday } from "./BirthdaysManager";
+
+const EXT_BY_TYPE: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+};
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -68,22 +78,36 @@ export default function BirthdayEditor({ mode, initial, onSaved, onCancel }: Pro
     let mediaKind: "image" | "video" = initial?.mediaKind ?? "image";
 
     if (file) {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("id", id);
-      const upRes = await fetch("/api/admin/birthdays/upload", {
-        method: "POST",
-        body: fd,
-      });
-      if (!upRes.ok) {
-        const b = await upRes.json().catch(() => ({}));
+      const ext = EXT_BY_TYPE[file.type];
+      if (!ext) {
         setBusy(false);
-        setError(b?.error || "Upload failed");
+        setError(`Unsupported file type: ${file.type || "unknown"}`);
         return;
       }
-      const data = await upRes.json();
-      mediaPath = data.mediaPath;
-      mediaKind = data.mediaKind;
+      const kind: "image" | "video" = file.type.startsWith("video/")
+        ? "video"
+        : "image";
+      try {
+        // Upload straight from the browser to Vercel Blob. The file does not
+        // pass through our serverless function, so it is not capped at ~4.5 MB.
+        const blob = await upload(`birthdays/${id}.${ext}`, file, {
+          access: "public",
+          contentType: file.type,
+          handleUploadUrl: "/api/admin/birthdays/upload",
+          clientPayload: JSON.stringify({
+            id,
+            mediaKind: kind,
+            size: file.size,
+            contentType: file.type,
+          }),
+        });
+        mediaPath = blob.url;
+        mediaKind = kind;
+      } catch (err) {
+        setBusy(false);
+        setError(err instanceof Error ? err.message : "Upload failed");
+        return;
+      }
     }
 
     const body = {
