@@ -13,6 +13,7 @@ export type ClientBirthday = {
   mediaPath: string;
   active: boolean;
   hideGreeting?: boolean;
+  finishVideo?: boolean;
 };
 
 const MONTHS = [

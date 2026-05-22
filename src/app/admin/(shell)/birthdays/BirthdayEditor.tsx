@@ -54,6 +54,7 @@ export default function BirthdayEditor({ mode, initial, onSaved, onCancel }: Pro
   const [birthDay, setBirthDay] = useState(initial?.birthDay ?? 1);
   const [active, setActive] = useState(initial?.active ?? true);
   const [hideGreeting, setHideGreeting] = useState(initial?.hideGreeting ?? false);
+  const [finishVideo, setFinishVideo] = useState(initial?.finishVideo ?? false);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +120,7 @@ export default function BirthdayEditor({ mode, initial, onSaved, onCancel }: Pro
       mediaPath,
       active,
       hideGreeting,
+      finishVideo: mediaKind === "video" ? finishVideo : false,
     };
 
     const res = await fetch("/api/admin/birthdays", {
@@ -137,6 +139,11 @@ export default function BirthdayEditor({ mode, initial, onSaved, onCancel }: Pro
 
   const dayMax = daysInMonth(birthMonth);
   const dayOptions = Array.from({ length: dayMax }, (_, i) => i + 1);
+  // The "finish video" option only makes sense for video media: either a newly
+  // chosen video file, or (when editing without re-uploading) existing video.
+  const isVideo = file
+    ? file.type.startsWith("video/")
+    : initial?.mediaKind === "video";
 
   return (
     <form
@@ -235,6 +242,25 @@ export default function BirthdayEditor({ mode, initial, onSaved, onCancel }: Pro
           </span>
         </span>
       </label>
+
+      {isVideo && (
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={finishVideo}
+            onChange={(e) => setFinishVideo(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Let the video finish playing
+            <span className="block opacity-60 text-xs">
+              When checked, the slide stays on screen until the video plays
+              through once, instead of being cut off after the usual time. The
+              video won&apos;t loop. (Videos always play muted.)
+            </span>
+          </span>
+        </label>
+      )}
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 

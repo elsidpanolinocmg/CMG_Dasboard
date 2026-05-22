@@ -20,6 +20,7 @@ export default async function BirthdaysPage() {
     mediaPath: b.mediaPath,
     active: b.active,
     hideGreeting: b.hideGreeting ?? false,
+    finishVideo: b.finishVideo ?? false,
   }));
   return (
     <div className="flex flex-col gap-8">

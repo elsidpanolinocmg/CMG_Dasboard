@@ -6,14 +6,20 @@ export interface BirthdaySlideEntry {
   mediaKind: "image" | "video";
   mediaPath: string;
   hideGreeting?: boolean;
+  finishVideo?: boolean;
 }
 
 interface Props {
   entry: BirthdaySlideEntry;
   className?: string;
+  // Fired when a "finish video" clip plays through (or errors). The parent uses
+  // this to advance the slideshow exactly when the video ends. Only called for
+  // video entries with finishVideo set, since looping videos never "end".
+  onVideoEnded?: () => void;
 }
 
-export default function BirthdaySlide({ entry, className }: Props) {
+export default function BirthdaySlide({ entry, className, onVideoEnded }: Props) {
+  const playOnce = entry.mediaKind === "video" && !!entry.finishVideo;
   return (
     <div
       className={`relative w-full h-full min-h-screen flex items-center justify-center bg-black overflow-hidden ${className ?? ""}`}
@@ -50,8 +56,10 @@ export default function BirthdaySlide({ entry, className }: Props) {
             className="relative w-full h-full object-contain"
             autoPlay
             muted
-            loop
+            loop={!playOnce}
             playsInline
+            onEnded={playOnce ? onVideoEnded : undefined}
+            onError={playOnce ? onVideoEnded : undefined}
           />
         </>
       )}

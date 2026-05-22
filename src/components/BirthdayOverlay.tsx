@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import BirthdaySlide, { type BirthdaySlideEntry } from "./BirthdaySlide";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
@@ -69,9 +69,14 @@ export default function BirthdayOverlay({
     const showTimer = setInterval(() => {
       const next = cursor.current % list.length;
       cursor.current = next + 1;
+      const upcoming = list[next];
       setActiveIdx(next);
       if (hideTimer.current) clearTimeout(hideTimer.current);
-      hideTimer.current = setTimeout(() => setActiveIdx(null), showForMs);
+      // "Finish video" slides stay until the clip ends (onVideoEnded); the timer
+      // here is only a safety cap so a stalled video can't pin the overlay open.
+      const playOnce = upcoming?.mediaKind === "video" && upcoming.finishVideo;
+      const holdMs = playOnce ? 20 * 60 * 1000 : showForMs;
+      hideTimer.current = setTimeout(() => setActiveIdx(null), holdMs);
     }, showEveryMs);
     return () => {
       clearInterval(showTimer);
@@ -79,13 +84,18 @@ export default function BirthdayOverlay({
     };
   }, [list.length, showEveryMs, showForMs]);
 
+  const handleVideoEnded = useCallback(() => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    setActiveIdx(null);
+  }, []);
+
   if (activeIdx === null) return null;
   const entry = list[activeIdx];
   if (!entry) return null;
 
   return (
     <div className="fixed inset-0 z-50 pointer-events-none">
-      <BirthdaySlide entry={entry} />
+      <BirthdaySlide entry={entry} onVideoEnded={handleVideoEnded} />
     </div>
   );
 }
