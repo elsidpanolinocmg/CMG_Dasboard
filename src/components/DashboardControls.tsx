@@ -82,24 +82,16 @@ export default function DashboardControls({
   // the overlay on then immediately off, so it never appeared.
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
+      // Touch opens via the bottom tap-bar's click instead — opening here on
+      // pointer-DOWN would mount the backdrop in time for the same tap's trailing
+      // click to land on it and immediately close the panel (flash open/shut).
+      if (isTouchRef.current) return;
       if (e.target instanceof Node && containerRef.current?.contains(e.target))
         return;
-      // Bottom tap zone. On touch, keep it to a thin strip at the very bottom
-      // (just the handle band) so tapping the story links above never opens the
-      // controls by mistake. Non-touch (desktop/TV) keeps the larger 25%/≥140px
-      // zone since there are no inline links to fat-finger there.
-      const zone = isTouchRef.current
-        ? 64
-        : Math.max(window.innerHeight * 0.25, 140);
+      // Desktop/TV: toggle via the bottom 25%/≥140px zone (no tap-bar there).
+      const zone = Math.max(window.innerHeight * 0.25, 140);
       if (e.clientY < window.innerHeight - zone) return;
-      if (isTouchRef.current) {
-        // Touch: the bottom-tap only opens; the backdrop handles closing. Pages
-        // can opt out (openOnBottomTap=false) to require the handle button.
-        if (openOnBottomTap && !visibleRef.current) setVisible(true);
-      } else {
-        // Desktop/TV always toggles via the bottom zone, like every other page.
-        setVisible((v) => !v);
-      }
+      setVisible((v) => !v);
     };
     window.addEventListener("pointerdown", onPointerDown);
     return () => window.removeEventListener("pointerdown", onPointerDown);
@@ -115,23 +107,17 @@ export default function DashboardControls({
 
   return (
     <>
-      {/* Touch-only handle so phone/tablet users have a real tap target to open
-          the controls (must be visible on BOTH light and dark pages — hence the
-          dark pill with a light grabber). On desktop/TV (non-touch) it's hidden:
-          the controls auto-hide cleanly and reopen via a click in the bottom
-          zone, so a permanent pill would just clutter the display. */}
+      {/* Invisible tap-bar at the very bottom — the touch way to open the controls
+          now that there's no visible handle. Anchored to the real viewport bottom
+          (reliable, unlike the window.innerHeight calc which can drift on mobile),
+          64px tall so it sits below page content. Desktop/TV still open via the
+          bottom-zone click in the pointerdown handler. */}
       {!visible && isTouch && (
-        <button
-          type="button"
-          aria-label="Show controls"
+        <div
+          className="fixed inset-x-0 bottom-0 h-16 z-40"
           onClick={() => setVisible(true)}
-          className="fixed bottom-2 left-1/2 -translate-x-1/2 z-40 flex h-8 w-20 items-center justify-center rounded-full touch-manipulation bg-black/10 ring-1 ring-white/15"
-        >
-          <span
-            className="h-1 w-9 rounded-full bg-white/90 shadow-sm shadow-black/40"
-            aria-hidden="true"
-          />
-        </button>
+          aria-hidden="true"
+        />
       )}
 
       {/* Touch only — closes the panel on an outside tap and blocks taps from

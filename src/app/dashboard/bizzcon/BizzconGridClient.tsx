@@ -61,18 +61,39 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
   const isMobile = useIsMobile();
   const birthdays = isMobile ? [] : birthdaysProp;
   const tableRef = useRef<HTMLDivElement>(null);
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState<number | "all">(5);
   const [pageIndex, setPageIndex] = useState(0);
   const [rotationInterval, setRotationInterval] = useState(60_000);
   const rotationTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [birthdayShownIdx, setBirthdayShownIdx] = useState<number | null>(null);
   const birthdayCursor = useRef(0);
   const regularTicks = useRef(0);
+  // Short landscape phones show the cramped desktop table (12 rows won't fit);
+  // mobile portrait shows the stacked table (8+ rows clip). Drop those options
+  // and let "All" scroll, matching the awards dashboard.
+  const [isShortLandscape, setIsShortLandscape] = useState(false);
+  const [isMobilePortrait, setIsMobilePortrait] = useState(false);
 
   useEffect(() => {
     if (window.innerWidth < 768 && window.innerHeight > window.innerWidth) {
       setPageSize(6);
     }
+  }, []);
+
+  useEffect(() => {
+    const mqL = window.matchMedia("(orientation: landscape) and (max-height: 600px)");
+    const mqP = window.matchMedia("(orientation: portrait) and (max-width: 767px)");
+    const apply = () => {
+      setIsShortLandscape(mqL.matches);
+      setIsMobilePortrait(mqP.matches);
+    };
+    apply();
+    mqL.addEventListener("change", apply);
+    mqP.addEventListener("change", apply);
+    return () => {
+      mqL.removeEventListener("change", apply);
+      mqP.removeEventListener("change", apply);
+    };
   }, []);
 
   const upcomingEvents = useMemo(() => {
@@ -86,12 +107,44 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
     });
   }, [events]);
 
-  const totalPages = Math.max(1, Math.ceil(upcomingEvents.length / pageSize));
-  const displayed = upcomingEvents.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+  const resolvedPageSize =
+    pageSize === "all" ? Math.max(1, upcomingEvents.length) : pageSize;
+  const totalPages = Math.max(1, Math.ceil(upcomingEvents.length / resolvedPageSize));
+  const displayed = upcomingEvents.slice(
+    pageIndex * resolvedPageSize,
+    (pageIndex + 1) * resolvedPageSize,
+  );
   const rows: (BizzconEvent | null)[] = [...displayed];
-  while (rows.length < pageSize) rows.push(null);
+  while (rows.length < resolvedPageSize) rows.push(null);
 
-  const count = pageSize || 1;
+  // Trim page-size options that don't fit the current phone view: landscape
+  // drops 12, portrait drops 8 and 12 (its stacked rows are taller).
+  const pageOptions = isShortLandscape
+    ? PAGE_OPTIONS.filter((n) => n !== 12)
+    : isMobilePortrait
+      ? PAGE_OPTIONS.filter((n) => n < 8)
+      : PAGE_OPTIONS;
+
+  // Only the explicit "Show All" option scrolls (a numbered Show 5/6/8/12 always
+  // fits, even when it covers every event), and only when there are MORE than 8
+  // events — 8 or fewer fit the screen. Desktop/TV keep fit-to-screen.
+  const showingAll = pageSize === "all";
+  const allNeedsScroll = showingAll && upcomingEvents.length > 8;
+  const scrollAll = isShortLandscape && allNeedsScroll; // landscape (desktop table)
+  const scrollAllMobile = isMobilePortrait && allNeedsScroll; // portrait (mobile table)
+
+  useEffect(() => {
+    if (showingAll) return;
+    if (isShortLandscape && pageSize === 12) {
+      setPageSize(8);
+      setPageIndex(0);
+    } else if (isMobilePortrait && (pageSize === 8 || pageSize === 12)) {
+      setPageSize(6);
+      setPageIndex(0);
+    }
+  }, [isShortLandscape, isMobilePortrait, pageSize, showingAll]);
+
+  const count = resolvedPageSize;
   const eff = Math.min(count, 12);
   const rowHeight = Math.floor(80 / eff);
   const fontSize =
@@ -116,7 +169,7 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
       : `clamp(0.7rem, calc(0.55vw + ${5 / eff}vw), 2rem)`;
   const mImgSize = Math.max(32, Math.min(130, 420 / eff));
 
-  const handlePageSizeChange = (size: number) => {
+  const handlePageSizeChange = (size: number | "all") => {
     setPageSize(size);
     setPageIndex(0);
   };
@@ -183,13 +236,22 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
 
   return (
     <div
-      className="relative flex flex-col justify-center h-screen pt-4 pb-8 px-0 md:px-4 overflow-hidden"
+      className="awards-grid-root relative flex flex-col justify-center h-[100dvh] pt-4 pb-8 px-0 md:px-4 overflow-hidden"
       style={{ backgroundColor: "#181818" }}
       ref={tableRef}
       {...swipe}
     >
-      <div className="hidden md:flex landscape-show flex-col flex-1 min-h-0">
-        <table className="w-full border-collapse table-fixed h-full" style={{ fontSize }}>
+      <div
+        className={`hidden md:flex landscape-show flex-col flex-1 min-h-0 ${
+          scrollAll ? "bizzcon-scroll overflow-y-auto" : ""
+        }`}
+      >
+        <table
+          className={`awards-grid-table w-full border-collapse table-fixed ${
+            scrollAll ? "" : "h-full"
+          }`}
+          style={{ fontSize }}
+        >
           <thead>
             <tr
               className="text-center font-semibold uppercase text-white/90"
@@ -281,8 +343,17 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
         </table>
       </div>
 
-      <div className="flex md:hidden landscape-hide flex-col flex-1 min-h-0">
-        <table className="w-full border-collapse table-fixed h-full" style={{ fontSize: mFontSize }}>
+      <div
+        className={`flex md:hidden landscape-hide flex-col flex-1 min-h-0 ${
+          scrollAllMobile ? "bizzcon-scroll overflow-y-auto" : ""
+        }`}
+      >
+        <table
+          className={`w-full border-collapse table-fixed ${
+            scrollAllMobile ? "" : "h-full"
+          }`}
+          style={{ fontSize: mFontSize }}
+        >
           <thead>
             <tr
               className="text-center font-semibold uppercase text-white/90"
@@ -378,16 +449,18 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
           ◀ Prev
         </button>
         <select
-          value={pageSize}
-          onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+          value={pageSize === "all" ? "all" : String(pageSize)}
+          onChange={(e) =>
+            handlePageSizeChange(e.target.value === "all" ? "all" : Number(e.target.value))
+          }
           className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 [&>option]:bg-gray-800 [&>option]:text-white"
         >
-          {PAGE_OPTIONS.map((n) => (
+          {pageOptions.map((n) => (
             <option key={n} value={n}>
               {n} events
             </option>
           ))}
-          <option value={upcomingEvents.length}>All ({upcomingEvents.length})</option>
+          <option value="all">All ({upcomingEvents.length})</option>
         </select>
         <span className="text-sm text-white/80">
           {pageIndex + 1} / {totalPages}

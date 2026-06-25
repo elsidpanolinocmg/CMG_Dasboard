@@ -245,6 +245,14 @@ select option {
   background-color: #1a3a6e;
 }
 
+/* Same as .awards-scroll but for the bizzcon grid, whose header is #242424. */
+.bizzcon-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: #242424;
+}
+
 /* Leaderboard "Show All" on a mobile phone, either orientation (.lb-scroll): the
    table grows past the screen and its wrapper scrolls. Pin the header at the top
    and the Total
