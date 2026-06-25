@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default function AwardsTotalSalesPage() {
   return (
     <div
-      className="min-h-screen max-w-screen overflow-auto"
+      className="h-[100dvh] max-w-screen overflow-hidden"
       style={{ backgroundColor: "#2a2a2a" }}
     >
       <SalesLeaderboardClient

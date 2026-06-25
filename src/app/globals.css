@@ -36,6 +36,474 @@ select option {
   color: var(--foreground);
 }
 
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-flash {
+  animation: flash 1.5s ease-in-out infinite;
+}
+
+/* Tight cell padding for the portrait 20/page leaderboard, so all 20 rows + the
+   total fit a phone's height without scrolling. Class is only applied to that
+   mobile table, so desktop/TV are unaffected. */
+.mobile-tight td,
+.mobile-tight th {
+  padding-top: 1px !important;
+  padding-bottom: 1px !important;
+  line-height: 1.15 !important;
+}
+
+/* Mailchimp leaderboard on phones: the dense 9-column table is too wide for a
+   narrow screen, so trim every cell's padding to give the numbers room and stop
+   adjacent-column content from colliding. Desktop/TV keep their roomy padding. */
+@media (max-width: 767px) and (orientation: portrait) {
+  .mc-table td,
+  .mc-table th {
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+
+  /* Freeze the Audience column (sticky-left) and pin the header + Total rows so
+     the body scrolls vertically through every brand. Sticky cells need their own
+     opaque background since the scrolling metric columns slide underneath. The
+     :first-child corners (header/Total × Audience) sit above everything. */
+  .mc-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #000;
+    border-bottom: 3px solid #ffe01b;
+  }
+  .mc-table thead th:first-child {
+    left: 0;
+    z-index: 5;
+  }
+  .mc-table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+  .mc-table tbody tr:nth-child(odd) td:first-child {
+    background: #ffffff;
+  }
+  .mc-table tbody tr:nth-child(even) td:first-child {
+    background: #fafafa;
+  }
+  .mc-table tbody tr:last-child td {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    background: #fafafa;
+    border-top: 2px solid #ffe01b;
+  }
+  .mc-table tbody tr:last-child td:first-child {
+    left: 0;
+    z-index: 5;
+  }
+}
+
+/* Show desktop table in landscape on mobile */
+@media (orientation: landscape) {
+  .landscape-show { display: flex !important; }
+  .landscape-hide { display: none !important; }
+}
+
+/* Active-users table: stick the column labels while scrolling on touch devices
+   (phones + every iPad/tablet, in any orientation). Keyed on `pointer: coarse`
+   rather than a width cap so all iPad models behave identically; desktop/TV use a
+   fine pointer (mouse) and are left untouched — matching the app's touch split. */
+@media (pointer: coarse) {
+  .all-active-table thead th {
+    position: sticky;
+    top: 0;
+    background: #ffffff;
+    z-index: 1;
+  }
+}
+
+/* Mailchimp leaderboard on landscape phones: the short height leaves each Show-N
+   row very little room, so trim the cells' vertical padding (the JS already scales
+   the fonts to the row height). Tablets/desktop (>= 950px) keep roomy padding. */
+@media (orientation: landscape) and (max-width: 950px) {
+  .mc-table td,
+  .mc-table th {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+}
+
+/* Shrink the DashboardControls overlay on short landscape screens (phones) so all
+   its buttons fit and the panel sits near the bottom — otherwise the wrapped rows
+   push controls (like the Show-N selector) off the top of the screen. */
+@media (orientation: landscape) and (max-height: 600px) {
+  .dash-controls {
+    bottom: 6rem !important;
+    gap: 0.4rem !important;
+    padding: 0.35rem 0.7rem !important;
+    max-width: 97vw !important;
+  }
+  .dash-controls button,
+  .dash-controls select,
+  .dash-controls a {
+    padding: 0.35rem 0.8rem !important;
+    font-size: 0.92rem !important;
+    line-height: 1.3 !important;
+    border-radius: 0.5rem !important;
+  }
+  /* Trim the full table's vertical cell padding so short landscape rows give
+     their content more room (the name + tags were clipping at Show 5). */
+  .lb-table td,
+  .lb-table th {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+
+  /* Awards grid on short landscape phones shows the 6-column desktop table (see
+     .landscape-show). Its row heights, fonts and brand logos are sized for tall
+     screens, so on a ~375px-tall phone the logos overrun the rows and overlap /
+     clip. Shrink everything to fit the screen with no scroll. Tablets are taller
+     than 600px so they keep the roomy layout. */
+  .awards-grid-root {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.4rem !important;
+  }
+  .awards-grid-table {
+    font-size: 0.95rem !important;
+    /* Tight line-height so a 2-line award title fits the shrunken rows at higher
+       counts (Show 8). At the default ~1.5 the second line overran the row and
+       clipped. */
+    line-height: 1.1 !important;
+  }
+  .awards-grid-table th {
+    font-size: 0.72rem !important;
+    line-height: 1.1 !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+  .awards-grid-table td {
+    line-height: 1.1 !important;
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
+  }
+  /* The "Days" / "Nom. Close" numbers are an inline 1.5em span; shrink them so
+     they stay readable but contained (stylesheet !important beats inline style). */
+  .awards-grid-table td.font-mono span {
+    font-size: 1.2em !important;
+  }
+  /* Logos are the main offender — pin them to a row-friendly height. */
+  .awards-grid-table img {
+    height: 26px !important;
+    max-width: 52px !important;
+  }
+
+}
+
+/* Sales/awards leaderboard fit-to-screen on mobile phones (BOTH orientations).
+   Two problems on a phone:
+   1. The per-row 40px min-height (fine on a tall TV) stacks the rows past the
+      screen height and clips (20/page in portrait, ~12 rows in landscape).
+   2. Rows are sized in vh, but the container is dvh — when the mobile address
+      bar shows, dvh < vh, so the vh-budgeted rows overrun the container and the
+      bottom clips.
+   Fix both: clear the min-height and the vh heights, and let the table's h-full
+   (dvh-bounded) distribute the height so every row fits the real container.
+   Shrink the font and zero the padding so content stays inside the now-shorter
+   rows with margin to spare. */
+@media (orientation: landscape) and (max-height: 600px),
+       (orientation: portrait) and (max-width: 767px) {
+  .lb-fit {
+    font-size: 0.82rem !important;
+  }
+  .lb-fit thead tr {
+    font-size: 0.68rem !important;
+  }
+  .lb-fit tbody tr,
+  .lb-fit thead tr {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .lb-fit td,
+  .lb-fit th {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    line-height: 1.05 !important;
+  }
+}
+
+/* Awards grid "Show All": the table grows past the screen and the wrapper
+   (.awards-scroll) scrolls. Pin the header row so column labels stay visible.
+   The <th> cells are transparent (the <tr> carries the colour), so give the
+   sticky cells the header colour too, otherwise scrolled rows show through. */
+.awards-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: #1a3a6e;
+}
+
+/* Leaderboard "Show All" on a mobile phone, either orientation (.lb-scroll): the
+   table grows past the screen and its wrapper scrolls. Pin the header at the top
+   and the Total
+   row at the bottom so they stay visible while the rows scroll between them.
+   position: sticky on table cells is IGNORED under border-collapse: collapse
+   (notably on iOS Safari / mobile Chrome), so this table must use separate
+   borders. Separated tables ignore borders on <tr>, so the row dividers are
+   re-added on the cells. Cells are transparent (the row carries the colour), so
+   the sticky cells need their own opaque background or scrolled rows show
+   through. A little vertical padding keeps the scrolled rows readable. */
+.lb-scroll {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+.lb-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background-color: #3a3a3a;
+}
+.lb-scroll tbody tr:last-child td {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  background-color: #2a2a2a;
+  border-top: 2px solid rgba(212, 168, 83, 0.6);
+}
+.lb-scroll tbody td {
+  border-bottom: 0.5px solid #222;
+}
+.lb-scroll td {
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
+}
+
+/* Mailchimp leaderboard table (.mc-table) fit-to-screen on a landscape phone.
+   The wide desktop table shows here (it's gated on width >= 768px, not
+   orientation), and its per-row min-heights (60px data rows, 50px total) plus
+   vh row heights stack past a phone's short landscape height and clip. Clear the
+   min-heights and vh heights so the table's h-full (dvh-bounded container)
+   distributes the rows to fit every Show N with no scroll; tighten padding and
+   line-height so the cell content stays inside the shorter rows. Tablets/desktop
+   are taller than 600px, so they keep the roomy layout. */
+@media (orientation: landscape) and (max-height: 600px) {
+  .mc-table tbody tr,
+  .mc-table thead tr {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .mc-table td,
+  .mc-table th {
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
+    line-height: 1.05 !important;
+  }
+  /* Shrink the cell content itself so the rows read compact, not just fit. The
+     number cells use em sizes, so they scale down with the table font; the Total
+     row and the lead-source chips set their own sizes, so override those too.
+     All sizes are multiplied by --mc-fit (set by the measure effect in JS) so
+     the table shrinks further to fit when row-distribution alone can't (e.g.
+     Chrome's smaller dvh) — guaranteeing no clip, cross-browser. */
+  .mc-table {
+    font-size: calc(0.68rem * var(--mc-fit, 1)) !important;
+  }
+  .mc-table thead tr {
+    font-size: calc(0.56rem * var(--mc-fit, 1)) !important;
+  }
+  .mc-table tbody tr:last-child td {
+    font-size: calc(0.82rem * var(--mc-fit, 1)) !important;
+  }
+  /* Lead-source chips (the only inline-flex spans in the table). Their base size
+     (--mc-chip) is set per page size in JS — only the dense Show 6 shrinks them,
+     since that's where a wrapped chip row pushed the bottom rows out and clipped
+     in Chrome. --mc-fit then keeps the whole table fitting if a row still wraps. */
+  .mc-table .inline-flex {
+    font-size: calc(var(--mc-chip, 0.52rem) * var(--mc-fit, 1)) !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    line-height: 1.2 !important;
+  }
+}
+
+/* Mailchimp leaderboard "Show All" on a landscape phone (.mc-scroll): the table
+   grows past the screen and its wrapper scrolls. Pin the header at the top and
+   the Total row at the bottom so they stay visible while the rows scroll between
+   them. position: sticky on table cells is ignored under border-collapse:
+   collapse (iOS/mobile), so the table must use separate borders; separated
+   tables ignore borders on <tr>, so the row dividers are re-added on the cells.
+   Pinned cells need an opaque background or scrolled rows show through. */
+.mc-scroll {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+.mc-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #000000;
+  /* The yellow accent line, baked into the sticky header so it stays pinned too
+     (the separate accent row below is hidden in scroll mode). */
+  border-bottom: 3px solid #ffe01b;
+}
+/* Hide the standalone yellow accent row when scrolling — the th border above
+   carries it. Only applies in scroll mode; the normal table keeps the row. */
+.mc-scroll thead tr:last-child {
+  display: none;
+}
+.mc-scroll tbody tr:last-child td {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  background: #ffffff;
+  border-top: 2px solid #ffe01b;
+}
+.mc-scroll tbody td {
+  border-bottom: 1px solid #e5e5e5;
+}
+.mc-scroll td {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+/* Controls legibility fixes — scoped to touch devices (phones) only, so the
+   desktop/TV controls render exactly as before. The combobox dark-text problem
+   this addresses only ever appeared on the mobile (iOS) native select. */
+@media (pointer: coarse) {
+  /* The controls overlay is a translucent dark pill that floats over both dark
+     dashboards and light (white) video pages. Any control text that inherits the
+     page's color therefore renders dark/illegible on the light pages. Force a
+     light default for everything inside the panel; buttons/links that set their
+     own color (e.g. text-white) still win, this only fixes the inherited ones. */
+  .dash-controls {
+    color: #f1f5f9; /* slate-100 */
+  }
+  /* Native <select> boxes don't reliably honor a text-white class for their
+     displayed value: iOS Safari ignores `color` and dims it, so set both `color`
+     and `-webkit-text-fill-color` (plus opacity) to force the text light on the
+     mobile combobox. Dark background keeps it readable on the white video pages. */
+  .dash-controls select {
+    color: #f1f5f9;
+    -webkit-text-fill-color: #f1f5f9;
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+  .dash-controls select:hover {
+    background-color: rgba(0, 0, 0, 0.65);
+  }
+  .dash-controls option {
+    background-color: #1f2937; /* gray-800 */
+    color: #f1f5f9;
+  }
+}
+
+/* Compact the brand-dashboard header on short landscape screens (phones), so the
+   logo and active-user counts stop overflowing/overlapping and leave more room
+   for the video and Top-10 news. Tall screens (desktop/TV, portrait) unaffected.
+   !important overrides the components' Tailwind md: sizes and the odometers'
+   inline font-size on these viewports only. */
+/* Landscape phones. Keyed on width (the long edge, ~667-932px on phones) rather
+   than height: viewport height in landscape varies by browser (Chrome's toolbar
+   vs Safari), so a height threshold missed Chrome. Width is stable across both.
+   Excludes tablets (>=1024px) and desktop. */
+@media (orientation: landscape) and (max-width: 950px) {
+  .brand-header {
+    flex-direction: row !important;
+    align-items: center !important;
+    padding-top: 0.125rem !important;
+    padding-bottom: 0.125rem !important;
+    gap: 0.375rem !important;
+  }
+  .brand-header .brand-logo { height: 1.5rem !important; width: 5rem !important; }
+  .brand-header .cmg-logo { height: 1.5rem !important; width: 3rem !important; }
+  /* The md: breakpoint doesn't apply on a sub-768px landscape phone, so replicate
+     the desktop header here: row layout, metrics in a single row (not a 2x2 grid),
+     and the corner CMG logo shown while the inline mobile toggle is hidden. */
+  .brand-header .brand-left { width: auto !important; }
+  .brand-header .metric-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: space-evenly !important;
+    gap: 0.5rem !important;
+  }
+  .brand-header .cmg-mobile { display: none !important; }
+  .brand-header .cmg-corner { display: block !important; }
+  .brand-header .metric-col p { font-size: 8px !important; line-height: 1.1 !important; }
+  .brand-header .metric-col > div { font-size: 13px !important; }
+
+  /* Fit the whole dashboard on one landscape screen (no scrolling): lock to the
+     viewport height and place the news beside the video instead of stacked. */
+  /* Fit-to-screen in landscape: the shell + root both track the dynamic viewport
+     (dvh) so the document never exceeds the visible area and nothing scrolls —
+     while letting the browser manage its toolbar normally (no lock, no clip). */
+  .brand-shell { height: var(--brand-h, 100dvh) !important; min-height: 0 !important; overflow: hidden !important; }
+  .brand-root { height: var(--brand-h, 100dvh) !important; min-height: 0 !important; overflow: hidden !important; }
+  .brand-main {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    gap: 0.5rem !important;
+  }
+  .brand-content {
+    flex-direction: row !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    gap: 0.5rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  .brand-news { width: 40% !important; height: 100% !important; overflow-x: hidden !important; overflow-y: auto !important; }
+  .brand-video { width: 60% !important; height: 100% !important; overflow: hidden !important; }
+
+  /* Awards view: shrink the award logo and tighten the nomination countdowns so
+     all three (Opens / Closes / Presentation) fit the landscape column. */
+  .brand-news .award-countdown { gap: 0.25rem !important; font-size: 0.72rem !important; line-height: 1.15 !important; }
+  .brand-news .award-countdown > div { gap: 0.3rem !important; }
+  /* Size to the visible viewport height (dvh) with a cap, so the logo is large on
+     Safari (taller landscape area) but shrinks to fit Chrome's shorter area instead
+     of pushing the countdowns out of view. */
+  .brand-news .award-countdown .award-logo { width: min(10rem, 32dvh) !important; height: min(10rem, 32dvh) !important; }
+  .brand-news .award-countdown p { font-size: 0.6rem !important; line-height: 1.1 !important; margin: 0 !important; }
+  /* Keep the countdowns stacked vertically; tightened gaps + the auto-scrolling
+     column (.brand-news) keep all three reachable on a short screen. */
+  .brand-news .award-times { gap: 0.4rem !important; }
+
+  /* Shorts on landscape phones: shrink the title and reserve only a sliver for
+     it so the 9:16 video claims as much of the short, wide area as possible. The
+     title stays above the (static) ticker. */
+  .shorts-box { max-height: calc(100% - 1.25rem) !important; }
+  .shorts-title {
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    margin-top: 2px !important;
+    -webkit-line-clamp: 1 !important;
+  }
+}
+
+/* Brand-dashboard header on tablets (iPads): the desktop md: logo sizes (brand
+   w-64, corner CMG w-32) are too wide for the iPad header row, so the upper-right
+   CMG logo overlaps the "Active Users Now" metric. Shrink both logos to give the
+   metrics room. Touch + tablet size only (min-height 700 excludes short landscape
+   phones; pointer: coarse excludes mouse-driven desktop/TV). */
+@media (pointer: coarse) and (min-width: 768px) and (min-height: 700px) {
+  .brand-header .brand-logo { height: 3rem !important; width: 8rem !important; }
+  .brand-header .cmg-logo { height: 3rem !important; width: 5rem !important; }
+
+  /* Editorial brand dashboard: give the video a bit more room and shrink the
+     Top-10 news column + its title font so more of each headline is visible.
+     Scoped to the news that holds a table (TopViews) so the Awards dashboard's
+     countdown column — which reuses .brand-news/.brand-video — is left alone. */
+  .brand-content:has(.brand-news table) { gap: 1rem !important; }
+  .brand-content:has(.brand-news table) .brand-news { width: 34% !important; }
+  .brand-content:has(.brand-news table) .brand-video { width: 66% !important; }
+  .brand-news table { font-size: clamp(12px, 1.6vh, 16px) !important; }
+  .brand-news th { padding: 6px 10px !important; }
+  .brand-news td { padding: 2px 10px !important; }
+}
+
 /* ---- Admin shell theming ---- */
 .admin-shell {
   --admin-bg: var(--background);

@@ -53,7 +53,7 @@ export default function EditorialBrandClient({ brand, siteConfig }: Props) {
   }, [autoFullscreen]);
 
   return (
-    <div className="flex flex-col w-screen min-h-screen overflow-hidden">
+    <div className="brand-shell flex flex-col w-screen min-h-screen overflow-hidden">
       <BrandDashboard
         key={searchParams.toString()}
         brand={brand}

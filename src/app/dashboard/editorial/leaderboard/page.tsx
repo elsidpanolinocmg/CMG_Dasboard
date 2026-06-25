@@ -401,30 +401,31 @@ export default async function EditorialLeaderboardPage({
       </div>
     );
   }
-  const { authors, brandErrors, rosterError, rosterCount } = snapshot;
+  const { authors, brandErrors, rosterError } = snapshot;
 
   return (
     <div className="min-h-screen max-w-screen overflow-auto bg-white text-gray-900">
-      {(rosterError || rosterCount > 0 || brandErrors.length > 0) && (
-        <AutoHideBanner>
-          {rosterError && (
-            <div className="bg-red-50 border-b border-red-200 text-red-900 text-xs px-4 py-2">
-              Editorial roster unavailable — {rosterError}. Leaderboard will be empty until
-              the editorial people collection is populated.
-            </div>
-          )}
-          {!rosterError && rosterCount > 0 && (
-            <div className="bg-emerald-50 border-b border-emerald-200 text-emerald-900 text-xs px-4 py-2">
-              Filtering to {rosterCount} editorial team members from the DB roster.
-            </div>
-          )}
-          {brandErrors.length > 0 && (
-            <div className="bg-amber-50 border-b border-amber-200 text-amber-900 text-xs px-4 py-2">
-              {brandErrors.length} brand{brandErrors.length === 1 ? "" : "s"} skipped:{" "}
-              {brandErrors.map((e) => `${e.brand} (${e.error})`).join(", ")}
-            </div>
-          )}
-        </AutoHideBanner>
+      {/* Error banners only (no always-on "filtering" info notice — it pushed the
+          fixed-height leaderboard down and clipped the Total row on mobile).
+          Overlaid + pointer-events-none so it can never offset the layout or block
+          taps on the controls beneath. */}
+      {(rosterError || brandErrors.length > 0) && (
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-[70]">
+          <AutoHideBanner>
+            {rosterError && (
+              <div className="bg-red-50 border-b border-red-200 text-red-900 text-xs px-4 py-2">
+                Editorial roster unavailable — {rosterError}. Leaderboard will be empty until
+                the editorial people collection is populated.
+              </div>
+            )}
+            {brandErrors.length > 0 && (
+              <div className="bg-amber-50 border-b border-amber-200 text-amber-900 text-xs px-4 py-2">
+                {brandErrors.length} brand{brandErrors.length === 1 ? "" : "s"} skipped:{" "}
+                {brandErrors.map((e) => `${e.brand} (${e.error})`).join(", ")}
+              </div>
+            )}
+          </AutoHideBanner>
+        </div>
       )}
       <EditorialLeaderboard
         authors={authors}

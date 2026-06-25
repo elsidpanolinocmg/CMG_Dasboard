@@ -33,7 +33,7 @@ export default async function BrandDrillInPage({
 
   return (
     <Suspense fallback={<LoadingPage loadingText={`Loading ${row.displayName}…`} />}>
-      <div className="flex flex-col w-screen min-h-screen overflow-hidden">
+      <div className="brand-shell flex flex-col w-screen min-h-screen overflow-hidden">
         {birthdays.length > 0 ? (
           <BrandWithBirthdayRotator
             brand={brand}

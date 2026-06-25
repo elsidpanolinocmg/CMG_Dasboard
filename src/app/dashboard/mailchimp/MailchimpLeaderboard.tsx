@@ -1,7 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  type CSSProperties,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
+
+// Layout effect on the client (measures DOM before paint, no flash), plain
+// effect on the server (no-op during SSR — avoids the useLayoutEffect warning).
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 import Link from "next/link";
 import DashboardControls from "@/components/DashboardControls";
 import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
@@ -129,6 +141,9 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
   const [pageIndex, setPageIndex] = useState(0);
   const [rotationInterval, setRotationInterval] = useState(60_000);
   const rotationTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // On a landscape phone, "Show All" scrolls the table with the header + Total
+  // row pinned, instead of crushing every audience onto one screen.
+  const [isShortLandscape, setIsShortLandscape] = useState(false);
 
   function handleRefresh() {
     // Force-clear the server cache (page reads ?cache=clear), then drop the
@@ -155,10 +170,94 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
     }
   }, []);
 
+  useEffect(() => {
+    const mq = window.matchMedia("(orientation: landscape) and (max-height: 600px)");
+    const apply = () => setIsShortLandscape(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const displayed = rows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
   const padded: (CombinedRow | null)[] = [...displayed];
   while (padded.length < pageSize) padded.push(null);
+
+  // "Show All" sets pageSize to the row count. On a landscape phone, scroll the
+  // table with the header + Total pinned rather than fitting everything.
+  const showingAll = rows.length > 0 && pageSize >= rows.length;
+  const scrollAll = isShortLandscape && showingAll;
+
+  // Portrait mobile cards: size by the PAGE SIZE (number of slots), not how many
+  // cards are actually on this page — so the last page with fewer cards looks
+  // identical to a full page instead of a lone card ballooning to fill the
+  // screen. Anchored at Show 3 = 0.95rem; each extra slot shrinks the base.
+  // "Show All" is the exception: cards keep a readable size and the list scrolls.
+  const cardBaseRem = showingAll
+    ? 0.85
+    : Math.max(0.5, 0.95 - (pageSize - 3) * 0.15);
+
+  // Auto-fit: shrink ALL cards uniformly just enough that the tallest one (e.g.
+  // a card whose chips wrap to a 2nd line) fits its equal-height box — so every
+  // card adjusts to fit on one screen with no scroll. fitScale multiplies the
+  // per-card base size; it stays 1 when nothing overflows.
+  const cardsGridRef = useRef<HTMLDivElement | null>(null);
+  const [fitScale, setFitScale] = useState(1);
+
+  // Reset to full size whenever the page / data / viewport changes, then measure.
+  useIsoLayoutEffect(() => {
+    setFitScale(1);
+  }, [rows, pageIndex, pageSize]);
+
+  useIsoLayoutEffect(() => {
+    const grid = cardsGridRef.current;
+    if (!grid || fitScale !== 1) return; // only measure at full size
+    let worst = 1;
+    for (const child of Array.from(grid.children)) {
+      const el = child as HTMLElement;
+      if (el.clientHeight > 0) {
+        worst = Math.max(worst, el.scrollHeight / el.clientHeight);
+      }
+    }
+    // Content scales linearly with the font, so one shrink makes it fit.
+    if (worst > 1.01) setFitScale(Math.max(0.5, 1 / worst));
+  }, [fitScale, rows, pageIndex, pageSize]);
+
+  // Landscape table auto-fit: the row-distribution fit isn't reliable across
+  // browsers (Chrome's smaller dvh can leave the table too tall to fit, which
+  // the root's overflow-hidden then clips). Measure the real overflow and shrink
+  // the table font (via the --mc-fit CSS var) until it fits — no scroll, no clip.
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const [tableFit, setTableFit] = useState(1);
+
+  useIsoLayoutEffect(() => {
+    setTableFit(1);
+  }, [rows, pageIndex, pageSize]);
+
+  useIsoLayoutEffect(() => {
+    const t = tableRef.current;
+    if (!t || t.clientHeight === 0) return;
+    // Shrink incrementally until it fits. Iterates (cell padding is fixed px, so
+    // one pass can undershoot); the 0.5 floor bounds it. Grow-back is handled by
+    // the reset-to-1 effect above when the page/data changes.
+    if (t.scrollHeight > t.clientHeight * 1.01 && tableFit > 0.5) {
+      setTableFit((f) => Math.max(0.5, f * (t.clientHeight / t.scrollHeight)));
+    }
+  }, [tableFit, rows, pageIndex, pageSize]);
+
+  // Re-measure on resize / rotation (card + table heights change).
+  useEffect(() => {
+    const onResize = () => {
+      setFitScale(1);
+      setTableFit(1);
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
 
   // Auto-rotate pages.
   useEffect(() => {
@@ -187,6 +286,9 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
   const headerSize = `clamp(0.65rem, min(calc(0.35vw + ${4 / eff}vw), ${rowHeightVh * 0.18}vh), 1.4rem)`;
   const chipSize = `clamp(0.6rem, min(calc(0.3vw + ${3 / eff}vw), ${rowHeightVh * 0.16}vh), 1.1rem)`;
   const totalBigSize = `clamp(1rem, calc(0.6vw + ${7 / eff}vw), 2.6rem)`;
+  // Landscape table chip base size: only the dense Show 6 (or "All") shrinks the
+  // chips; Show 3–5 keep the original 0.52rem. Used by the .mc-table CSS var.
+  const chipRem = Math.max(0.45, 0.52 - Math.max(0, pageSize - 5) * 0.07);
 
   // Aggregate footer numbers.
   const okRows = rows.filter((r) => !r.error);
@@ -203,15 +305,28 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
 
   return (
     <div
-      className="flex flex-col h-screen overflow-hidden"
+      className="flex flex-col h-[100dvh] overflow-hidden"
       style={{ background: "#ffffff", color: MC_INK }}
       {...swipe}
     >
       {/* ---- DESKTOP / TABLET TABLE ---- */}
-      <div className="hidden md:flex flex-1 min-h-0 px-0 md:px-6 flex-col">
+      <div
+        className={`hidden md:flex landscape-show flex-1 min-h-0 px-0 md:px-6 flex-col ${
+          scrollAll ? "overflow-y-auto" : ""
+        }`}
+      >
         <table
-          className="w-full border-collapse table-fixed h-full"
-          style={{ fontSize }}
+          ref={tableRef}
+          className={`mc-table w-full border-collapse table-fixed ${
+            scrollAll ? "mc-scroll" : "h-full"
+          }`}
+          style={
+            {
+              fontSize,
+              "--mc-fit": tableFit,
+              "--mc-chip": `${chipRem}rem`,
+            } as unknown as CSSProperties
+          }
         >
           <thead>
             <tr
@@ -329,10 +444,31 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
       </div>
 
       {/* ---- MOBILE CARDS ---- */}
-      <div className="flex md:hidden flex-1 min-h-0 flex-col px-3 pt-2 pb-[140px]">
-        <div className="flex-1 min-h-0 grid auto-rows-fr gap-2">
+      {/* Small bottom inset just clears the always-on controls handle; the panel
+          opens higher up, so the cards + totals card use the full screen height. */}
+      <div className="flex md:hidden landscape-hide flex-1 min-h-0 flex-col px-3 pt-2 pb-14">
+        {/* Fixed number of equal slots = page size, so a card is the same height
+            on every page (a lone card sits in one slot at the top, it doesn't
+            stretch to fill). When a card's content is too tall (e.g. chips
+            wrapping), the measure effect shrinks every card uniformly to fit.
+            "Show All" instead gives each card its natural height and scrolls the
+            list; the totals card below stays pinned. */}
+        <div
+          ref={cardsGridRef}
+          className={`flex-1 min-h-0 grid gap-2 ${showingAll ? "overflow-y-auto" : ""}`}
+          style={
+            showingAll
+              ? { gridAutoRows: "min-content" }
+              : { gridTemplateRows: `repeat(${pageSize}, minmax(0, 1fr))` }
+          }
+        >
           {displayed.map((row) => (
-            <MobileCard key={row.key} row={row} windowDays={movement.windowDays} />
+            <MobileCard
+              key={row.key}
+              row={row}
+              windowDays={movement.windowDays}
+              baseRem={cardBaseRem * fitScale}
+            />
           ))}
         </div>
         {/* Mobile totals card */}
@@ -463,7 +599,15 @@ function signedFmt(n: number): string {
   return `${n >= 0 ? "+" : ""}${fmt(n)}`;
 }
 
-function MobileCard({ row, windowDays }: { row: CombinedRow; windowDays: number }) {
+function MobileCard({
+  row,
+  windowDays,
+  baseRem,
+}: {
+  row: CombinedRow;
+  windowDays: number;
+  baseRem: number;
+}) {
   const buckets = LEAD_SOURCE_BUCKETS.map((b) => row.byBucket[b])
     .filter((b) => b.subscribed + b.unsubscribed + b.cleaned > 0)
     .sort((a, b) => b.subscribed - a.subscribed)
@@ -471,25 +615,33 @@ function MobileCard({ row, windowDays }: { row: CombinedRow; windowDays: number 
   const netColor = row.windowNet < 0 ? MC_RED : MC_BLACK;
   return (
     <div
-      className="rounded-lg p-2.5 h-full min-h-0 overflow-hidden flex flex-col justify-between"
+      className="rounded-lg h-full min-h-0 overflow-hidden flex flex-col justify-between"
       style={{
         background: "#ffffff",
         border: `1px solid ${ROW_BORDER}`,
         boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+        // Base size for the whole card — children use em (font AND spacing) so
+        // they scale together as more cards share the screen (Show 4+ shrinks vs
+        // the Show 3 size), keeping content inside the card with no clipping.
+        fontSize: `${baseRem}rem`,
+        padding: "0.65em",
       }}
     >
       {/* Header: title + subscribers */}
-      <div className="flex items-baseline justify-between gap-2 mb-2">
+      <div
+        className="flex items-baseline justify-between gap-2"
+        style={{ marginBottom: "0.5em" }}
+      >
         <span
           className="font-bold uppercase leading-tight flex-1 min-w-0 break-words"
-          style={{ color: MC_BLACK, letterSpacing: "0.04em", fontSize: "0.95rem" }}
+          style={{ color: MC_BLACK, letterSpacing: "0.04em", fontSize: "1em" }}
         >
           {row.title}
         </span>
         {!row.error && (
           <span
             className="font-mono font-bold tabular-nums shrink-0"
-            style={{ color: MC_BLACK, fontSize: "1.05rem" }}
+            style={{ color: MC_BLACK, fontSize: "1.1em" }}
           >
             {fmt(row.members)}
           </span>
@@ -499,7 +651,7 @@ function MobileCard({ row, windowDays }: { row: CombinedRow; windowDays: number 
         <div
           className="inline-block uppercase font-semibold tracking-wider"
           style={{
-            fontSize: "0.7rem",
+            fontSize: "0.74em",
             background: "#ffe4e4",
             color: MC_RED,
             border: `1px solid #f5b5b5`,
@@ -512,15 +664,15 @@ function MobileCard({ row, windowDays }: { row: CombinedRow; windowDays: number 
       ) : (
         <>
           {/* Engagement rates row */}
-          <div className="grid grid-cols-3 gap-2 mb-2 text-xs">
+          <div className="grid grid-cols-3 gap-2" style={{ marginBottom: "0.5em" }}>
             <Metric label="Open" value={fmtPct(row.openRate)} />
             <Metric label="Click" value={fmtPct(row.clickRate)} />
             <Metric label="Unsub" value={fmtPct(row.unsubRate)} />
           </div>
           {/* Movement row */}
           <div
-            className="grid grid-cols-4 gap-2 text-xs pt-2"
-            style={{ borderTop: `1px dashed ${ROW_BORDER}` }}
+            className="grid grid-cols-4 gap-2"
+            style={{ borderTop: `1px dashed ${ROW_BORDER}`, paddingTop: "0.5em" }}
           >
             <Metric
               label={`+${windowDays}d`}
@@ -540,21 +692,22 @@ function MobileCard({ row, windowDays }: { row: CombinedRow; windowDays: number 
             />
             <Metric label="Net" value={signedFmt(row.windowNet)} valueColor={netColor} bold />
           </div>
-          {/* Lead source chips */}
+          {/* Lead source chips — allowed to wrap to a 2nd line; the card grows to
+              fit (see the grid's minmax row sizing) instead of clipping them. */}
           {buckets.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
+            <div className="flex flex-wrap gap-1" style={{ marginTop: "0.4em" }}>
               {buckets.map((b) => (
                 <span
                   key={b.bucket}
                   className="inline-flex items-baseline gap-1 uppercase font-semibold tracking-wider"
                   style={{
-                    fontSize: "0.65rem",
+                    fontSize: "0.68em",
                     background: CHIP_BG,
                     color: MC_BLACK,
                     border: `1px solid ${MC_YELLOW}`,
-                    padding: "1px 6px",
+                    padding: "0 6px",
                     borderRadius: 9999,
-                    lineHeight: 1.4,
+                    lineHeight: 1.2,
                   }}
                   title={`+${b.subscribed} · −${b.unsubscribed} unsubs · −${b.cleaned} cleaned`}
                 >
@@ -585,12 +738,12 @@ function Metric({
 }) {
   return (
     <div className="flex flex-col">
-      <span className="uppercase tracking-wider" style={{ color: MC_MUTED, fontSize: "0.6rem" }}>
+      <span className="uppercase tracking-wider" style={{ color: MC_MUTED, fontSize: "0.63em" }}>
         {label}
       </span>
       <span
         className={`font-mono tabular-nums ${bold ? "font-bold" : ""}`}
-        style={{ color: valueColor ?? MC_INK, fontSize: "0.85rem" }}
+        style={{ color: valueColor ?? MC_INK, fontSize: "0.9em" }}
       >
         {value}
       </span>

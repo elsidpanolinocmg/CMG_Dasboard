@@ -110,6 +110,46 @@ export default function EditorialVideosRotator({
   const directKey = directVideos ? directVideos.map((v) => v.link).join("|") : "";
 
   /* ---------- LOAD DIRECT VIDEOS ---------- */
+  // The @vimeo/player SDK rejects its own internal promises with "Unknown player.
+  // Probably unloaded." when an iframe is destroyed mid-call (rapid rotation or
+  // unmount). Those promises aren't handed back to us, so they surface as
+  // unhandled rejections. Swallow only those — every other error passes through.
+  useEffect(() => {
+    const VIMEO_NOISE = /unknown player|probably unloaded|error getting video id/i;
+
+    // 1) Unhandled promise rejections. Capture-phase + stopImmediatePropagation
+    // so Next.js's own listener never sees them (preventDefault alone only
+    // suppresses the browser's default console logging, not Next's forwarding).
+    const onRejection = (e: PromiseRejectionEvent) => {
+      const msg =
+        typeof e.reason === "string" ? e.reason : e.reason?.message ?? "";
+      if (VIMEO_NOISE.test(msg)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    };
+    window.addEventListener("unhandledrejection", onRejection, true);
+
+    // 2) The SDK also logs "There was an error getting video Id: …" straight to
+    // console.error when an iframe is torn down mid-call. Drop only those lines
+    // while this component is mounted; everything else logs normally.
+    const origError = console.error;
+    console.error = (...args: unknown[]) => {
+      const text = args
+        .map((a) =>
+          typeof a === "string" ? a : a instanceof Error ? a.message : "",
+        )
+        .join(" ");
+      if (VIMEO_NOISE.test(text)) return;
+      origError.apply(console, args as []);
+    };
+
+    return () => {
+      window.removeEventListener("unhandledrejection", onRejection, true);
+      console.error = origError;
+    };
+  }, []);
+
   useEffect(() => {
     if (!directVideos || !directVideos.length) return;
     videos.current = directVideos.filter((v) => v.link.includes("vimeo.com"));
@@ -557,8 +597,8 @@ export default function EditorialVideosRotator({
           text-align: center;
           pointer-events: none;
           color: white;
-          font-size: clamp(22px, 3.2vw, 42px);
-          line-height: 1.5;
+          font-size: clamp(13px, 3.2vw, 42px);
+          line-height: 1.4;
           white-space: pre-line;
         }
 
@@ -566,6 +606,15 @@ export default function EditorialVideosRotator({
           background: rgba(0, 0, 0, 0.72);
           padding: 4px 14px;
           border-radius: 3px;
+        }
+
+        /* Landscape phones: the wide viewport makes 3.2vw read large, so shrink
+           the caption here only (desktop/TV and portrait keep their sizes). */
+        @media (orientation: landscape) and (max-width: 950px) {
+          .caption-overlay {
+            font-size: clamp(11px, 2.3vw, 26px);
+            bottom: 12%;
+          }
         }
       `}</style>
 

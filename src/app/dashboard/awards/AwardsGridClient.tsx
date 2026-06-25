@@ -77,6 +77,12 @@ export default function AwardsGridClient({ awards, birthdays: birthdaysProp = []
   const [birthdayShownIdx, setBirthdayShownIdx] = useState<number | null>(null);
   const birthdayCursor = useRef(0);
   const regularTicks = useRef(0);
+  // Short landscape phones show the cramped 6-column table, where 12 rows won't
+  // fit — hide that page-size option there (matches the CSS shrink breakpoint).
+  const [isShortLandscape, setIsShortLandscape] = useState(false);
+  // Mobile portrait shows the stacked mobile table, whose rows are tall, so 8+
+  // rows clip — hide those options there and let "All" scroll instead.
+  const [isMobilePortrait, setIsMobilePortrait] = useState(false);
 
   // Phone-friendly page size after mount (avoids SSR/CSR hydration mismatch).
   useEffect(() => {
@@ -84,6 +90,30 @@ export default function AwardsGridClient({ awards, birthdays: birthdaysProp = []
       setPageSize(6);
     }
   }, []);
+
+  useEffect(() => {
+    const mqL = window.matchMedia("(orientation: landscape) and (max-height: 600px)");
+    const mqP = window.matchMedia("(orientation: portrait) and (max-width: 767px)");
+    const apply = () => {
+      setIsShortLandscape(mqL.matches);
+      setIsMobilePortrait(mqP.matches);
+    };
+    apply();
+    mqL.addEventListener("change", apply);
+    mqP.addEventListener("change", apply);
+    return () => {
+      mqL.removeEventListener("change", apply);
+      mqP.removeEventListener("change", apply);
+    };
+  }, []);
+
+  // Trim page-size options that don't fit the current phone view: landscape
+  // drops 12, portrait drops 8 and 12 (its stacked rows are taller).
+  const pageOptions = isShortLandscape
+    ? PAGE_OPTIONS.filter((n) => n !== 12)
+    : isMobilePortrait
+      ? PAGE_OPTIONS.filter((n) => n < 8)
+      : PAGE_OPTIONS;
 
   const upcomingAwards = useMemo(
     () => awards.filter((a) => new Date(a.field_date) > now),
@@ -94,6 +124,27 @@ export default function AwardsGridClient({ awards, birthdays: birthdaysProp = []
   const displayed = upcomingAwards.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
   const rows: (Award | null)[] = [...displayed];
   while (rows.length < pageSize) rows.push(null);
+
+  // "Show All" packs every award onto one page. On mobile (landscape OR
+  // portrait), rather than crush them to fit, let the table grow to its natural
+  // height and scroll, with a sticky header. Desktop/TV keep their original
+  // fit-to-screen behaviour untouched.
+  const showingAll = upcomingAwards.length > 0 && pageSize >= upcomingAwards.length;
+  const scrollAll = isShortLandscape && showingAll; // landscape (desktop table)
+  const scrollAllMobile = isMobilePortrait && showingAll; // portrait (mobile table)
+
+  // If a now-hidden page size is selected when the phone rotates into a view
+  // that drops it, fall back to one that fits. Never override an explicit "All".
+  useEffect(() => {
+    if (showingAll) return;
+    if (isShortLandscape && pageSize === 12) {
+      setPageSize(8);
+      setPageIndex(0);
+    } else if (isMobilePortrait && (pageSize === 8 || pageSize === 12)) {
+      setPageSize(6);
+      setPageIndex(0);
+    }
+  }, [isShortLandscape, isMobilePortrait, pageSize, showingAll]);
 
   const count = pageSize || 1;
   const eff = Math.min(count, 12);
@@ -172,13 +223,22 @@ export default function AwardsGridClient({ awards, birthdays: birthdaysProp = []
 
   return (
     <div
-      className="relative flex flex-col justify-center h-screen pt-4 pb-8 px-0 md:px-4 overflow-hidden"
+      className="awards-grid-root relative flex flex-col justify-center h-[100dvh] pt-4 pb-8 px-0 md:px-4 overflow-hidden"
       style={{ backgroundColor: "#0a1628" }}
       ref={tableRef}
       {...swipe}
     >
-      <div className="hidden md:flex landscape-show flex-col flex-1 min-h-0">
-        <table className="w-full border-collapse table-fixed h-full" style={{ fontSize }}>
+      <div
+        className={`hidden md:flex landscape-show flex-col flex-1 min-h-0 ${
+          scrollAll ? "awards-scroll overflow-y-auto" : ""
+        }`}
+      >
+        <table
+          className={`awards-grid-table w-full border-collapse table-fixed ${
+            scrollAll ? "" : "h-full"
+          }`}
+          style={{ fontSize }}
+        >
           <thead>
             <tr
               className="text-center font-semibold uppercase text-white"
@@ -257,8 +317,17 @@ export default function AwardsGridClient({ awards, birthdays: birthdaysProp = []
         </table>
       </div>
 
-      <div className="flex md:hidden landscape-hide flex-col flex-1 min-h-0">
-        <table className="w-full border-collapse table-fixed h-full" style={{ fontSize: mFontSize }}>
+      <div
+        className={`flex md:hidden landscape-hide flex-col flex-1 min-h-0 ${
+          scrollAllMobile ? "awards-scroll overflow-y-auto" : ""
+        }`}
+      >
+        <table
+          className={`w-full border-collapse table-fixed ${
+            scrollAllMobile ? "" : "h-full"
+          }`}
+          style={{ fontSize: mFontSize }}
+        >
           <thead>
             <tr
               className="text-center font-semibold uppercase text-white"
@@ -362,7 +431,7 @@ export default function AwardsGridClient({ awards, birthdays: birthdaysProp = []
           onChange={(e) => handlePageSizeChange(Number(e.target.value))}
           className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 [&>option]:bg-gray-800 [&>option]:text-white"
         >
-          {PAGE_OPTIONS.map((n) => (
+          {pageOptions.map((n) => (
             <option key={n} value={n}>
               {n} awards
             </option>

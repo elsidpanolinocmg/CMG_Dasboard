@@ -11,7 +11,7 @@ export default async function Home() {
     <div className="bg-transparent min-h-screen flex items-start sm:items-center justify-center flex-col gap-6 px-4 py-10 text-lg">
       <h1 className="text-3xl font-bold">CMG Dashboard</h1>
 
-      <div className="flex flex-col md:flex-row gap-10 md:gap-16">
+      <div className="flex flex-col md:flex-row gap-10 md:gap-16 [&_a]:block [&_a]:py-1">
         <Column
           title="Editorial Dashboard"
           titleHref="/dashboard/editorial"

@@ -1,10 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import DashboardControls from "@/components/DashboardControls";
 import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
 
 const REFRESH_MS = 30 * 60 * 1000;
+
+// Layout effect on the client (measure before paint, no flash), plain effect on
+// the server (no-op during SSR — avoids the useLayoutEffect warning).
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 interface Entry {
   name: string;
@@ -64,6 +68,11 @@ export default function SalesLeaderboardClient({
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState<number | "all">(10);
   const [rotationMs, setRotationMs] = useState(15_000);
+  // Mobile landscape offers 15/page instead of 20 (more rows clip there) and
+  // makes "All" scroll with pinned header + total. Matches the CSS breakpoint.
+  const [isShortLandscape, setIsShortLandscape] = useState(false);
+  // Mobile portrait also fits-to-screen and scrolls "All" with pinned rows.
+  const [isMobilePortrait, setIsMobilePortrait] = useState(false);
   const cancelledRef = useRef(false);
 
   const load = useCallback(async (opts?: { fresh?: boolean }) => {
@@ -96,6 +105,29 @@ export default function SalesLeaderboardClient({
     };
   }, [load]);
 
+  useEffect(() => {
+    const mqL = window.matchMedia("(orientation: landscape) and (max-height: 600px)");
+    const mqP = window.matchMedia("(orientation: portrait) and (max-width: 767px)");
+    const apply = () => {
+      setIsShortLandscape(mqL.matches);
+      setIsMobilePortrait(mqP.matches);
+    };
+    apply();
+    mqL.addEventListener("change", apply);
+    mqP.addEventListener("change", apply);
+    return () => {
+      mqL.removeEventListener("change", apply);
+      mqP.removeEventListener("change", apply);
+    };
+  }, []);
+
+  // Keep the middle page-size option consistent across rotation: 15 in mobile
+  // landscape, 20 elsewhere.
+  useEffect(() => {
+    if (isShortLandscape && pageSize === 20) setPageSize(15);
+    else if (!isShortLandscape && pageSize === 15) setPageSize(20);
+  }, [isShortLandscape, pageSize]);
+
   const entryCount = data?.entries.length ?? 0;
   const effectivePageSize = pageSize === "all" ? Math.max(1, entryCount) : pageSize;
   const totalPagesForRotation = Math.max(1, Math.ceil(entryCount / effectivePageSize));
@@ -116,10 +148,44 @@ export default function SalesLeaderboardClient({
     enabled: totalPagesForRotation > 1,
   });
 
+  // Desktop/tablet table auto-fit: at high page sizes (e.g. 20/page) on a
+  // shorter window the cell content (the 1em-floored font) can't shrink enough
+  // and the rows overflow + clip. Measure the real overflow and scale the table
+  // font down until it fits. Mobile uses its own .lb-fit sizing, so it's skipped.
+  const tableWrapRef = useRef<HTMLDivElement | null>(null);
+  const [tableFit, setTableFit] = useState(1);
+
+  useIsoLayoutEffect(() => {
+    setTableFit(1);
+  }, [data, pageSize, pageIndex]);
+
+  useIsoLayoutEffect(() => {
+    // Measure the WRAPPER, not the table: a height:100% table grows to its
+    // content instead of clipping, so it never reports overflow on itself — the
+    // overflow shows as the table being taller than this bounded wrapper.
+    const w = tableWrapRef.current;
+    if (!w || isShortLandscape || isMobilePortrait || w.clientHeight === 0) return;
+    // Iterate down until it fits (header padding is fixed px, so one pass can
+    // undershoot); the 0.5 floor bounds it. Grow-back via the reset effect above.
+    if (w.scrollHeight > w.clientHeight * 1.01 && tableFit > 0.5) {
+      setTableFit((f) => Math.max(0.5, f * (w.clientHeight / w.scrollHeight)));
+    }
+  }, [tableFit, data, pageSize, pageIndex, isShortLandscape, isMobilePortrait]);
+
+  useEffect(() => {
+    const onResize = () => setTableFit(1);
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+
   if (error && !data) {
     return (
       <div
-        className="flex items-center justify-center h-screen text-red-400 text-center px-6"
+        className="flex items-center justify-center h-[100dvh] text-red-400 text-center px-6"
         style={{ backgroundColor: "#2a2a2a" }}
       >
         Failed to load: {error}
@@ -129,7 +195,7 @@ export default function SalesLeaderboardClient({
   if (!data) {
     return (
       <div
-        className="flex items-center justify-center h-screen text-white/70"
+        className="flex items-center justify-center h-[100dvh] text-white/70"
         style={{ backgroundColor: "#2a2a2a" }}
       >
         Loading...
@@ -153,21 +219,39 @@ export default function SalesLeaderboardClient({
   const rowHeightVh = 92 / rowCount;
   const fontSize = `clamp(1rem, min(calc(1vw + ${11 / eff}vw), ${rowHeightVh * 0.55}vh), 5rem)`;
   const headerSize = `clamp(0.85rem, min(calc(0.6vw + ${6 / eff}vw), ${rowHeightVh * 0.42}vh), 3rem)`;
+  // Desktop/tablet font scaled by the measured fit factor so it can't overflow.
+  const fitFont = `calc((${fontSize}) * ${tableFit})`;
+  const fitHeader = `calc((${headerSize}) * ${tableFit})`;
   const mFontSize = `clamp(0.95rem, min(calc(1.4vw + ${11 / eff}vw), ${rowHeightVh * 0.55}vh), 4.5rem)`;
   const mHeaderSize = `clamp(0.8rem, min(calc(1vw + ${7 / eff}vw), ${rowHeightVh * 0.42}vh), 2.8rem)`;
 
+  // "All" on a mobile phone (landscape OR portrait) scrolls the rows with the
+  // header and the Total row pinned, instead of crushing every row to fit.
+  // Desktop/TV keep the original fit-to-screen behaviour.
+  const scrollAll = (isShortLandscape || isMobilePortrait) && pageSize === "all";
+
   return (
     <div
-      className="flex flex-col justify-center h-screen px-0 md:px-4 overflow-hidden"
+      className="flex flex-col justify-center h-[100dvh] px-0 md:px-4 overflow-hidden"
       style={{ backgroundColor: "#2a2a2a" }}
       {...swipe}
     >
-      <div className="hidden md:flex landscape-show flex-col flex-1 min-h-0">
-        <table className="w-full border-collapse table-fixed h-full" style={{ fontSize }}>
+      <div
+        ref={tableWrapRef}
+        className={`hidden md:flex landscape-show flex-col flex-1 min-h-0 ${
+          scrollAll ? "overflow-y-auto" : ""
+        }`}
+      >
+        <table
+          className={`lb-fit w-full border-collapse table-fixed ${
+            scrollAll ? "lb-scroll" : "h-full"
+          }`}
+          style={{ fontSize: fitFont }}
+        >
           <thead>
             <tr
               className="text-center font-semibold uppercase text-white/90"
-              style={{ fontSize: headerSize, backgroundColor: "#3a3a3a", letterSpacing: "0.12em" }}
+              style={{ fontSize: fitHeader, backgroundColor: "#3a3a3a", letterSpacing: "0.12em" }}
             >
               <th className="px-2 py-3 w-[14%]">Rank</th>
               <th className="pl-0 pr-3 py-3 w-[56%] text-left">Person in Charge</th>
@@ -194,7 +278,7 @@ export default function SalesLeaderboardClient({
                   className="text-center uppercase"
                   style={{
                     height: `${rowHeightVh}vh`,
-                    minHeight: "40px",
+                    minHeight: 0,
                     background:
                       idx % 2 === 0
                         ? "linear-gradient(90deg, #4A4A4A, #505050)"
@@ -241,7 +325,7 @@ export default function SalesLeaderboardClient({
                   key={`pad-d-${i}`}
                   style={{
                     height: `${rowHeightVh}vh`,
-                    minHeight: "40px",
+                    minHeight: 0,
                     background:
                       idx % 2 === 0
                         ? "linear-gradient(90deg, #4A4A4A, #505050)"
@@ -257,7 +341,7 @@ export default function SalesLeaderboardClient({
               className="text-center uppercase"
               style={{
                 height: `${rowHeightVh}vh`,
-                minHeight: "40px",
+                minHeight: 0,
                 background: "linear-gradient(90deg, #2a2a2a, #3a3020)",
                 borderTop: "2px solid rgba(212, 168, 83, 0.6)",
                 color: "#f0c668",
@@ -285,8 +369,17 @@ export default function SalesLeaderboardClient({
         </table>
       </div>
 
-      <div className="flex md:hidden landscape-hide flex-col flex-1 min-h-0">
-        <table className="w-full border-collapse table-fixed h-full" style={{ fontSize: mFontSize }}>
+      <div
+        className={`flex md:hidden landscape-hide flex-col flex-1 min-h-0 ${
+          scrollAll ? "overflow-y-auto" : ""
+        }`}
+      >
+        <table
+          className={`lb-fit w-full border-collapse table-fixed ${
+            scrollAll ? "lb-scroll" : "h-full"
+          }`}
+          style={{ fontSize: mFontSize }}
+        >
           <thead>
             <tr
               className="text-center font-semibold uppercase text-white/90"
@@ -317,7 +410,7 @@ export default function SalesLeaderboardClient({
                   className="text-center uppercase"
                   style={{
                     height: `${rowHeightVh}vh`,
-                    minHeight: "40px",
+                    minHeight: 0,
                     background:
                       idx % 2 === 0
                         ? "linear-gradient(90deg, #4A4A4A, #505050)"
@@ -364,7 +457,7 @@ export default function SalesLeaderboardClient({
                   key={`pad-m-${i}`}
                   style={{
                     height: `${rowHeightVh}vh`,
-                    minHeight: "40px",
+                    minHeight: 0,
                     background:
                       idx % 2 === 0
                         ? "linear-gradient(90deg, #4A4A4A, #505050)"
@@ -380,7 +473,7 @@ export default function SalesLeaderboardClient({
               className="text-center uppercase"
               style={{
                 height: `${rowHeightVh}vh`,
-                minHeight: "40px",
+                minHeight: 0,
                 background: "linear-gradient(90deg, #2a2a2a, #3a3020)",
                 borderTop: "2px solid rgba(212, 168, 83, 0.6)",
                 color: "#f0c668",
@@ -429,7 +522,9 @@ export default function SalesLeaderboardClient({
           className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 [&>option]:bg-gray-800 [&>option]:text-white"
         >
           <option value="10">10 / page</option>
-          <option value="20">20 / page</option>
+          <option value={isShortLandscape ? "15" : "20"}>
+            {isShortLandscape ? "15" : "20"} / page
+          </option>
           <option value="all">All</option>
         </select>
         <span className="text-sm text-white/80">
