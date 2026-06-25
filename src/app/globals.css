@@ -333,6 +333,14 @@ select option {
     padding-bottom: 0 !important;
     line-height: 1.2 !important;
   }
+  /* The reports "Open % excludes Apple Mail…" footnote — shrink it on a landscape
+     phone so it doesn't eat the table's vertical space. */
+  .mc-note {
+    font-size: 0.46rem !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    line-height: 1.15 !important;
+  }
 }
 
 /* Mailchimp leaderboard "Show All" on a landscape phone (.mc-scroll): the table

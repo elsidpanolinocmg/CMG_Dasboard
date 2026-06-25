@@ -310,8 +310,11 @@ export default function EditorialLeaderboard({
 
   return (
     <div
-      className="flex flex-col justify-center h-[100dvh] px-0 md:px-6 overflow-hidden"
-      style={{ backgroundColor: "#ffffff" }}
+      className="flex flex-col h-[100dvh] px-0 md:px-6 overflow-hidden"
+      // `safe center` centers the content when it fits, but falls back to
+      // top-aligned when it's taller than the viewport (Chrome's shorter
+      // landscape dvh) — so the header at the top edge is never clipped.
+      style={{ backgroundColor: "#ffffff", justifyContent: "safe center" }}
       {...swipe}
     >
       {isPending && (

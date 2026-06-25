@@ -314,7 +314,7 @@ export default function MailchimpReportsClient({ rows, grandTotals, windowDays }
           </tbody>
         </table>
         <div
-          className="px-3 sm:px-4 py-2 text-sm italic"
+          className="mc-note px-3 sm:px-4 py-2 text-sm italic"
           style={{ color: MC_MUTED }}
         >
           Open % excludes Apple Mail auto-opens, matching Mailchimp&apos;s dashboard.

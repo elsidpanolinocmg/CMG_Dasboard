@@ -110,13 +110,16 @@ export default function DashboardControls({
       {/* Invisible tap-bar at the very bottom — the touch way to open the controls
           now that there's no visible handle. Anchored to the real viewport bottom
           (reliable, unlike the window.innerHeight calc which can drift on mobile),
-          64px tall so it sits below page content. Desktop/TV still open via the
-          bottom-zone click in the pointerdown handler. */}
+          64px tall so it sits below page content. It MUST be a <button>: iOS
+          Safari doesn't reliably fire `click` on a plain non-interactive <div>,
+          so a div tap-bar silently fails to open. Desktop/TV open via the
+          bottom-zone click in the pointerdown handler instead. */}
       {!visible && isTouch && (
-        <div
-          className="fixed inset-x-0 bottom-0 h-16 z-40"
+        <button
+          type="button"
+          aria-label="Show controls"
           onClick={() => setVisible(true)}
-          aria-hidden="true"
+          className="fixed inset-x-0 bottom-0 h-16 z-40 appearance-none bg-transparent border-0 p-0"
         />
       )}
 
