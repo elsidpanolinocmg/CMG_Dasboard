@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default function AwardsLeaderboardPage() {
   return (
     <div
-      className="h-[100dvh] max-w-screen overflow-hidden"
+      className="h-lvh max-w-screen overflow-hidden"
       style={{ backgroundColor: "#2a2a2a" }}
     >
       <SalesLeaderboardClient

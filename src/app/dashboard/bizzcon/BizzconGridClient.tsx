@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import DashboardControls from "@/components/DashboardControls";
+import ViewportFit from "@/components/ViewportFit";
 import BirthdaySlide, { type BirthdaySlideEntry } from "@/components/BirthdaySlide";
 import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
@@ -236,11 +237,12 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
 
   return (
     <div
-      className="awards-grid-root relative flex flex-col justify-center h-[100dvh] pt-4 pb-8 px-0 md:px-4 overflow-hidden"
+      className="awards-grid-root relative flex flex-col justify-center h-lvh pt-4 pb-8 px-0 md:px-4 overflow-hidden"
       style={{ backgroundColor: "#181818" }}
       ref={tableRef}
       {...swipe}
     >
+      <ViewportFit />
       <div
         className={`hidden md:flex landscape-show flex-col flex-1 min-h-0 ${
           scrollAll ? "bizzcon-scroll overflow-y-auto" : ""

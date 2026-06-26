@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DashboardControls from "@/components/DashboardControls";
+import ViewportFit from "@/components/ViewportFit";
 
 const REFRESH_MS = 30 * 60 * 1000;
 
@@ -81,12 +82,13 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
     };
   }, [load]);
 
-  // Any phone (portrait OR landscape). On phones we pin the root to the real
-  // visible height and lock document scroll — otherwise `100dvh` resolves to the
-  // toolbar-collapsed (taller) height in Safari/Chrome, so when the toolbar is
-  // shown the layout runs taller than the visible area: the bottom (Total) clips
-  // behind the toolbar and the whole page becomes scrollable. Tablets/desktop/TV
-  // are excluded and keep the 100dvh fit-to-screen layout.
+  // Phone (portrait OR landscape) now only drives justify + the row min-height.
+  // Root height and row heights are sized to the measured visible viewport
+  // (--vvh / --lvh, published by <ViewportFit /> in the render) for ALL devices,
+  // so the layout fits under Safari's toolbar/tab bar. (Previously phones pinned
+  // the root with `position: fixed` + a measured height, but iOS resolves `fixed`
+  // against the taller *layout* viewport, so with the tab bar shown the pinned
+  // root ran past the visible area and clipped the bottom Total row.)
   const [isPhone, setIsPhone] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px), (max-height: 600px)");
@@ -95,49 +97,9 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
-  // visualViewport.height is the actual visible area (toolbar-aware) in BOTH
-  // Safari and Chrome; innerHeight can report the toolbar-collapsed (larger)
-  // height. Re-measure on the next frame + after a tick so we pick up the settled
-  // value on a fresh navigation.
-  const [viewportH, setViewportH] = useState<number | null>(null);
-  useEffect(() => {
-    const vv = window.visualViewport;
-    const apply = () => setViewportH(Math.round(vv?.height ?? window.innerHeight));
-    apply();
-    const raf = requestAnimationFrame(apply);
-    const t = setTimeout(apply, 300);
-    window.addEventListener("resize", apply);
-    window.addEventListener("orientationchange", apply);
-    vv?.addEventListener("resize", apply);
-    vv?.addEventListener("scroll", apply);
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(t);
-      window.removeEventListener("resize", apply);
-      window.removeEventListener("orientationchange", apply);
-      vv?.removeEventListener("resize", apply);
-      vv?.removeEventListener("scroll", apply);
-    };
-  }, []);
-  // Lock document scroll on phones so only the inner table scrolls (the root is
-  // pinned to the visible height); otherwise the page itself can be dragged and
-  // the bottom row hides behind the toolbar.
-  useEffect(() => {
-    if (!isPhone) return;
-    window.scrollTo(0, 0);
-    const html = document.documentElement;
-    const { overflow: prevHtml } = html.style;
-    const { overflow: prevBody, overscrollBehavior: prevOverscroll } =
-      document.body.style;
-    html.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    document.body.style.overscrollBehavior = "none";
-    return () => {
-      html.style.overflow = prevHtml;
-      document.body.style.overflow = prevBody;
-      document.body.style.overscrollBehavior = prevOverscroll;
-    };
-  }, [isPhone]);
+  // Document scroll lock + the visible-height vars (--vvh / --lvh) that drive the
+  // root and row heights are handled by <ViewportFit /> (mounted in the render),
+  // so every device fits under Safari's toolbar/tab bar with no per-device path.
 
   const ranked = useMemo(() => {
     if (!data) return [];
@@ -170,7 +132,7 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
   if (error && !data) {
     return (
       <div
-        className="flex items-center justify-center h-screen text-red-400 text-center px-6"
+        className="flex items-center justify-center h-[100dvh] text-red-400 text-center px-6"
         style={{ backgroundColor: "#2a2a2a" }}
       >
         Failed to load: {error}
@@ -181,7 +143,7 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
   if (!data) {
     return (
       <div
-        className="flex items-center justify-center h-screen text-white/70"
+        className="flex items-center justify-center h-[100dvh] text-white/70"
         style={{ backgroundColor: "#2a2a2a" }}
       >
         Loading...
@@ -198,27 +160,21 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
   const headerSize = `clamp(0.7rem, min(calc(0.5vw + ${5 / effectiveCount}vw), ${rowHeightVh * 0.35}vh), 2.8rem)`;
   const mFontSize = `clamp(0.8rem, min(calc(1.2vw + ${9.5 / effectiveCount}vw), ${rowHeightVh * 0.5}vh), 4.5rem)`;
   const mHeaderSize = `clamp(0.65rem, min(calc(0.8vw + ${6 / effectiveCount}vw), ${rowHeightVh * 0.35}vh), 2.8rem)`;
-  // Phone (landscape uses this desktop table): size rows to the REAL visible
-  // height. `vh` resolves to Safari's toolbar-hidden (taller) viewport, so with
-  // the toolbar shown the vh rows overran the pinned visible height and the Total
-  // clipped. 0.82 leaves room for the header. Desktop/TV keep the vh sizing.
-  const phoneRowPx =
-    isPhone && viewportH != null
-      ? Math.max(1, Math.round((viewportH * 0.82) / rowCount))
-      : null;
-  const tblRowH = phoneRowPx != null ? `${phoneRowPx}px` : `${rowHeightVh}vh`;
-  const tblRowMin = phoneRowPx != null ? `${phoneRowPx}px` : "40px";
+  // Row height = a share of the REAL visible viewport: --lvh is 1% of it (from
+  // <ViewportFit />), so the rows fit under Safari's toolbar/tab bar instead of
+  // being budgeted off the taller `vh`/`dvh`. On phones drop the 40px min so a
+  // short landscape viewport can shrink the rows enough to keep the Total in view.
+  const tblRowH = `calc(${rowHeightVh} * var(--lvh, 1svh))`;
+  const tblRowMin = isPhone ? "0px" : "40px";
 
   return (
     <div
-      className={`flex flex-col px-0 md:px-4 overflow-hidden ${
+      className={`flex flex-col px-0 md:px-4 overflow-hidden h-lvh ${
         isPhone ? "justify-start" : "justify-center"
-      } ${isPhone && viewportH != null ? "fixed inset-x-0 top-0" : "h-[100dvh]"}`}
-      style={{
-        backgroundColor: "#2a2a2a",
-        ...(isPhone && viewportH != null ? { height: viewportH } : {}),
-      }}
+      }`}
+      style={{ backgroundColor: "#2a2a2a" }}
     >
+      <ViewportFit />
       {/* ---- DESKTOP TABLE ---- */}
       <div className="hidden md:flex landscape-show flex-col flex-1 min-h-0">
         <table className="w-full border-collapse table-fixed h-full" style={{ fontSize }}>
@@ -355,7 +311,7 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
               style={{ fontSize: mHeaderSize, backgroundColor: "#3a3a3a", letterSpacing: "0.12em" }}
             >
               <th className="px-1 py-2 w-[14%]">Rank</th>
-              <th className="px-1 py-2 w-[36%] text-left">Person I/C</th>
+              <th className="px-1 py-2 w-[36%] text-left">PIC</th>
               <th className="px-1 py-2 w-[25%] text-right">Current Quarter</th>
               <th className="px-1 py-2 pr-3 w-[25%] text-right">Total</th>
             </tr>

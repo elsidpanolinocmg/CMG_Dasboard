@@ -6,10 +6,12 @@ import EditorialVideosTicker from "@/components/EditorialVideosTicker";
 import DashboardControls from "@/components/DashboardControls";
 import WaitModeToggle from "@/components/WaitModeToggle";
 import BirthdayOverlay from "@/components/BirthdayOverlay";
+import ViewportFit from "@/components/ViewportFit";
 
 export default function EditorialShortsPage() {
   return (
-    <div className="h-[100dvh] flex flex-col bg-white overflow-hidden">
+    <div className="h-lvh flex flex-col bg-white overflow-hidden">
+      <ViewportFit />
       <div className="flex-1 min-h-0">
         <ShortsPlayer
           className="h-full"

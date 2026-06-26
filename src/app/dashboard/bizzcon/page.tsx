@@ -36,7 +36,7 @@ async function BizzconContent() {
 
 export default function BizzconPage() {
   return (
-    <div className="h-[100dvh] max-w-screen overflow-hidden bg-white text-gray-900">
+    <div className="h-lvh max-w-screen overflow-hidden bg-white text-gray-900">
       <Suspense fallback={<LoadingPage loadingText="Loading Events..." />}>
         <BizzconContent />
       </Suspense>

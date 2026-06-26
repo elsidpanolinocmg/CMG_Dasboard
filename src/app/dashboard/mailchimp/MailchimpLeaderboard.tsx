@@ -10,6 +10,7 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
+import ViewportFit from "@/components/ViewportFit";
 
 // Layout effect on the client (measures DOM before paint, no flash), plain
 // effect on the server (no-op during SSR — avoids the useLayoutEffect warning).
@@ -305,10 +306,11 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
 
   return (
     <div
-      className="flex flex-col h-[100dvh] overflow-hidden"
+      className="flex flex-col h-lvh overflow-hidden"
       style={{ background: "#ffffff", color: MC_INK }}
       {...swipe}
     >
+      <ViewportFit />
       {/* ---- DESKTOP / TABLET TABLE ---- */}
       <div
         className={`hidden md:flex landscape-show flex-1 min-h-0 px-0 md:px-6 flex-col ${

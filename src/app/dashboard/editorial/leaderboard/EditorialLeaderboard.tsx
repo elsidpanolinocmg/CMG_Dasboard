@@ -50,6 +50,12 @@ const ROTATION_OPTIONS = [
 
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 
+// 1% of the REAL visible viewport height (measured via visualViewport and set on
+// <html> as --lvh by the effect below). Falls back to 1dvh before JS / on SSR.
+// Safari's dvh reports the toolbar-hidden (taller) height, so dvh-sized rows
+// overran the visible area and clipped under the tab bar; --lvh is toolbar-aware.
+const LVH = "var(--lvh, 1dvh)";
+
 // Auto-fit the number of journalist rows on phones so the table fits the visible
 // viewport (no scroll/clip). Mirrors the row model — rows are `78vh / (count + 1)`
 // tall with a 60px floor — so the count is capped where a row would drop below that
@@ -144,6 +150,39 @@ export default function EditorialLeaderboard({
       html.style.overflow = prevHtml;
       document.body.style.overflow = prevBody;
       document.body.style.overscrollBehavior = prevOverscroll;
+    };
+  }, []);
+
+  // Size everything to the REAL visible viewport: visualViewport.height is the
+  // toolbar/tab-bar-aware height in Safari AND Chrome (unlike dvh/innerHeight,
+  // which can report the toolbar-hidden taller height). Expose it as --lvh (1% of
+  // it) for the dvh-replacement calcs. Remove on unmount so other pages are clean.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const apply = () => {
+      const h = vv?.height ?? window.innerHeight;
+      // --lvh = 1% (for the inline calc row sizing); --vvh = full height (for the
+      // .h-lvh utility on the page wrapper). See ViewportFit for why .h-lvh needs
+      // its own plain-var value rather than a calc-multiply.
+      document.documentElement.style.setProperty("--lvh", `${h / 100}px`);
+      document.documentElement.style.setProperty("--vvh", `${h}px`);
+    };
+    apply();
+    const raf = requestAnimationFrame(apply);
+    const t = setTimeout(apply, 300);
+    window.addEventListener("resize", apply);
+    window.addEventListener("orientationchange", apply);
+    vv?.addEventListener("resize", apply);
+    vv?.addEventListener("scroll", apply);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+      window.removeEventListener("resize", apply);
+      window.removeEventListener("orientationchange", apply);
+      vv?.removeEventListener("resize", apply);
+      vv?.removeEventListener("scroll", apply);
+      document.documentElement.style.removeProperty("--lvh");
+      document.documentElement.style.removeProperty("--vvh");
     };
   }, []);
 
@@ -262,13 +301,13 @@ export default function EditorialLeaderboard({
     ? (count <= 3 ? 5 : count === 4 ? 4 : count <= 6 ? 3 : 2)
     : storiesToShow;
   const mobileRowVh = 92 / (count + 1);
-  const mobileRowMaxH = `calc(${mobileRowVh}dvh - 0.4rem)`;
+  const mobileRowMaxH = `calc(${mobileRowVh} * ${LVH} - 0.4rem)`;
   const mobileLines = 1 + mobileStories;
   const mLineVh = mobileRowVh / mobileLines;
   // Cap each row's content to its slot (minus cell padding) and clip the
   // overflow, so a journalist with many brand chips or tall stories can't grow
   // the row past its height and shove the bottom (total) row off-screen.
-  const rowInnerMaxH = `calc(${journalistRowVh}dvh - ${isLandscapePhone ? "0.35rem" : "1rem"})`;
+  const rowInnerMaxH = `calc(${journalistRowVh} * ${LVH} - ${isLandscapePhone ? "0.35rem" : "1rem"})`;
   // Desktop/TV: the table is `h-full`, so the browser stretches each row taller
   // than its `journalistRowVh` hint (which is based on 78dvh) to fill 100dvh. A
   // maxHeight cap built from that smaller hint therefore clips content that
@@ -288,12 +327,12 @@ export default function EditorialLeaderboard({
   const nameMax = isLandscapePhone ? "1.15rem" : "3.2rem";
   const storyMax = isLandscapePhone ? "0.88rem" : "1.7rem";
   const chipMax = isLandscapePhone ? "0.72rem" : "1.3rem";
-  const fontSize = `clamp(0.8rem, min(calc(0.6vw + ${7 / eff}vw), ${dLineVh * 0.8}dvh), ${nameMax})`;
-  const headerSize = `clamp(0.7rem, min(calc(0.4vw + ${4.5 / eff}vw), ${rowHeightVh * 0.2}dvh), 1.6rem)`;
-  const storySize = `clamp(0.68rem, min(calc(0.45vw + ${5.5 / eff}vw), ${dLineVh * 0.7}dvh), ${storyMax})`;
+  const fontSize = `clamp(0.8rem, min(calc(0.6vw + ${7 / eff}vw), calc(${dLineVh * 0.8} * ${LVH})), ${nameMax})`;
+  const headerSize = `clamp(0.7rem, min(calc(0.4vw + ${4.5 / eff}vw), calc(${rowHeightVh * 0.2} * ${LVH})), 1.6rem)`;
+  const storySize = `clamp(0.68rem, min(calc(0.45vw + ${5.5 / eff}vw), calc(${dLineVh * 0.7} * ${LVH})), ${storyMax})`;
   const totalBigSize = `clamp(1.2rem, calc(0.7vw + ${8 / eff}vw), 3.2rem)`;
   const totalSummarySize = `clamp(0.65rem, calc(0.3vw + ${3 / eff}vw), 1.1rem)`;
-  const chipSize = `clamp(0.62rem, min(calc(0.35vw + ${3.5 / eff}vw), ${dLineVh * 0.55}dvh), ${chipMax})`;
+  const chipSize = `clamp(0.62rem, min(calc(0.35vw + ${3.5 / eff}vw), calc(${dLineVh * 0.55} * ${LVH})), ${chipMax})`;
   // Inline tags (Show 6/7/All) sit beside the article count on one short line, so
   // make them extra small to fit there and stay visible (rather than wrapping
   // under the name where the short row clips them).
@@ -310,11 +349,11 @@ export default function EditorialLeaderboard({
 
   return (
     <div
-      className="flex flex-col h-[100dvh] px-0 md:px-6 overflow-hidden"
+      className="flex flex-col px-0 md:px-6 overflow-hidden"
       // `safe center` centers the content when it fits, but falls back to
       // top-aligned when it's taller than the viewport (Chrome's shorter
       // landscape dvh) — so the header at the top edge is never clipped.
-      style={{ backgroundColor: "#ffffff", justifyContent: "safe center" }}
+      style={{ height: `calc(100 * ${LVH})`, backgroundColor: "#ffffff", justifyContent: "safe center" }}
       {...swipe}
     >
       {isPending && (
@@ -378,7 +417,7 @@ export default function EditorialLeaderboard({
                 <tr
                   key={a ? a.authorName : `empty-${idx}`}
                   style={{
-                    height: `${journalistRowVh}dvh`,
+                    height: `calc(${journalistRowVh} * ${LVH})`,
                     minHeight: compact ? "0px" : "60px",
                     backgroundColor: idx % 2 === 0 ? "#ffffff" : ALT_ROW_BG,
                     borderBottom: `1px solid ${ROW_BORDER}`,
@@ -518,7 +557,7 @@ export default function EditorialLeaderboard({
             })}
             <tr
               style={{
-                height: `${totalRowVh}dvh`,
+                height: `calc(${totalRowVh} * ${LVH})`,
                 minHeight: compact ? "0px" : "50px",
                 background: `linear-gradient(90deg, #ffffff, ${ALT_ROW_BG})`,
                 borderTop: `2px solid ${BRAND_RED}`,
@@ -586,7 +625,7 @@ export default function EditorialLeaderboard({
                 <tr
                   key={a ? `m-${a.authorName}` : `m-empty-${idx}`}
                   style={{
-                    height: `${rowHeightVh}dvh`,
+                    height: `calc(${rowHeightVh} * ${LVH})`,
                     minHeight: "60px",
                     backgroundColor: idx % 2 === 0 ? "#ffffff" : ALT_ROW_BG,
                     borderBottom: `1px solid ${ROW_BORDER}`,
@@ -711,7 +750,7 @@ export default function EditorialLeaderboard({
             })}
             <tr
               style={{
-                height: `${totalRowVh}dvh`,
+                height: `calc(${totalRowVh} * ${LVH})`,
                 minHeight: isLandscapePhone ? "0px" : "44px",
                 background: `linear-gradient(90deg, #ffffff, ${ALT_ROW_BG})`,
                 borderTop: `2px solid ${BRAND_RED}`,

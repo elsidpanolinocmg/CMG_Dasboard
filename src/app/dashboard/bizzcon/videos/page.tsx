@@ -6,6 +6,7 @@ import EditorialVideosRotator from "@/components/EditorialVideosRotator";
 import EditorialVideosTicker from "@/components/EditorialVideosTicker";
 import DashboardControls from "@/components/DashboardControls";
 import BirthdayOverlay from "@/components/BirthdayOverlay";
+import ViewportFit from "@/components/ViewportFit";
 
 interface ApiVideo {
   id: string;
@@ -44,7 +45,8 @@ export default function BizzconVideosPage() {
   }
 
   return (
-    <div className="h-[100dvh] bg-white flex flex-col overflow-hidden">
+    <div className="h-lvh bg-white flex flex-col overflow-hidden">
+      <ViewportFit />
       <div className="fg-wrap flex-1 min-h-0 relative overflow-hidden bg-white">
         <div className="fg-video absolute inset-0">
           <EditorialVideosRotator videos={videos} />

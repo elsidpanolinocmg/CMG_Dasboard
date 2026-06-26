@@ -25,6 +25,18 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Full visible-viewport height for dashboards. --vvh (the REAL visible height in
+   px) is published by <ViewportFit />. The fallback is 100svh (the SMALL /
+   toolbar-shown viewport) — NOT 100dvh: Safari reports dvh as the toolbar-HIDDEN
+   (taller) height, which overruns the visible area and clips the bottom. svh is
+   always <= the visible area, so it can never clip (and on our scroll-locked
+   dashboards the toolbar stays shown, so svh == the real visible height anyway).
+   NOTE: must stay a plain var() — a `calc(100 * var(--lvh))` form gets
+   miscompiled by Lightning CSS to a bogus `100lvh`. */
+.h-lvh {
+  height: var(--vvh, 100svh);
+}
+
 /* Native <select> popups inherit transparent backgrounds from `bg-transparent`
    triggers, which makes options invisible in dark mode. Force solid theme
    colors on the option list. */
@@ -231,6 +243,16 @@ select option {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     line-height: 1.05 !important;
+  }
+  /* The header sits in <thead> with a smaller font, so the h-full table (which
+     distributes height by content) renders it shorter than the body/Total rows.
+     Add vertical padding back to the header cells so it matches the Total's
+     height. Padding (not font) keeps the label width unchanged, so the long
+     "Person in Charge" / value labels still fit. More specific than the rule
+     above, so it wins. */
+  .lb-fit thead th {
+    padding-top: 0.55rem !important;
+    padding-bottom: 0.55rem !important;
   }
 }
 
@@ -496,6 +518,25 @@ select option {
     line-height: 1.1 !important;
     margin-top: 2px !important;
     -webkit-line-clamp: 1 !important;
+  }
+
+  /* Publication / editorial brand on a landscape phone: shrink the "Top 10 News
+     Last 7 Days" header and the headline rows so all 10 + the header fit the 40%
+     column instead of scrolling. `.brand-news table/th/td` only matches the
+     TopViews list (the Awards countdown column has no table), so that view is
+     left alone. The table is height:100%, so once the per-row content is this
+     small the 10 rows just distribute to fill the column. */
+  .brand-news table {
+    font-size: clamp(9px, 2vh, 13px) !important;
+  }
+  .brand-news th {
+    padding: 2px 8px !important;
+    font-size: clamp(9px, 1.8vh, 12px) !important;
+    line-height: 1.15 !important;
+  }
+  .brand-news td {
+    padding: 0 8px !important;
+    line-height: 1.2 !important;
   }
 }
 

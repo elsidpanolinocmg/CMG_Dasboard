@@ -9,6 +9,7 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
+import ViewportFit from "@/components/ViewportFit";
 
 // Layout effect on the client (measures DOM before paint, no flash), plain
 // effect on the server (no-op during SSR — avoids the useLayoutEffect warning).
@@ -224,10 +225,11 @@ export default function MailchimpReportsClient({ rows, grandTotals, windowDays }
 
   return (
     <div
-      className="flex flex-col h-[100dvh] overflow-hidden"
+      className="flex flex-col h-lvh overflow-hidden"
       style={{ background: "#ffffff", color: MC_INK }}
       {...swipe}
     >
+      <ViewportFit />
       {/* ---- DESKTOP / TABLET TABLE ---- */}
       <div
         ref={tableWrapRef}

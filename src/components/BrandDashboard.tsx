@@ -8,6 +8,7 @@ import OdometerLast from "./OdometerLast";
 import OdometerDaily from "./OdometerDaily";
 import VideoRotatorXml from "./VideoRotatorXml";
 import TopViews from "./TopViews";
+import DashboardControls from "@/components/DashboardControls";
 
 export interface BrandSiteConfig {
   name: string;
@@ -224,6 +225,10 @@ export default function BrandDashboard({
           </div>
         </div>
       </footer>
+
+      {/* Same controls (Home + Fullscreen, opened via the bottom tap-zone on
+          touch) as the other dashboards — the publication brand view had none. */}
+      <DashboardControls />
     </div>
   );
 }

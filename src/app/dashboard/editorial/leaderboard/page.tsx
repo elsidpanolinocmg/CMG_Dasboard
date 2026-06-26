@@ -404,7 +404,7 @@ export default async function EditorialLeaderboardPage({
   const { authors, brandErrors, rosterError } = snapshot;
 
   return (
-    <div className="min-h-screen max-w-screen overflow-auto bg-white text-gray-900">
+    <div className="h-lvh max-w-screen overflow-hidden bg-white text-gray-900">
       {/* Error banners only (no always-on "filtering" info notice — it pushed the
           fixed-height leaderboard down and clipped the Total row on mobile).
           Overlaid + pointer-events-none so it can never offset the layout or block

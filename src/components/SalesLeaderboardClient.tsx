@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import DashboardControls from "@/components/DashboardControls";
+import ViewportFit from "@/components/ViewportFit";
 import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
 
 const REFRESH_MS = 30 * 60 * 1000;
@@ -232,10 +233,11 @@ export default function SalesLeaderboardClient({
 
   return (
     <div
-      className="flex flex-col justify-center h-[100dvh] px-0 md:px-4 overflow-hidden"
+      className="flex flex-col justify-center h-lvh px-0 md:px-4 overflow-hidden"
       style={{ backgroundColor: "#2a2a2a" }}
       {...swipe}
     >
+      <ViewportFit />
       <div
         ref={tableWrapRef}
         className={`hidden md:flex landscape-show flex-col flex-1 min-h-0 ${
