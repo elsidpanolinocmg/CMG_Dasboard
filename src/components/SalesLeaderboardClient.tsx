@@ -388,7 +388,7 @@ export default function SalesLeaderboardClient({
               style={{ fontSize: mHeaderSize, backgroundColor: "#3a3a3a", letterSpacing: "0.12em" }}
             >
               <th className="px-1 py-2 w-[16%]">Rank</th>
-              <th className="px-1 py-2 w-[50%] text-left">Person</th>
+              <th className="px-1 py-2 w-[50%] text-left">PIC</th>
               <th className="px-1 py-2 pr-3 w-[34%] text-right">{mobileHeaderLabel}</th>
             </tr>
             <tr>

@@ -231,7 +231,7 @@ select option {
     font-size: 0.82rem !important;
   }
   .lb-fit thead tr {
-    font-size: 0.68rem !important;
+    font-size: 0.9rem !important;
   }
   .lb-fit tbody tr,
   .lb-fit thead tr {
@@ -251,8 +251,8 @@ select option {
      "Person in Charge" / value labels still fit. More specific than the rule
      above, so it wins. */
   .lb-fit thead th {
-    padding-top: 0.55rem !important;
-    padding-bottom: 0.55rem !important;
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
   }
 }
 
