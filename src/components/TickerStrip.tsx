@@ -16,7 +16,7 @@ interface Props {
 export default function TickerStrip({
   feedUrl,
   label = "Latest News",
-  speed = 100,
+  speed = 60,
   labelColor = "#074782",
   limit = 10,
   refreshIntervalMs = 10 * 60 * 1000,
