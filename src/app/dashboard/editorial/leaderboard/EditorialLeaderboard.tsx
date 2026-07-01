@@ -349,7 +349,7 @@ export default function EditorialLeaderboard({
 
   return (
     <div
-      className="flex flex-col px-0 md:px-6 overflow-hidden"
+      className="flex flex-col px-0 md:px-6 overflow-hidden pt-safe"
       // `safe center` centers the content when it fits, but falls back to
       // top-aligned when it's taller than the viewport (Chrome's shorter
       // landscape dvh) — so the header at the top edge is never clipped.

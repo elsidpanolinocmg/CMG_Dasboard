@@ -37,6 +37,15 @@ body {
   height: var(--vvh, 100svh);
 }
 
+/* Reserve the top safe-area inset so a full-bleed dashboard's header/content
+   clears the iPhone status bar / Dynamic Island. This only matters in
+   Add-to-Home-Screen (standalone) mode, where the status bar is
+   "black-translucent" and the page draws UNDER it. The inset is 0 on desktop/TV,
+   normal browser tabs, and non-notch devices, so it changes nothing there. */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
 /* Native <select> popups inherit transparent backgrounds from `bg-transparent`
    triggers, which makes options invisible in dark mode. Force solid theme
    colors on the option list. */
