@@ -172,12 +172,7 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
       className={`flex flex-col px-0 md:px-4 overflow-hidden h-lvh ${
         isPhone ? "justify-start" : "justify-center"
       }`}
-      // Pad the top by the safe-area inset so the header clears the iPhone
-      // status bar / Dynamic Island. With the app added to the Home Screen the
-      // status bar is "black-translucent", so web content draws UNDER it — the
-      // header overlapped the clock/battery without this. The inset is 0 on
-      // desktop/TV and non-notch devices, so nothing changes there.
-      style={{ backgroundColor: "#2a2a2a", paddingTop: "env(safe-area-inset-top)" }}
+      style={{ backgroundColor: "#2a2a2a" }}
     >
       <ViewportFit />
       {/* ---- DESKTOP TABLE ---- */}
