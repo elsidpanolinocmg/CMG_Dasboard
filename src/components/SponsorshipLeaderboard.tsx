@@ -103,14 +103,17 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
 
   const ranked = useMemo(() => {
     if (!data) return [];
-    return data.salespeople
-      .map((name) => ({
-        name,
-        total: data.totals[name] ?? 0,
-        quarter: data.quarterTotals?.[name] ?? 0,
-      }))
-      .filter((r) => r.total > 0 || r.quarter > 0)
-      .sort((a, b) => b.total - a.total);
+    const all = data.salespeople.map((name) => ({
+      name,
+      total: data.totals[name] ?? 0,
+      quarter: data.quarterTotals?.[name] ?? 0,
+    }));
+    const active = all.filter((r) => r.total > 0 || r.quarter > 0);
+    // At the very start of a quarter everyone can be at $0 (nothing passes the
+    // >0 filter yet). Fall back to the full roster so the board shows the team
+    // at $0 — a normal-looking board — instead of collapsing to a single,
+    // screen-filling Total row (the "zoomed Total" bug on quarter rollover).
+    return (active.length > 0 ? active : all).sort((a, b) => b.total - a.total);
   }, [data]);
 
   const quarterGrandTotal = useMemo(() => {
@@ -147,6 +150,21 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
         style={{ backgroundColor: "#2a2a2a" }}
       >
         Loading...
+      </div>
+    );
+  }
+
+  // No people at all (empty / unparseable sheet — e.g. after a quarter reset).
+  // Show a readable message rather than letting the lone Total row expand to
+  // fill the screen ("zoomed Total"). The full-roster fallback in `ranked`
+  // handles the all-$0 case; this handles the genuinely-empty case.
+  if (ranked.length === 0) {
+    return (
+      <div
+        className="flex items-center justify-center h-[100dvh] text-white/70 text-center px-6"
+        style={{ backgroundColor: "#2a2a2a" }}
+      >
+        No sales data available for this period yet.
       </div>
     );
   }
