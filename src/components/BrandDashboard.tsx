@@ -33,7 +33,7 @@ interface Props {
 export default function BrandDashboard({
   brand,
   siteConfig,
-  stripspeed = 100,
+  stripspeed = 60,
   cardduration = 4000,
   activeNowIntervalms = 10_000,
   activeTodayIntervalms = 60_000,
