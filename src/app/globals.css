@@ -37,26 +37,28 @@ body {
   height: var(--vvh, 100svh);
 }
 
-/* Reserve the top safe-area inset so a full-bleed dashboard's header/content
-   clears the iPhone status bar / Dynamic Island. This only matters in
-   Add-to-Home-Screen (standalone) mode, where the status bar is
-   "black-translucent" and the page draws UNDER it. The inset is 0 on desktop/TV,
-   normal browser tabs, and non-notch devices, so it changes nothing there. */
-.pt-safe {
-  padding-top: env(safe-area-inset-top);
-}
+/* Safe-area insets for full-bleed dashboards: top clears the status bar /
+   Dynamic Island, bottom clears the home indicator (ticker/controls), and
+   left/right clear the notch and rounded corners in landscape.
 
-/* Companion insets: bottom clears the home indicator (so the ticker / control
-   bar isn't tucked under the swipe bar); left/right clear the notch/island and
-   rounded corners in landscape. Same rules as .pt-safe — all zero on desktop/TV,
-   normal browser tabs, and non-notch devices. In landscape iOS reports the top
-   inset as ~0 and moves it to the notch side, so these are what matter there. */
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-.px-safe {
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
+   GATED to standalone (Add-to-Home-Screen) mode ONLY. That is the mode where
+   the page actually draws under those system areas. In a NORMAL browser tab,
+   viewport-fit=cover still makes iOS report a non-zero bottom inset (the home
+   indicator), so applying it there just added a visible bottom gap that made
+   pages stop fitting the screen. The browser chrome already handles the safe
+   areas in a tab, and desktop/TV report display-mode: browser, so both
+   correctly get NO padding. */
+@media (display-mode: standalone) {
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .px-safe {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
 }
 
 /* Native <select> popups inherit transparent backgrounds from `bg-transparent`
