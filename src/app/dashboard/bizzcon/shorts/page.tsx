@@ -10,7 +10,7 @@ import ViewportFit from "@/components/ViewportFit";
 
 export default function BizzconShortsPage() {
   return (
-    <div className="h-lvh pt-safe pb-safe px-safe flex flex-col bg-white overflow-hidden">
+    <div className="h-lvh pt-safe flex flex-col bg-white overflow-hidden">
       <ViewportFit />
       <div className="flex-1 min-h-0">
         <ShortsPlayer

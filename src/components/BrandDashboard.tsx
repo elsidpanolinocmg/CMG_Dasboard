@@ -91,7 +91,7 @@ export default function BrandDashboard({
   }, []);
 
   return (
-    <div className="brand-root bg-white flex flex-col min-h-screen md:h-screen pt-safe pb-safe px-safe">
+    <div className="brand-root bg-white flex flex-col min-h-screen md:h-screen pt-safe">
       <header className="brand-header flex flex-col md:flex-row items-center gap-4 md:gap-6 px-3 py-4 shrink-0 overflow-x-auto md:overflow-x-visible">
         <div className="brand-left flex justify-between w-full md:w-fit">
           {siteConfig.image && (

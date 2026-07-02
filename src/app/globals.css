@@ -37,27 +37,21 @@ body {
   height: var(--vvh, 100svh);
 }
 
-/* Safe-area insets for full-bleed dashboards: top clears the status bar /
-   Dynamic Island, bottom clears the home indicator (ticker/controls), and
-   left/right clear the notch and rounded corners in landscape.
+/* Top safe-area inset for full-bleed dashboards: clears the status bar /
+   Dynamic Island so the header isn't hidden under it.
+
+   Top only — the dashboards are meant to fill the screen edge-to-edge, so we
+   deliberately do NOT reserve the bottom (home indicator) or the landscape
+   sides (notch / rounded corners); those left visible gaps. The home indicator
+   and notch are thin translucent overlays, so content under them stays legible.
 
    GATED to standalone (Add-to-Home-Screen) mode ONLY. That is the mode where
-   the page actually draws under those system areas. In a NORMAL browser tab,
-   viewport-fit=cover still makes iOS report a non-zero bottom inset (the home
-   indicator), so applying it there just added a visible bottom gap that made
-   pages stop fitting the screen. The browser chrome already handles the safe
-   areas in a tab, and desktop/TV report display-mode: browser, so both
-   correctly get NO padding. */
+   the page actually draws under the status bar. In a NORMAL browser tab the
+   browser chrome already handles it, and desktop/TV report display-mode:
+   browser, so both correctly get NO padding. */
 @media (display-mode: standalone) {
   .pt-safe {
     padding-top: env(safe-area-inset-top);
-  }
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  .px-safe {
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
   }
 }
 

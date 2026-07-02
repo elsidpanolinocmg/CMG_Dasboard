@@ -187,7 +187,7 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
 
   return (
     <div
-      className={`flex flex-col px-0 md:px-4 overflow-hidden h-lvh pt-safe pb-safe px-safe ${
+      className={`flex flex-col px-0 md:px-4 overflow-hidden h-lvh pt-safe ${
         isPhone ? "justify-start" : "justify-center"
       }`}
       style={{ backgroundColor: "#2a2a2a" }}
