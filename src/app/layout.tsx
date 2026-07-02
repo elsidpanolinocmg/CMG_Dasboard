@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import AppleSplash from "@/components/AppleSplash";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   icons: {
-    apple: "/logo/cmg.png",
+    apple: "/icons/apple-touch-icon.png",
   },
   // Next emits the modern `mobile-web-app-capable`; add the legacy Apple name too
   // so older iOS also launches chromeless from the Home Screen.
@@ -50,6 +51,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
+        <AppleSplash />
         {children}
       </body>
     </html>
