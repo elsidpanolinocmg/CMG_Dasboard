@@ -233,7 +233,7 @@ export default function SalesLeaderboardClient({
 
   return (
     <div
-      className="flex flex-col justify-center h-lvh pt-safe px-0 md:px-4 overflow-hidden"
+      className="flex flex-col justify-center h-lvh pt-safe pb-safe px-safe px-0 md:px-4 overflow-hidden"
       style={{ backgroundColor: "#2a2a2a" }}
       {...swipe}
     >

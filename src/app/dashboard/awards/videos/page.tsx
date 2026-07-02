@@ -45,7 +45,7 @@ export default function AwardsVideosPage() {
   }
 
   return (
-    <div className="h-lvh pt-safe bg-white flex flex-col overflow-hidden">
+    <div className="h-lvh pt-safe pb-safe px-safe bg-white flex flex-col overflow-hidden">
       <ViewportFit />
       <div className="fg-wrap flex-1 min-h-0 relative overflow-hidden bg-white">
         <div className="fg-video absolute inset-0">

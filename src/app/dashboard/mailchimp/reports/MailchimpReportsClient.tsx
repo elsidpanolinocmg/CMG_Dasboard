@@ -225,7 +225,7 @@ export default function MailchimpReportsClient({ rows, grandTotals, windowDays }
 
   return (
     <div
-      className="flex flex-col h-lvh pt-safe overflow-hidden"
+      className="flex flex-col h-lvh pt-safe pb-safe px-safe overflow-hidden"
       style={{ background: "#ffffff", color: MC_INK }}
       {...swipe}
     >

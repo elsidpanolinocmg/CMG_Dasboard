@@ -46,6 +46,19 @@ body {
   padding-top: env(safe-area-inset-top);
 }
 
+/* Companion insets: bottom clears the home indicator (so the ticker / control
+   bar isn't tucked under the swipe bar); left/right clear the notch/island and
+   rounded corners in landscape. Same rules as .pt-safe — all zero on desktop/TV,
+   normal browser tabs, and non-notch devices. In landscape iOS reports the top
+   inset as ~0 and moves it to the notch side, so these are what matter there. */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.px-safe {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
 /* Native <select> popups inherit transparent backgrounds from `bg-transparent`
    triggers, which makes options invisible in dark mode. Force solid theme
    colors on the option list. */
