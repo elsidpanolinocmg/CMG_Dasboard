@@ -306,7 +306,7 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
 
   return (
     <div
-      className="flex flex-col h-lvh overflow-hidden"
+      className="flex flex-col h-lvh pt-safe overflow-hidden"
       style={{ background: "#ffffff", color: MC_INK }}
       {...swipe}
     >
