@@ -9,7 +9,7 @@ import DashboardControls from "@/components/DashboardControls";
 const BrandDashboard = dynamic(() => import("@/components/BrandDashboard"), { ssr: false });
 
 const DEFAULTS = {
-  stripspeed: 100,
+  stripspeed: 60,
   cardduration: 4_000,
   activeNowIntervalms: 10_000,
   activeTodayIntervalms: 60_000,
@@ -53,7 +53,7 @@ export default function EditorialBrandClient({ brand, siteConfig }: Props) {
   }, [autoFullscreen]);
 
   return (
-    <div className="flex flex-col w-screen min-h-screen overflow-hidden">
+    <div className="brand-shell flex flex-col w-screen min-h-screen overflow-hidden">
       <BrandDashboard
         key={searchParams.toString()}
         brand={brand}

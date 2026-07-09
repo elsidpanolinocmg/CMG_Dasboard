@@ -34,7 +34,7 @@ export default async function AwardsBrandPage({
   const { brand: rawBrand } = await params;
   const brand = decodeURIComponent(rawBrand).toLowerCase();
   return (
-    <div className="min-h-screen max-w-screen overflow-auto bg-white text-gray-900">
+    <div className="h-[100dvh] max-w-screen overflow-hidden bg-white text-gray-900">
       <Suspense fallback={<LoadingPage loadingText="Loading Awards..." />}>
         <AwardsBrandContent brand={brand} />
       </Suspense>

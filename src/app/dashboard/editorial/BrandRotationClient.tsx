@@ -96,7 +96,7 @@ export default function BrandRotationClient({ brands, birthdays: birthdaysProp =
 
   return (
     <div
-      className="flex flex-col w-screen md:min-h-screen md:overflow-hidden overflow-y-auto overflow-x-hidden"
+      className="brand-shell flex flex-col w-screen md:min-h-screen md:overflow-hidden overflow-y-auto overflow-x-hidden"
       tabIndex={0}
     >
       {current.kind === "brand" ? (

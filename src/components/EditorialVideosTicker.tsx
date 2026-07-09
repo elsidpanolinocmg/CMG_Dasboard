@@ -39,8 +39,10 @@ export default function EditorialVideosTicker({
 
   useEffect(() => {
     let cancelled = false;
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-    const url = `${baseUrl}/api/brands/by-department/${encodeURIComponent(department)}`;
+    // Relative URL so the request targets the page's own origin (localhost, LAN
+    // IP, or production) rather than an absolute NEXT_PUBLIC_SITE_URL that would
+    // point a remote device's browser back at itself and fail to load.
+    const url = `/api/brands/by-department/${encodeURIComponent(department)}`;
     const delays = [0, 800, 2000, 4000];
 
     const attempt = async (i: number): Promise<void> => {
@@ -88,7 +90,7 @@ export default function EditorialVideosTicker({
   if (!exclusiveFeeds.length && !newsFeeds.length) return null;
 
   return (
-    <footer className="fixed bottom-0 left-0 z-50 w-full md:static">
+    <footer className="w-full">
       <div
         className="flex flex-col md:space-y-0 gap-0"
         style={{ boxShadow: "0 -6px 20px rgba(0,0,0,0.25)" }}
@@ -98,8 +100,8 @@ export default function EditorialVideosTicker({
             <TickerCard
               feedUrl={exclusiveFeeds}
               duration={4000}
-              fontSize="clamp(13px, 2vw, 38px)"
-              height="clamp(38px, 6vh, 80px)"
+              fontSize="clamp(12px, min(1.8vw, calc(4.3 * var(--lvh, 1dvh))), 34px)"
+              height="clamp(28px, calc(4.8 * var(--lvh, 1dvh)), 68px)"
             />
           </div>
         )}
@@ -108,8 +110,8 @@ export default function EditorialVideosTicker({
             <TickerStrip
               feedUrl={newsFeeds}
               speed={60}
-              fontSize="clamp(13px, 2vw, 38px)"
-              height="clamp(38px, 6vh, 80px)"
+              fontSize="clamp(12px, min(1.8vw, calc(4.3 * var(--lvh, 1dvh))), 34px)"
+              height="clamp(28px, calc(4.8 * var(--lvh, 1dvh)), 68px)"
             />
           </div>
         )}

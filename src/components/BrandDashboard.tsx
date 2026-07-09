@@ -8,6 +8,7 @@ import OdometerLast from "./OdometerLast";
 import OdometerDaily from "./OdometerDaily";
 import VideoRotatorXml from "./VideoRotatorXml";
 import TopViews from "./TopViews";
+import DashboardControls from "@/components/DashboardControls";
 
 export interface BrandSiteConfig {
   name: string;
@@ -32,7 +33,7 @@ interface Props {
 export default function BrandDashboard({
   brand,
   siteConfig,
-  stripspeed = 100,
+  stripspeed = 60,
   cardduration = 4000,
   activeNowIntervalms = 10_000,
   activeTodayIntervalms = 60_000,
@@ -56,12 +57,45 @@ export default function BrandDashboard({
     if (!videosFeedUrl) setShowVideoRotator(false);
   }, [articlesFeedUrl, videosFeedUrl]);
 
+  // Publish the REAL visible height as --brand-h. The landscape CSS sizes the
+  // shell + root to this instead of 100dvh, which on iOS does NOT report the
+  // toolbar-aware height (so the page ran taller than the screen → scrolled, and
+  // the scrolled load clipped the header). visualViewport.height is the true
+  // visible height on iOS. No scroll-lock / fixed positioning here — once the
+  // document equals the visible area it can't scroll and the browser keeps its
+  // toolbar behaviour, so the header isn't clipped. (Var is only consumed by the
+  // landscape ≤950 CSS; desktop/TV and portrait are unaffected.)
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const setVar = () => {
+      const h = Math.round(vv?.height ?? window.innerHeight);
+      document.documentElement.style.setProperty("--brand-h", `${h}px`);
+    };
+    setVar();
+    const raf = requestAnimationFrame(setVar);
+    const t1 = setTimeout(setVar, 300);
+    const t2 = setTimeout(setVar, 800);
+    window.addEventListener("resize", setVar);
+    window.addEventListener("orientationchange", setVar);
+    vv?.addEventListener("resize", setVar);
+    vv?.addEventListener("scroll", setVar);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener("resize", setVar);
+      window.removeEventListener("orientationchange", setVar);
+      vv?.removeEventListener("resize", setVar);
+      vv?.removeEventListener("scroll", setVar);
+    };
+  }, []);
+
   return (
-    <div className="bg-white flex flex-col min-h-screen md:h-screen">
-      <header className="flex flex-col md:flex-row items-center gap-4 md:gap-6 px-3 py-4 shrink-0 overflow-x-auto md:overflow-x-visible">
-        <div className="flex justify-between w-full md:w-fit">
+    <div className="brand-root bg-white flex flex-col min-h-screen md:h-screen pt-safe">
+      <header className="brand-header flex flex-col md:flex-row items-center gap-4 md:gap-6 px-3 py-4 shrink-0 overflow-x-auto md:overflow-x-visible">
+        <div className="brand-left flex justify-between w-full md:w-fit">
           {siteConfig.image && (
-            <div className="relative h-14 w-40 md:h-24 md:w-64">
+            <div className="brand-logo relative h-14 w-40 md:h-24 md:w-64">
               <Image
                 src={`/${siteConfig.image}`}
                 alt={siteConfig.name}
@@ -74,7 +108,7 @@ export default function BrandDashboard({
           )}
           <div
             onClick={() => (window.location.href = "/dashboard")}
-            className="relative h-12 w-20 md:h-24 md:w-32 cursor-pointer block md:hidden"
+            className="cmg-logo cmg-mobile relative h-12 w-20 md:h-24 md:w-32 cursor-pointer block md:hidden"
             title="Home"
           >
             <Image
@@ -88,7 +122,7 @@ export default function BrandDashboard({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 md:flex md:flex-nowrap md:justify-evenly md:gap-4 flex-1 text-gray-900">
+        <div className="metric-row grid grid-cols-2 gap-2 md:flex md:flex-nowrap md:justify-evenly md:gap-4 flex-1 text-gray-900">
           {[
             {
               label: "Active Users Last 365 Days",
@@ -115,7 +149,7 @@ export default function BrandDashboard({
           ].map((m) => (
             <div
               key={m.label}
-              className="flex flex-col items-center text-center flex-shrink-0"
+              className="metric-col flex flex-col items-center text-center flex-shrink-0"
             >
               <p className="text-xs md:text-sm">{m.label}</p>
               {m.type === "daily" ? (
@@ -130,7 +164,7 @@ export default function BrandDashboard({
         <div className="flex w-fit">
           <div
             onClick={() => (window.location.href = "/dashboard")}
-            className="relative h-12 w-20 md:h-24 md:w-32 cursor-pointer hidden md:block"
+            className="cmg-logo cmg-corner relative h-12 w-20 md:h-24 md:w-32 cursor-pointer hidden md:block"
             title="Home"
           >
             <Image
@@ -145,10 +179,10 @@ export default function BrandDashboard({
         </div>
       </header>
 
-      <main className="flex-1 md:min-h-0 md:overflow-hidden flex flex-col md:flex-row items-stretch justify-center px-3 md:px-8 py-4 gap-8 pb-[100px]">
-        <div className="w-full max-w-[1920px] flex flex-col md:flex-row gap-8 px-3 md:px-8">
+      <main className="brand-main flex-1 md:min-h-0 md:overflow-hidden flex flex-col md:flex-row items-stretch justify-center px-3 md:px-8 py-4 gap-8">
+        <div className="brand-content w-full max-w-[1920px] flex flex-col md:flex-row gap-8 px-3 md:px-8">
           {showTopViews && (
-            <div className="w-full md:w-[40%] flex flex-col h-full overflow-hidden">
+            <div className="brand-news w-full md:w-[40%] flex flex-col md:h-full md:overflow-hidden">
               <TopViews
                 xmlUrl={articlesFeedUrl}
                 brand={brand}
@@ -158,7 +192,7 @@ export default function BrandDashboard({
             </div>
           )}
           {showVideoRotator && (
-            <div className="w-full md:w-[clamp(40%,100vh,80%)] flex flex-col h-full overflow-hidden">
+            <div className="brand-video w-full md:w-[clamp(40%,100vh,80%)] flex flex-col md:h-full md:overflow-hidden">
               <VideoRotatorXml
                 xmlUrl={videosFeedUrl}
                 displayTime={videoDurationTime}
@@ -169,26 +203,32 @@ export default function BrandDashboard({
         </div>
       </main>
 
-      <footer className="fixed bottom-0 left-0 z-50 w-full md:static">
+      {/* Static on mobile so it flows after the content (a fixed footer here
+          covered the news); pinned-feel preserved on desktop/TV via h-screen. */}
+      <footer className="w-full">
         <div className="flex flex-col md:space-y-0 gap-0">
           <div className="flex-1 min-w-0">
             <TickerCard
               feedUrl={exclusiveFeedUrl}
               duration={cardduration}
-              fontSize="clamp(20px, 2vw, 38px)"
-              height="clamp(65px, 6vh, 80px)"
+              fontSize="clamp(14px, 2vw, 38px)"
+              height="clamp(40px, 6vh, 80px)"
             />
           </div>
           <div className="flex-1 min-w-0">
             <TickerStrip
               feedUrl={feedUrl}
               speed={stripspeed}
-              fontSize="clamp(20px, 2vw, 38px)"
-              height="clamp(65px, 6vh, 80px)"
+              fontSize="clamp(14px, 2vw, 38px)"
+              height="clamp(40px, 6vh, 80px)"
             />
           </div>
         </div>
       </footer>
+
+      {/* Same controls (Home + Fullscreen, opened via the bottom tap-zone on
+          touch) as the other dashboards — the publication brand view had none. */}
+      <DashboardControls />
     </div>
   );
 }

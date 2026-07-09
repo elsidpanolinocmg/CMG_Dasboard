@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 const DEFAULTS = {
   rotation: 60_000,
-  stripspeed: 100,
+  stripspeed: 60,
   cardduration: 4_000,
   activeNowIntervalms: 10_000,
   activeTodayIntervalms: 60_000,

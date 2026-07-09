@@ -40,8 +40,19 @@ export default function ShortsPlayer({
     Array.from({ length: SLOTS }, (_, i) => i),
   );
   const [waitMode, setWaitMode] = useState(false);
+  // Phones can't fit two 9:16 players side by side, so collapse to a single
+  // slot on narrow screens. Starts at SLOTS to match SSR, then adjusts client-side.
+  const [cols, setCols] = useState(SLOTS);
   const iframeRefs = useRef<(HTMLIFrameElement | null)[]>([]);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const apply = () => setCols(mq.matches ? 1 : SLOTS);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, [SLOTS]);
 
   useEffect(() => {
     if (initialVideos) return;
@@ -85,16 +96,16 @@ export default function ShortsPlayer({
   useEffect(() => {
     if (timer.current) clearInterval(timer.current);
     if (waitMode) return;
-    if (videos.length <= SLOTS || rotationInterval <= 0) return;
+    if (videos.length <= cols || rotationInterval <= 0) return;
     timer.current = setInterval(() => {
       setSlotIndexes((prev) =>
-        prev.map((i) => (i + SLOTS) % videos.length),
+        prev.map((i) => (i + cols) % videos.length),
       );
     }, rotationInterval);
     return () => {
       if (timer.current) clearInterval(timer.current);
     };
-  }, [waitMode, videos.length, rotationInterval, SLOTS]);
+  }, [waitMode, videos.length, rotationInterval, cols]);
 
   useEffect(() => {
     if (!waitMode) return;
@@ -122,7 +133,7 @@ export default function ShortsPlayer({
         setSlotIndexes((prev) => {
           const next = [...prev];
           const taken = new Set(next.filter((_, i) => i !== slotIdx));
-          let candidate = (next[slotIdx] + SLOTS) % videos.length;
+          let candidate = (next[slotIdx] + cols) % videos.length;
           let guard = 0;
           while (taken.has(candidate) && guard++ < videos.length) {
             candidate = (candidate + 1) % videos.length;
@@ -139,7 +150,7 @@ export default function ShortsPlayer({
       clearTimeout(subTimer);
       window.removeEventListener("message", onMessage);
     };
-  }, [waitMode, videos.length, slotIndexes, SLOTS]);
+  }, [waitMode, videos.length, slotIndexes, cols]);
 
   if (loading) {
     return (
@@ -175,18 +186,18 @@ export default function ShortsPlayer({
 
   return (
     <div
-      className={`flex items-center justify-evenly px-6 py-16 max-md:portrait:items-stretch max-md:portrait:px-8 max-md:portrait:py-10 max-md:portrait:gap-2 ${className}`}
+      className={`flex items-center justify-evenly gap-4 px-4 py-2 sm:px-6 sm:py-4 ${className}`}
     >
-      {Array.from({ length: Math.min(SLOTS, videos.length) }).map((_, slot) => {
+      {Array.from({ length: Math.min(cols, videos.length) }).map((_, slot) => {
         const video = videos[slotIndexes[slot] % videos.length];
         if (!video) return null;
         const playerId = `short-${slot}`;
         return (
           <div
             key={slot}
-            className="flex flex-col items-center max-md:portrait:flex-1 max-md:portrait:min-h-0 max-md:portrait:max-w-full"
+            className="flex flex-col items-center justify-center h-full min-h-0"
           >
-            <div className="relative h-[80vh] aspect-[9/16] overflow-hidden rounded-lg max-md:portrait:h-auto max-md:portrait:flex-1 max-md:portrait:min-h-0 max-md:portrait:max-h-full max-md:portrait:max-w-full">
+            <div className="shorts-box relative h-full max-h-[calc(100%_-_3.5rem)] sm:max-h-[calc(100%_-_3.25rem)] aspect-[9/16] max-w-[92vw] overflow-hidden rounded-lg">
               <iframe
                 ref={(el) => {
                   iframeRefs.current[slot] = el;
@@ -199,7 +210,7 @@ export default function ShortsPlayer({
                 allowFullScreen
               />
             </div>
-            <p className="text-xl font-semibold mt-2 text-center uppercase line-clamp-1 text-gray-900 max-md:portrait:text-sm max-md:portrait:mt-1">
+            <p className="shorts-title text-base sm:text-xl font-semibold mt-1 text-center uppercase line-clamp-2 text-gray-900">
               {video.title}
             </p>
           </div>

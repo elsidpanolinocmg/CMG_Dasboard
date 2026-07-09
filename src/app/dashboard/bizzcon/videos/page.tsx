@@ -6,6 +6,7 @@ import EditorialVideosRotator from "@/components/EditorialVideosRotator";
 import EditorialVideosTicker from "@/components/EditorialVideosTicker";
 import DashboardControls from "@/components/DashboardControls";
 import BirthdayOverlay from "@/components/BirthdayOverlay";
+import ViewportFit from "@/components/ViewportFit";
 
 interface ApiVideo {
   id: string;
@@ -37,15 +38,16 @@ export default function BizzconVideosPage() {
 
   if (!videos.length) {
     return (
-      <div className="h-screen flex items-center justify-center bg-white text-black">
+      <div className="h-[100dvh] flex items-center justify-center bg-white text-black">
         Loading…
       </div>
     );
   }
 
   return (
-    <div className="h-screen bg-white flex flex-col overflow-hidden">
-      <div className="flex-1 min-h-0 relative overflow-hidden bg-white">
+    <div className="h-lvh pt-safe bg-white flex flex-col overflow-hidden">
+      <ViewportFit />
+      <div className="fg-wrap flex-1 min-h-0 relative overflow-hidden bg-white">
         <div className="fg-video absolute inset-0">
           <EditorialVideosRotator videos={videos} />
         </div>
@@ -87,13 +89,46 @@ export default function BizzconVideosPage() {
           transform: translate(-50%, -50%) !important;
           border: 0 !important;
         }
-        @media (max-width: 767px) and (orientation: portrait) {
-          .fg-video .video-area { background: #fff !important; }
+        /* Portrait: center the whole 16:9 video (and its caption) vertically in
+           the space above the ticker, with the ticker pinned at the bottom. Not
+           scrollable (page is 100dvh + overflow hidden). The frame is a real
+           16:9 box so the caption stays inside the video. */
+        @media (orientation: portrait) {
+          .fg-wrap {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+          .fg-video {
+            position: relative !important;
+            inset: auto !important;
+            width: 100% !important;
+            height: auto !important;
+            aspect-ratio: 16 / 9 !important;
+          }
           .fg-video .video-layer {
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
             min-width: 0 !important;
             min-height: 0 !important;
-            width: 100vw !important;
-            height: 56.25vw !important;
+            transform: none !important;
+          }
+        }
+        /* Landscape phones are wider than 16:9; bias the cover toward the top so
+           heads aren't cropped, and size from the container (cqw/cqh) so Safari
+           and Chrome match (viewport units diverge between them). */
+        @media (orientation: landscape) and (max-width: 950px) {
+          .fg-video .video-area { container-type: size; }
+          .fg-video .video-layer {
+            top: -14% !important;
+            left: 50% !important;
+            width: 100cqw !important;
+            height: 56.25cqw !important;
+            min-width: 177.78cqh !important;
+            min-height: 100cqh !important;
+            transform: translateX(-50%) !important;
           }
         }
       `}</style>

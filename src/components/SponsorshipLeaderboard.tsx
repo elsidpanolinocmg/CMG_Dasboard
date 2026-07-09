@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DashboardControls from "@/components/DashboardControls";
+import ViewportFit from "@/components/ViewportFit";
 
 const REFRESH_MS = 30 * 60 * 1000;
 
@@ -47,6 +48,8 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [rotationMs, setRotationMs] = useState(15_000);
   const cancelledRef = useRef(false);
 
   const load = useCallback(async (opts?: { fresh?: boolean }) => {
@@ -79,16 +82,38 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
     };
   }, [load]);
 
+  // Phone (portrait OR landscape) now only drives justify + the row min-height.
+  // Root height and row heights are sized to the measured visible viewport
+  // (--vvh / --lvh, published by <ViewportFit /> in the render) for ALL devices,
+  // so the layout fits under Safari's toolbar/tab bar. (Previously phones pinned
+  // the root with `position: fixed` + a measured height, but iOS resolves `fixed`
+  // against the taller *layout* viewport, so with the tab bar shown the pinned
+  // root ran past the visible area and clipped the bottom Total row.)
+  const [isPhone, setIsPhone] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px), (max-height: 600px)");
+    const apply = () => setIsPhone(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  // Document scroll lock + the visible-height vars (--vvh / --lvh) that drive the
+  // root and row heights are handled by <ViewportFit /> (mounted in the render),
+  // so every device fits under Safari's toolbar/tab bar with no per-device path.
+
   const ranked = useMemo(() => {
     if (!data) return [];
-    return data.salespeople
-      .map((name) => ({
-        name,
-        total: data.totals[name] ?? 0,
-        quarter: data.quarterTotals?.[name] ?? 0,
-      }))
-      .filter((r) => r.total > 0 || r.quarter > 0)
-      .sort((a, b) => b.total - a.total);
+    const all = data.salespeople.map((name) => ({
+      name,
+      total: data.totals[name] ?? 0,
+      quarter: data.quarterTotals?.[name] ?? 0,
+    }));
+    const active = all.filter((r) => r.total > 0 || r.quarter > 0);
+    // At the very start of a quarter everyone can be at $0 (nothing passes the
+    // >0 filter yet). Fall back to the full roster so the board shows the team
+    // at $0 — a normal-looking board — instead of collapsing to a single,
+    // screen-filling Total row (the "zoomed Total" bug on quarter rollover).
+    return (active.length > 0 ? active : all).sort((a, b) => b.total - a.total);
   }, [data]);
 
   const quarterGrandTotal = useMemo(() => {
@@ -96,10 +121,21 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
     return Object.values(data.quarterTotals).reduce((a, b) => a + b, 0);
   }, [data]);
 
+  // Max 10 people per page; show only the real rows (no empty padding). With 10
+  // or fewer there's a single page; beyond that it paginates and auto-rotates
+  // like the other leaderboards.
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(ranked.length / PAGE_SIZE));
+  useEffect(() => {
+    if (totalPages <= 1 || rotationMs <= 0) return;
+    const id = setInterval(() => setPageIndex((p) => (p + 1) % totalPages), rotationMs);
+    return () => clearInterval(id);
+  }, [totalPages, rotationMs]);
+
   if (error && !data) {
     return (
       <div
-        className="flex items-center justify-center h-screen text-red-400 text-center px-6"
+        className="flex items-center justify-center h-[100dvh] text-red-400 text-center px-6"
         style={{ backgroundColor: "#2a2a2a" }}
       >
         Failed to load: {error}
@@ -110,7 +146,7 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
   if (!data) {
     return (
       <div
-        className="flex items-center justify-center h-screen text-white/70"
+        className="flex items-center justify-center h-[100dvh] text-white/70"
         style={{ backgroundColor: "#2a2a2a" }}
       >
         Loading...
@@ -118,19 +154,45 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
     );
   }
 
-  const rowCount = Math.max(ranked.length + 1, 1);
+  // No people at all (empty / unparseable sheet — e.g. after a quarter reset).
+  // Show a readable message rather than letting the lone Total row expand to
+  // fill the screen ("zoomed Total"). The full-roster fallback in `ranked`
+  // handles the all-$0 case; this handles the genuinely-empty case.
+  if (ranked.length === 0) {
+    return (
+      <div
+        className="flex items-center justify-center h-[100dvh] text-white/70 text-center px-6"
+        style={{ backgroundColor: "#2a2a2a" }}
+      >
+        No sales data available for this period yet.
+      </div>
+    );
+  }
+
+  const currentPage = Math.min(pageIndex, totalPages - 1);
+  const displayed = ranked.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+  const rowCount = Math.max(displayed.length + 1, 1);
   const effectiveCount = Math.min(rowCount, 12);
   const rowHeightVh = 82 / rowCount;
   const fontSize = `clamp(0.85rem, min(calc(0.8vw + ${9 / effectiveCount}vw), ${rowHeightVh * 0.5}vh), 5rem)`;
   const headerSize = `clamp(0.7rem, min(calc(0.5vw + ${5 / effectiveCount}vw), ${rowHeightVh * 0.35}vh), 2.8rem)`;
   const mFontSize = `clamp(0.8rem, min(calc(1.2vw + ${9.5 / effectiveCount}vw), ${rowHeightVh * 0.5}vh), 4.5rem)`;
   const mHeaderSize = `clamp(0.65rem, min(calc(0.8vw + ${6 / effectiveCount}vw), ${rowHeightVh * 0.35}vh), 2.8rem)`;
+  // Row height = a share of the REAL visible viewport: --lvh is 1% of it (from
+  // <ViewportFit />), so the rows fit under Safari's toolbar/tab bar instead of
+  // being budgeted off the taller `vh`/`dvh`. On phones drop the 40px min so a
+  // short landscape viewport can shrink the rows enough to keep the Total in view.
+  const tblRowH = `calc(${rowHeightVh} * var(--lvh, 1svh))`;
+  const tblRowMin = isPhone ? "0px" : "40px";
 
   return (
     <div
-      className="flex flex-col justify-center h-screen px-0 md:px-4 overflow-hidden"
+      className={`flex flex-col px-0 md:px-4 overflow-hidden h-lvh pt-safe ${
+        isPhone ? "justify-start" : "justify-center"
+      }`}
       style={{ backgroundColor: "#2a2a2a" }}
     >
+      <ViewportFit />
       {/* ---- DESKTOP TABLE ---- */}
       <div className="hidden md:flex landscape-show flex-col flex-1 min-h-0">
         <table className="w-full border-collapse table-fixed h-full" style={{ fontSize }}>
@@ -156,16 +218,16 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
             </tr>
           </thead>
           <tbody>
-            {ranked.map((row, idx) => {
-              const rank = idx + 1;
+            {displayed.map((row, idx) => {
+              const rank = currentPage * PAGE_SIZE + idx + 1;
               const color = rankColor(rank);
               return (
                 <tr
                   key={row.name}
                   className="text-center uppercase"
                   style={{
-                    height: `${rowHeightVh}vh`,
-                    minHeight: "40px",
+                    height: tblRowH,
+                    minHeight: tblRowMin,
                     background:
                       idx % 2 === 0
                         ? "linear-gradient(90deg, #4A4A4A, #505050)"
@@ -217,8 +279,8 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
             <tr
               className="text-center uppercase"
               style={{
-                height: `${rowHeightVh}vh`,
-                minHeight: "40px",
+                height: tblRowH,
+                minHeight: tblRowMin,
                 background: "linear-gradient(90deg, #2a2a2a, #3a3020)",
                 borderTop: "2px solid rgba(212, 168, 83, 0.6)",
                 color: "#f0c668",
@@ -256,7 +318,10 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
       </div>
 
       {/* ---- MOBILE TABLE ---- */}
-      <div className="flex md:hidden landscape-hide flex-col flex-1 min-h-0">
+      {/* Scrollable on phones: with many salespeople the rows hit their 40px floor
+          and overflow the viewport, so let this column scroll instead of clipping
+          the bottom rows. Desktop/TV keeps the fit-to-screen layout. */}
+      <div className="flex md:hidden landscape-hide flex-col flex-1 min-h-0 overflow-y-auto">
         <table className="w-full border-collapse table-fixed h-full" style={{ fontSize: mFontSize }}>
           <thead>
             <tr
@@ -264,8 +329,8 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
               style={{ fontSize: mHeaderSize, backgroundColor: "#3a3a3a", letterSpacing: "0.12em" }}
             >
               <th className="px-1 py-2 w-[14%]">Rank</th>
-              <th className="px-1 py-2 w-[36%] text-left">Person</th>
-              <th className="px-1 py-2 w-[25%] text-right">{data.currentQuarter}</th>
+              <th className="px-1 py-2 w-[36%] text-left">PIC</th>
+              <th className="px-1 py-2 w-[25%] text-right">Current Quarter</th>
               <th className="px-1 py-2 pr-3 w-[25%] text-right">Total</th>
             </tr>
             <tr>
@@ -280,16 +345,16 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
             </tr>
           </thead>
           <tbody>
-            {ranked.map((row, idx) => {
-              const rank = idx + 1;
+            {displayed.map((row, idx) => {
+              const rank = currentPage * PAGE_SIZE + idx + 1;
               const color = rankColor(rank);
               return (
                 <tr
                   key={row.name}
                   className="text-center uppercase"
                   style={{
-                    height: `${rowHeightVh}vh`,
-                    minHeight: "40px",
+                    height: tblRowH,
+                    minHeight: tblRowMin,
                     background:
                       idx % 2 === 0
                         ? "linear-gradient(90deg, #4A4A4A, #505050)"
@@ -341,8 +406,8 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
             <tr
               className="text-center uppercase"
               style={{
-                height: `${rowHeightVh}vh`,
-                minHeight: "40px",
+                height: tblRowH,
+                minHeight: tblRowMin,
                 background: "linear-gradient(90deg, #2a2a2a, #3a3020)",
                 borderTop: "2px solid rgba(212, 168, 83, 0.6)",
                 color: "#f0c668",
@@ -387,6 +452,35 @@ export default function SponsorshipLeaderboard({ fetchUrl, backLabel, backHref }
         >
           {refreshing ? "Refreshing..." : "↻ Refresh"}
         </button>
+        <button
+          onClick={() => setPageIndex((p) => (p - 1 + totalPages) % totalPages)}
+          disabled={totalPages <= 1}
+          className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          ◀ Prev
+        </button>
+        <span className="text-sm text-white/80">
+          {currentPage + 1} / {totalPages}
+        </span>
+        <button
+          onClick={() => setPageIndex((p) => (p + 1) % totalPages)}
+          disabled={totalPages <= 1}
+          className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          Next ▶
+        </button>
+        <select
+          value={rotationMs}
+          onChange={(e) => setRotationMs(Number(e.target.value))}
+          className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 [&>option]:bg-gray-800 [&>option]:text-white"
+        >
+          <option value="0">No rotate</option>
+          <option value="5000">5s</option>
+          <option value="10000">10s</option>
+          <option value="15000">15s</option>
+          <option value="30000">30s</option>
+          <option value="60000">60s</option>
+        </select>
         <span className="text-xs text-white/70">
           {data ? `Updated ${new Date(data.lastUpdated).toLocaleTimeString()}` : ""}
         </span>

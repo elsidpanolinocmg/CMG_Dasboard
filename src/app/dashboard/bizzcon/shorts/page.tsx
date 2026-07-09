@@ -6,11 +6,13 @@ import EditorialVideosTicker from "@/components/EditorialVideosTicker";
 import DashboardControls from "@/components/DashboardControls";
 import WaitModeToggle from "@/components/WaitModeToggle";
 import BirthdayOverlay from "@/components/BirthdayOverlay";
+import ViewportFit from "@/components/ViewportFit";
 
 export default function BizzconShortsPage() {
   return (
-    <div className="h-screen flex flex-col bg-white overflow-hidden">
-      <div className="flex-1 min-h-0 max-md:portrait:pb-[90px]">
+    <div className="h-lvh pt-safe flex flex-col bg-white overflow-hidden">
+      <ViewportFit />
+      <div className="flex-1 min-h-0">
         <ShortsPlayer
           className="h-full"
           fetchUrl="/api/videos/classified?department=bizzcon&format=shorts"

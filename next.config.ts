@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
+  allowedDevOrigins: ["192.168.1.73"],
   serverExternalPackages: [
     "@google-analytics/data",
     "googleapis",
