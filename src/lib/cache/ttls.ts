@@ -36,4 +36,9 @@ export const ttls = {
   // campaigns are immutable history, daily refresh is plenty.
   MAILCHIMP_REPORTS: 24 * HOUR,
   MAILCHIMP_REPORTS_STALE: 1 * HOUR,
+  // Invoices and payments are entered by hand during the working day, and the
+  // page is a wallboard that reloads on its own. Fifteen minutes keeps the
+  // numbers current without hammering the Sheets API.
+  CEO_MONEY_LEDGER: 15 * MINUTE,
+  CEO_MONEY_LEDGER_STALE: 5 * MINUTE,
 } as const;

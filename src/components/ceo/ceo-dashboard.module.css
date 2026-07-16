@@ -1,0 +1,500 @@
+/*
+ * Every rule here is scoped to `.panel` and every class name is hashed by CSS
+ * Modules, so this file can be dropped into a host app without colliding with
+ * its styles. Nothing here touches `html` or `body` — the standalone shell in
+ * `app/globals.css` does that, and is not part of what you copy.
+ *
+ * Colour roles come from the validated dataviz palette. The dark column is a
+ * selected set of steps for the dark surface, not an inverted copy of the light
+ * one. Roles are declared on `.panel` rather than `:root`, so a host page's
+ * tokens are untouched.
+ */
+
+.panel {
+  --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+
+  /* Status — reserved for RAG. Never used as a series colour. */
+  --good: #0ca30c;
+  --warning: #fab219;
+  --critical: #d03b3b;
+
+  /* Categorical — the accent on the current week. */
+  --series-1: #2a78d6;
+
+  /* Bullet bands. Chrome, not data. The band furthest from the surface is
+     always the poor one — darker here, lighter in dark mode. */
+  --band-good: #f0efec;
+  --band-fair: #e3e2da;
+  --band-poor: #d0cfc5;
+
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04);
+
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.45;
+
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(14px, 2vh, 28px);
+  padding: clamp(18px, 3vh, 40px) clamp(20px, 2.4vw, 48px);
+}
+
+@media (prefers-color-scheme: dark) {
+  .panel {
+    --surface-1: #1a1a19;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+
+    --series-1: #3987e5;
+
+    --band-good: #242423;
+    --band-fair: #2f2f2c;
+    --band-poor: #40403c;
+
+    --shadow: none;
+  }
+}
+
+.panel[data-notice="yes"] {
+  grid-template-rows: auto auto 1fr auto;
+}
+
+/* Fullscreen is opt-in, and it is the panel — not the document — that suppresses
+   scrolling. Embedded, the panel is an ordinary block that grows with its
+   content and never fights the host page for the viewport. */
+.panel[data-fullscreen="true"] {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.panel:not([data-fullscreen="true"]) .tile {
+  min-height: 260px;
+}
+
+/* ------------------------------------------------------------- regional */
+
+/* Three regions of cards will not fit a locked viewport, so the regional panel
+   grows with its content and the page scrolls — otherwise the last region and
+   the footer overflow the fixed 100dvh track and overlap the cards above. It
+   still fills the screen when the content is short (min-height), and its footer
+   sits after the content rather than pinned to the viewport floor. */
+/* A wallboard: the whole thing fits one screen and never scrolls. Masthead and
+   footer take what they need; the region list takes the rest and splits it
+   between the regions. The minmax(0, 1fr) chain below lets every level shrink
+   below its content, so three regions of cards compress to fit instead of
+   pushing the page taller than the viewport. */
+.panel[data-regional="true"] {
+  height: 100dvh;
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(8px, 1.4vh, 18px);
+  padding: clamp(12px, 2vh, 28px) clamp(16px, 2.4vw, 40px);
+}
+
+/* Every region gets an equal share of the leftover height. */
+.regionList {
+  display: grid;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: clamp(8px, 1.4vh, 20px);
+  min-height: 0;
+}
+
+.region {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: clamp(3px, 0.7vh, 9px);
+  min-height: 0;
+}
+
+.regionLabel {
+  font-size: clamp(12px, 1.4vh, 16px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Compact tiles fill their share of the row and clip rather than overflow, so
+   the grid math above is never defeated by a tile that wants to be taller. Type
+   and padding are sized in vh so they shrink on a short screen. */
+.tile[data-compact="true"] {
+  min-height: 0;
+  overflow: hidden;
+  padding: clamp(8px, 1.4vh, 18px) clamp(12px, 1.2vw, 22px);
+  gap: clamp(2px, 0.5vh, 7px);
+}
+
+.tile[data-compact="true"] .tileValue {
+  font-size: clamp(18px, 2.6vh, 40px);
+}
+
+.tile[data-compact="true"] .tileLabel {
+  font-size: clamp(11px, 1.4vh, 15px);
+}
+
+/* ---------------------------------------------------------------- header */
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.masthead h1 {
+  font-size: clamp(19px, 1.6vw, 28px);
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.week {
+  color: var(--text-secondary);
+  font-size: clamp(12px, 0.85vw, 15px);
+}
+
+.banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warning);
+  background: var(--surface-1);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: clamp(11.5px, 0.8vw, 14px);
+  color: var(--text-secondary);
+}
+
+/* -------------------------------------------------------- notice chip */
+
+.mastheadTools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* A small pill in the header that keeps the data caveats out of the way until
+   asked for. Hovering — or focusing it by keyboard — reveals the full list. */
+.noticeChip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: clamp(11px, 0.8vw, 13px);
+  cursor: help;
+  user-select: none;
+}
+
+.noticeCount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.noticePopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: min(520px, 78vw);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  box-shadow: 0 8px 24px rgba(11, 11, 11, 0.16);
+  color: var(--text-secondary);
+  font-size: clamp(11.5px, 0.8vw, 13.5px);
+  line-height: 1.5;
+  text-align: left;
+  /* Hidden until hover/focus, but kept in the layout so it can fade in. */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+}
+
+.noticeChip:hover .noticePopover,
+.noticeChip:focus .noticePopover,
+.noticeChip:focus-within .noticePopover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.noticePopoverTitle {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.noticePopover ul {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.noticePopover li {
+  list-style: disc;
+}
+
+.banner strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.refresh {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.refresh:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------- KPI tiles */
+
+.kpiRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(14px, 1.4vw, 24px);
+  min-height: 0;
+}
+
+/* A two-tile dashboard shares the row rather than leaving a third of it empty. */
+.kpiRow[data-tiles="2"] {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.tile {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: clamp(18px, 2.2vh, 32px) clamp(20px, 1.6vw, 34px);
+  min-height: 0;
+  display: grid;
+  /* label · value · sub · bullet (absorbs slack) · foot */
+  grid-template-rows: auto auto auto 1fr auto;
+  gap: clamp(6px, 0.9vh, 14px);
+}
+
+/* The left rule carries the RAG state; the badge below carries it in words. */
+.tile[data-rag="good"] {
+  border-left: 4px solid var(--good);
+}
+.tile[data-rag="warning"] {
+  border-left: 4px solid var(--warning);
+}
+.tile[data-rag="critical"] {
+  border-left: 4px solid var(--critical);
+}
+.tile[data-rag="neutral"] {
+  border-left: 4px solid var(--axis);
+}
+
+.tileLabel {
+  font-size: clamp(13px, 0.95vw, 17px);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Proportional figures: tabular-nums makes a standalone number look loose.
+   Sized for an exact figure — `S$1,218,885` is half again as wide as `S$1.22M`,
+   and three of them share the row. */
+.tileValue {
+  font-size: clamp(30px, 3.2vw, 64px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tileSub {
+  font-size: clamp(12px, 0.85vw, 15px);
+  color: var(--text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+}
+
+.tileFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Icon + word, so colour is never the only channel. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: clamp(12px, 0.85vw, 15px);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.badge[data-rag="good"] .dot {
+  background: var(--good);
+}
+.badge[data-rag="warning"] .dot {
+  background: var(--warning);
+}
+.badge[data-rag="critical"] .dot {
+  background: var(--critical);
+}
+.badge[data-rag="neutral"] .dot {
+  background: var(--axis);
+}
+
+.glyph {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.sourceNote {
+  font-size: clamp(10.5px, 0.72vw, 13px);
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------- bullet chart */
+
+/* This row absorbs the tile's slack now that the sparkline is gone. The bar is a
+   fixed height, so its content is pinned to the top and the empty space falls
+   below it — otherwise the bar would drift into the middle of the tile. */
+.tileBullet {
+  padding-top: clamp(4px, 0.8vh, 10px);
+  align-self: start;
+}
+
+.bulletTrack {
+  position: relative;
+  display: flex;
+  height: clamp(20px, 2.4vh, 30px);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bulletBand[data-tone="good"] {
+  background: var(--band-good);
+}
+.bulletBand[data-tone="fair"] {
+  background: var(--band-fair);
+}
+.bulletBand[data-tone="poor"] {
+  background: var(--band-poor);
+}
+
+/* The measure: thin, so the bands stay legible behind it. Square where it
+   grows from, 4px rounded at the data-end. */
+.bulletMeasure {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: clamp(8px, 0.9vh, 11px);
+  border-radius: 0 4px 4px 0;
+  min-width: 2px;
+}
+
+.bulletMeasure[data-rag="good"] {
+  background: var(--good);
+}
+.bulletMeasure[data-rag="warning"] {
+  background: var(--warning);
+}
+.bulletMeasure[data-rag="critical"] {
+  background: var(--critical);
+}
+.bulletMeasure[data-rag="neutral"] {
+  background: var(--axis);
+}
+
+/* The reference marker. Ink, not a series colour — it is a benchmark, not data. */
+.bulletMarker {
+  position: absolute;
+  top: 12%;
+  bottom: 12%;
+  width: 3px;
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  border-radius: 1px;
+}
+
+.bulletCaption {
+  position: relative;
+  height: 1.3em;
+  margin-top: 5px;
+  font-size: clamp(10.5px, 0.72vw, 13px);
+  color: var(--text-muted);
+}
+
+.bulletCaption span {
+  position: absolute;
+  white-space: nowrap;
+}
+
+.bulletAbsent {
+  display: block;
+  font-size: clamp(11px, 0.78vw, 14px);
+  color: var(--text-muted);
+  padding: clamp(6px, 0.8vh, 10px) 0;
+}
+
+/* ------------------------------------------------------------- sparkline */
+
+/*
+ * Below three-up, a row of hero tiles cannot fit legibly. The panel stops
+ * pretending to be a wallboard — a clipped tile is worse than a scrollbar.
+ */
+@media (max-width: 900px), (max-height: 460px) {
+  .panel[data-fullscreen="true"] {
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .kpiRow,
+  .kpiRow[data-tiles="2"] {
+    grid-template-columns: 1fr;
+  }
+
+  .tile {
+    grid-template-rows: auto auto auto auto auto;
+    min-height: 180px;
+  }
+}

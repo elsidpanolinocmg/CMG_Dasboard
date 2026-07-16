@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
     "bcryptjs",
     "cheerio",
   ],
+  async redirects() {
+    return [
+      { source: "/dashboard/ceo-money", destination: "/dashboard/ceo/money", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

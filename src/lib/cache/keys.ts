@@ -23,6 +23,11 @@ export const cacheKeys = {
   mailchimpEngagement: () => `mailchimp:engagement`,
   mailchimpMovement: (days: number) => `mailchimp:movement:${days}d`,
   mailchimpCampaignReports: (days: number) => `mailchimp:reports:${days}d`,
+  // Keyed by date: the sample-data fallback is generated relative to "today",
+  // so a cached ledger must not survive a midnight rollover.
+  ceoMoneyLedger: (asOf: string) => `ceo-money:ledger:${asOf}`,
+  ceoInvoiceRegister: (asOf: string, region: string) => `ceo-money:register:${region}:${asOf}`,
+  ceoMarketingLeads: (asOf: string) => `ceo-marketing:leads:${asOf}`,
 } as const;
 
 export const cachePrefixes = {
@@ -33,4 +38,5 @@ export const cachePrefixes = {
   editorial: "editorial:",
   drupal: "drupal:",
   mailchimp: "mailchimp:",
+  ceoMoney: "ceo-money:",
 } as const;
