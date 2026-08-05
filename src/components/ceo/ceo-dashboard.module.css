@@ -148,30 +148,28 @@
    gradient with the dark palette forced on, so the frosted glass cards and their
    light text read the same whether the viewer is in light or dark mode. */
 .panel[data-marketing="true"] {
-  --accent: #ff9a4d;
-  --accent-2: #ff7a1f;
-  --text-primary: #f4f6fb;
-  --text-secondary: #aeb8cc;
-  --text-muted: #77809a;
-  --axis: #35405c;
-  --border: rgba(255, 255, 255, 0.1);
-  --band-good: #182233;
-  --band-fair: #202c42;
-  --band-poor: #2b3a56;
-  --shadow: none;
+  /* Deeper orange range so the title reads on white (the old light end faded). */
+  --accent: #f2711c;
+  --accent-2: #ea580c;
+  --text-primary: #1a1a1a;
+  --text-secondary: #4a505c;
+  --text-muted: #6b7280;
+  --axis: #b3b8c2;
+  --border: rgba(11, 11, 11, 0.12);
+  --band-good: #f0efec;
+  --band-fair: #e3e2da;
+  --band-poor: #d0cfc5;
+  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04);
   color: var(--text-primary);
   grid-template-rows: minmax(0, 1fr);
   /* Slimmer left/right padding than the regional default, so the cards get the
      width back; vertical padding unchanged. */
   padding: clamp(12px, 2vh, 28px) clamp(8px, 1.2vw, 22px);
-  /* Near-black top-left deepening into midnight blue, with a warm orange glow in
-     the top-left corner behind the title — it shows through the translucent
-     spanning card, tinting the frosted glass warm where the heading sits. */
+  /* Light theme, like money and awards: a white-ish gradient with a warm orange
+     glow in the top-left corner behind the title, showing through the glass. */
   background:
-    radial-gradient(70% 60% at 8% 0%, rgba(242, 113, 28, 0.16), transparent 62%),
-    radial-gradient(130% 95% at 82% 100%, rgba(24, 46, 88, 0.36), transparent 60%),
-    radial-gradient(120% 90% at 0% 0%, rgba(12, 24, 48, 0.3), transparent 55%),
-    linear-gradient(160deg, #020306, #060d18 78%);
+    radial-gradient(72% 62% at 8% 0%, rgba(242, 113, 28, 0.2), transparent 64%),
+    linear-gradient(160deg, #f4f6f9, #cdd3dc 90%);
 }
 
 /* ---------------------------------------------- money: midnight glass theme */
@@ -181,37 +179,37 @@
    frosted-glass cards — but WITHOUT the warm orange corner glow. Scoped to
    money via data-money so nothing here touches marketing or embeds. */
 .panel[data-money="true"] {
-  --surface-1: #0e1826;
-  --text-primary: #f4f6fb;
-  --text-secondary: #aeb8cc;
-  --text-muted: #77809a;
-  --axis: #35405c;
-  --border: rgba(255, 255, 255, 0.1);
-  --series-1: #3987e5;
-  --band-good: #182233;
-  --band-fair: #202c42;
-  --band-poor: #2b3a56;
-  --shadow: none;
+  --surface-1: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #4a505c;
+  --text-muted: #6b7280;
+  --axis: #b3b8c2;
+  --border: rgba(11, 11, 11, 0.12);
+  --series-1: #2a78d6;
+  --band-good: #f0efec;
+  --band-fair: #e3e2da;
+  --band-poor: #d0cfc5;
+  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04);
   color: var(--text-primary);
   /* Slimmer panel padding than the regional default so the cards claim more of
      the screen. */
   padding: clamp(8px, 1.4vh, 18px) clamp(8px, 1vw, 18px);
   gap: clamp(6px, 1vh, 14px);
+  /* Light theme, like the awards page: a white-ish gradient with a warm orange
+     glow in the top-left corner behind the title. */
   background:
-    radial-gradient(70% 60% at 8% 0%, rgba(242, 113, 28, 0.16), transparent 62%),
-    radial-gradient(130% 95% at 82% 100%, rgba(24, 46, 88, 0.36), transparent 60%),
-    radial-gradient(120% 90% at 0% 0%, rgba(12, 24, 48, 0.3), transparent 55%),
-    linear-gradient(160deg, #020306, #060d18 78%);
+    radial-gradient(72% 62% at 8% 0%, rgba(242, 113, 28, 0.2), transparent 64%),
+    linear-gradient(160deg, #f4f6f9, #cdd3dc 90%);
 }
 
 /* Frosted glass cards — a full hairline border all round, no RAG left accent
    (state reads from the coloured arrow in the foot, as in marketing). */
 .panel[data-money="true"] .tile {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
-  backdrop-filter: blur(16px) saturate(1.3);
-  -webkit-backdrop-filter: blur(16px) saturate(1.3);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgba(11, 11, 11, 0.09);
+  box-shadow: 0 12px 30px rgba(11, 11, 11, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 /* Card typography ported from marketing: minimal system-sans values with tabular
@@ -231,7 +229,7 @@
 .panel[data-money="true"] .regionLabel {
   font-size: clamp(18px, 2.7vh, 30px);
   font-weight: 700;
-  color: #ffffff;
+  color: #14181f;
 }
 
 /* The masthead title gets the marketing dashboard's display treatment: condensed
@@ -243,11 +241,13 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   line-height: 1.05;
-  background: linear-gradient(115deg, #ff7a1f, #ff9a4d);
+  /* Deeper orange range so the title reads boldly on white — the old light end
+     (#ff9a4d) nearly vanished against the pale background. */
+  background: linear-gradient(115deg, #ea580c, #f2711c);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  color: #ff9a4d; /* fallback if background-clip: text is unsupported */
+  color: #ea580c; /* fallback if background-clip: text is unsupported */
 }
 .panel[data-money="true"] .tile[data-compact="true"] .tileLabel {
   font-size: clamp(14px, 1.2vw, 24px);
@@ -281,19 +281,47 @@
 }
 .panel[data-money="true"] .badge[data-rag="good"] .glyph::before {
   content: "\25B2"; /* ▲ */
-  color: #2ee65f;
+  color: #15803d;
 }
 .panel[data-money="true"] .badge[data-rag="warning"] .glyph::before {
   content: "\25BC"; /* ▼ */
-  color: #ffcf4d;
+  color: #b45309;
 }
 .panel[data-money="true"] .badge[data-rag="critical"] .glyph::before {
   content: "\25BC"; /* ▼ */
-  color: #ff5a5a;
+  color: #dc2626;
 }
 .panel[data-money="true"] .badge[data-rag="neutral"] .glyph::before {
   content: "\2013"; /* – */
-  color: #9aa6c4;
+  color: #64748b;
+}
+
+/* The bullet track blends into the light frosted card, so give it a defined edge
+   and an inset shadow, and step the bands to cooler, darker greys that read
+   against the card. The measure bar and marker still carry the colour. */
+.panel[data-money="true"] .bulletTrack {
+  border: 1px solid rgba(11, 11, 11, 0.14);
+  box-shadow: inset 0 1px 2px rgba(11, 11, 11, 0.08);
+}
+.panel[data-money="true"] .bulletBand[data-tone="good"] {
+  background: #e4e8ee;
+}
+.panel[data-money="true"] .bulletBand[data-tone="fair"] {
+  background: #d0d6df;
+}
+.panel[data-money="true"] .bulletBand[data-tone="poor"] {
+  background: #b9c0cc;
+}
+
+/* The overdue target line strokes --warning (a pale yellow) which barely shows
+   on the white theme — recolour the dashed line and its label to a stronger
+   amber so the target reads clearly. */
+.panel[data-money="true"] .overduePlot line {
+  stroke: #ea580c;
+  stroke-width: 2;
+}
+.panel[data-money="true"] .overdueTargetLabel {
+  color: #c2410c;
 }
 
 /* The all-regions overview: SG / HK / ME side by side, one region per column.
@@ -483,11 +511,11 @@
    highlight, and a soft drop so each pane lifts off the gradient. No RAG left
    bar — state is carried by the donut and the badge below. */
 .panel[data-marketing="true"] .tile {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
-  backdrop-filter: blur(16px) saturate(1.3);
-  -webkit-backdrop-filter: blur(16px) saturate(1.3);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgba(11, 11, 11, 0.09);
+  box-shadow: 0 12px 30px rgba(11, 11, 11, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 /* Each column titled like a section header, with a rule beneath, so the four read
@@ -1050,23 +1078,22 @@
   font-weight: 700;
   line-height: 1;
 }
-/* Brighter, near-neon hues for the arrows so they pop and glow on the midnight
-   panel — a step up from the muted RAG tokens used for the money charts. */
+/* Deeper RAG hues for the arrows so they read on the white theme. */
 .panel[data-marketing="true"] .badge[data-rag="good"] .glyph::before {
   content: "\25B2"; /* ▲ */
-  color: #2ee65f;
+  color: #15803d;
 }
 .panel[data-marketing="true"] .badge[data-rag="warning"] .glyph::before {
   content: "\25BC"; /* ▼ */
-  color: #ffcf4d;
+  color: #b45309;
 }
 .panel[data-marketing="true"] .badge[data-rag="critical"] .glyph::before {
   content: "\25BC"; /* ▼ */
-  color: #ff5a5a;
+  color: #dc2626;
 }
 .panel[data-marketing="true"] .badge[data-rag="neutral"] .glyph::before {
   content: "\2013"; /* – */
-  color: #9aa6c4;
+  color: #64748b;
 }
 
 .sourceNote {
@@ -1252,42 +1279,38 @@
 
 /* Fit-to-screen wallboard on the CEO theme: a surface-coloured table on the panel
    background, paginated by its client component (no scroll). */
-/* The awards wallboard wears the same midnight theme as money: dark palette
-   forced on in both colour schemes, the blue-to-black gradient with a warm
-   orange corner glow, and a frosted-glass table. */
+/* The awards wallboard runs a light theme: a white-ish gradient with a faint
+   warm corner glow, light palette forced on in both colour schemes, and a soft
+   frosted-white table. */
 .panel[data-awards="true"] {
-  --surface-1: #0e1826;
-  --text-primary: #f4f6fb;
-  --text-secondary: #aeb8cc;
-  --text-muted: #77809a;
-  --axis: #35405c;
-  --border: rgba(255, 255, 255, 0.1);
-  --band-good: #182233;
-  --band-fair: #202c42;
-  --band-poor: #2b3a56;
-  --shadow: none;
+  --surface-1: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #5b616e;
+  --text-muted: #949aa6;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.12);
+  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04);
   color: var(--text-primary);
   height: 100dvh;
   overflow: hidden;
   grid-template-rows: minmax(0, 1fr);
   gap: 0;
-  padding: clamp(12px, 2.2vh, 30px) clamp(16px, 2.2vw, 40px);
+  padding: clamp(12px, 2.2vh, 30px) clamp(8px, 1vw, 18px);
   background:
-    radial-gradient(70% 60% at 8% 0%, rgba(242, 113, 28, 0.16), transparent 62%),
-    radial-gradient(130% 95% at 82% 100%, rgba(24, 46, 88, 0.36), transparent 60%),
-    radial-gradient(120% 90% at 0% 0%, rgba(12, 24, 48, 0.3), transparent 55%),
-    linear-gradient(160deg, #020306, #060d18 78%);
+    radial-gradient(72% 62% at 8% 0%, rgba(242, 113, 28, 0.2), transparent 64%),
+    linear-gradient(160deg, #f4f6f9, #cdd3dc 90%);
 }
 
 .awardsTableWrap {
   min-height: 0;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(11, 11, 11, 0.09);
   border-radius: var(--radius);
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035));
-  backdrop-filter: blur(16px) saturate(1.3);
-  -webkit-backdrop-filter: blur(16px) saturate(1.3);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.32));
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: 0 20px 46px rgba(11, 11, 11, 0.14), 0 2px 6px rgba(11, 11, 11, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 .awardsTable {
@@ -1304,10 +1327,11 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #ff9a4d;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 2px solid var(--border);
+  color: #000000;
+  /* Fully transparent — the header is just the table's frosted glass, so the
+     gradient and orange glow read straight through it. */
+  background: transparent;
+  border-bottom: 3px solid #f2711c;
   white-space: nowrap;
 }
 .awardsTable thead th.awColName {
@@ -1316,15 +1340,15 @@
 }
 
 .awardsTable tbody td {
-  padding: clamp(4px, 1vh, 14px) clamp(12px, 1.3vw, 26px);
-  border-top: 1px solid var(--border);
+  padding: clamp(3px, 0.7vh, 10px) clamp(12px, 1.3vw, 26px);
+  border-top: 1px solid rgba(11, 11, 11, 0.1);
   vertical-align: middle;
 }
 
-/* Gentle zebra: a faint neutral tint on the whole row (not the cell), so it fills
-   the full row height in both light and dark, rather than the heavier band token. */
+/* Zebra: a cool slate tint on alternate rows so each line reads distinctly from
+   a distance, rather than the near-invisible neutral wash. */
 .awardsTable tbody tr:nth-child(even) {
-  background: rgba(128, 128, 128, 0.06);
+  background: rgba(30, 41, 59, 0.06);
 }
 
 /* A plain table cell (no flex), so it stretches to the full row height and the
@@ -1334,9 +1358,13 @@
 }
 .awNameText {
   color: var(--text-primary);
+  /* Smaller than the figures (the emphasis) and a tight line-height, so a name
+     that wraps to two lines stays short enough that the last row still fits. */
+  font-size: 1.03em;
   font-weight: 650;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  line-height: 1.15;
+  line-height: 1.12;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1344,8 +1372,8 @@
 }
 .awCount {
   display: block;
-  margin-top: 2px;
-  font-size: 0.5em;
+  margin-top: 1px;
+  font-size: 0.46em;
   font-weight: 500;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -1358,8 +1386,22 @@
   font-weight: 700;
   letter-spacing: -0.01em;
   white-space: nowrap;
-  color: #ffffff;
+  color: var(--text-primary);
+  /* A hair larger than the name column, so the figures carry the row. */
+  font-size: 1.2em;
 }
+/* Semantic colour so each column reads at a glance: money in / closed is
+   positive (green), overdue is the problem (red). */
+.awNum[data-kind="cash"],
+.awNum[data-kind="revenue"] {
+  /* A deeper forest green than the RAG token, which reads too bright on white. */
+  color: #15803d;
+}
+.awNum[data-kind="overdue"] {
+  color: var(--critical);
+}
+/* A zero is nothing to read either way — keep it muted, after the kind rules
+   so it wins for empty cells. */
 .awNum[data-zero="true"] {
   color: var(--text-muted);
   font-weight: 500;
