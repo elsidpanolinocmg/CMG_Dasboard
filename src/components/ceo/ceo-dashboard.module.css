@@ -1381,6 +1381,23 @@
   color: var(--text-muted);
 }
 
+/* Dense layouts (8 / 10 rows) give each row less height, so a two-line award name
+   at the full size overflows and the last row clips. Step the name down (and
+   tighten the rows) at those counts; the 5-row default keeps the larger name. */
+.awardsTable[data-rows="8"] .awNameText {
+  font-size: 0.85em;
+  line-height: 1.08;
+}
+.awardsTable[data-rows="10"] .awNameText {
+  font-size: 0.76em;
+  line-height: 1.06;
+}
+.awardsTable[data-rows="8"] tbody td,
+.awardsTable[data-rows="10"] tbody td {
+  padding-top: clamp(2px, 0.4vh, 7px);
+  padding-bottom: clamp(2px, 0.4vh, 7px);
+}
+
 .awNum {
   text-align: right;
   font-variant-numeric: tabular-nums;

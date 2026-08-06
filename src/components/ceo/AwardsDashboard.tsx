@@ -88,7 +88,7 @@ export function AwardsDashboard({ awards, accounts }: AwardsDashboardProps) {
       <ViewportFit />
 
       <div className={styles.awardsTableWrap}>
-        <table className={styles.awardsTable} style={{ fontSize }}>
+        <table className={styles.awardsTable} style={{ fontSize }} data-rows={pageSize}>
           <thead>
             <tr style={{ fontSize: headerSize }}>
               <th className={styles.awColName}>Awards Name</th>

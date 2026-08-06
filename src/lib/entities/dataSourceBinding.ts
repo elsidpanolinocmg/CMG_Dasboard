@@ -6,7 +6,10 @@ export type BindingPurpose =
   | "sponsorship"
   | "analytics"
   | "content"
-  | "media";
+  | "media"
+  | "ceo_money"
+  | "ceo_invoice_register"
+  | "ceo_marketing";
 
 export interface DataSourceBinding extends Timestamped {
   departmentSlug: Slug;

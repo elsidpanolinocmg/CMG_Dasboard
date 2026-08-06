@@ -5,6 +5,12 @@ import { useState } from "react";
 import RemoveButton from "../_widgets/RemoveButton";
 import TestBindingButton from "./TestBindingButton";
 
+const PURPOSE_LABELS: Record<string, string> = {
+  ceo_money: "CEO · Money sheet",
+  ceo_invoice_register: "CEO · Invoice register",
+  ceo_marketing: "CEO · Marketing sheet",
+};
+
 export type ClientBinding = {
   departmentSlug: string;
   purpose: string;
@@ -135,7 +141,9 @@ function Row({ row }: { row: ClientBinding }) {
   return (
     <tr className="border-t border-black/10 dark:border-white/10 align-top">
       <td className="px-3 py-2 font-mono text-xs">{row.departmentSlug}</td>
-      <td className="px-3 py-2 font-mono text-xs">{row.purpose}</td>
+      <td className="px-3 py-2 font-mono text-xs">
+        {PURPOSE_LABELS[row.purpose] ?? row.purpose}
+      </td>
       <td className="px-3 py-2 font-mono text-xs">{row.dataSourceKind}</td>
       <td className="px-3 py-2 text-xs">
         {editing ? (

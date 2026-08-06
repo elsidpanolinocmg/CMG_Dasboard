@@ -1,3 +1,4 @@
+import { resolveCeoSheetId } from "@/lib/ceo/sheet-binding";
 import { getSheetsClient } from "@/lib/sources/googleOAuth";
 
 import { DEFAULT_CONFIG } from "./config";
@@ -232,7 +233,8 @@ async function fetchTabs(spreadsheetId: string): Promise<Cell[][][]> {
 }
 
 /**
- * Reads the sheet when `CEO_MONEY_SHEET_ID` is set, and otherwise falls back to
+ * Reads the sheet configured in the admin panel (bindings, scope `ceo`) or via
+ * `CEO_MONEY_SHEET_ID`, and otherwise falls back to
  * deterministic sample data so the page renders during development. The source
  * is reported to the UI — a demo must never masquerade as real money.
  *
@@ -241,7 +243,10 @@ async function fetchTabs(spreadsheetId: string): Promise<Cell[][][]> {
  * be able to open the spreadsheet.
  */
 export async function loadLedger(todayDate: string): Promise<LoadedLedger> {
-  const spreadsheetId = process.env.CEO_MONEY_SHEET_ID;
+  const spreadsheetId = await resolveCeoSheetId(
+    "ceo_money",
+    process.env.CEO_MONEY_SHEET_ID,
+  );
   if (!spreadsheetId) {
     return { ledger: generateSampleLedger(todayDate), source: "sample", warnings: [] };
   }

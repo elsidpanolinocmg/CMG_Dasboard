@@ -26,9 +26,12 @@ export default async function BindingsPage() {
         <h1 className="font-semibold">
           Data source bindings
           <Hint>
-            Wires a department to a data source for a specific purpose. Click{" "}
-            <em>Edit</em> on a row to change the sheet ID, gid, tab name, or
-            range. <em>Probe</em> tests the binding live.
+            Wires a department to a data source for a specific purpose. The{" "}
+            <em>CEO ·</em> purposes point the CEO dashboards (money, invoice
+            register, marketing) at their Google Sheets — they use the reserved
+            scope <em>ceo</em> instead of a department. Click <em>Edit</em> on a
+            row to change the sheet ID, gid, tab name, or range. <em>Probe</em>{" "}
+            tests the binding live.
           </Hint>
         </h1>
       </div>
@@ -38,7 +41,9 @@ export default async function BindingsPage() {
       <CollapsibleAdd label="+ Add binding">
         <BindingForm
           departmentSlugs={depts.map((d) => d.slug)}
-          sourceKinds={sources.map((s) => s.kind)}
+          sourceKinds={Array.from(
+            new Set(["google_sheets", ...sources.map((s) => s.kind)]),
+          )}
         />
       </CollapsibleAdd>
     </div>

@@ -1,3 +1,4 @@
+import { resolveCeoSheetId } from "@/lib/ceo/sheet-binding";
 import { getSheetsClient } from "@/lib/sources/googleOAuth";
 import { fromEpochDay, parseCivilDate, toEpochDay, type CivilDate, type EpochDay } from "@/lib/ceo/week";
 
@@ -476,7 +477,10 @@ export async function loadInvoiceRegister(
   todayDate: CivilDate,
   source: RegionSource,
 ): Promise<InvoiceRegister> {
-  const spreadsheetId = process.env.CEO_INVOICE_REGISTER_SHEET_ID;
+  const spreadsheetId = await resolveCeoSheetId(
+    "ceo_invoice_register",
+    process.env.CEO_INVOICE_REGISTER_SHEET_ID,
+  );
   const { tab, columns: col } = source;
   const rates = loadRates();
 

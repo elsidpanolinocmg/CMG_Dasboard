@@ -6,7 +6,7 @@ export const metadata = {
 
 const dashboards: { label: string; href: string; description: string }[] = [
   {
-    label: "Money",
+    label: "Cash, Revenue, and Overdue Receivables",
     href: "/dashboard/ceo/money",
     description: "Weekly collections, targets and receivables.",
   },
