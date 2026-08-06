@@ -151,6 +151,7 @@
   /* Deeper orange range so the title reads on white (the old light end faded). */
   --accent: #f2711c;
   --accent-2: #ea580c;
+  --surface-1: #ffffff;
   --text-primary: #1a1a1a;
   --text-secondary: #4a505c;
   --text-muted: #6b7280;
