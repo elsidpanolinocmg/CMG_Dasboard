@@ -482,7 +482,9 @@ export async function loadInvoiceRegister(
     process.env.CEO_INVOICE_REGISTER_SHEET_ID,
   );
   const { tab, columns: col } = source;
-  const rates = loadRates();
+  // Admin-panel rates win over the env var; both fall back to DEFAULT_RATES.
+  const { resolveInvoiceRates } = await import("./rates");
+  const rates = await resolveInvoiceRates();
 
   if (!spreadsheetId) {
     const sample = generateSampleLedger(todayDate);

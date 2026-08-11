@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { humanize } from "@/lib/util/format";
+import { useUnsavedWarning } from "../_widgets/useUnsavedWarning";
 
 export type ClientBrand = {
   slug: string;
@@ -79,6 +80,54 @@ export default function BrandEditor({
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
+  // This form carries twenty-odd fields plus a repeater; a stray click on the
+  // sidebar used to discard the lot without a word.
+  const current = {
+    displayName,
+    url,
+    color,
+    secondaryColor,
+    group,
+    ga4PropertyId,
+    ga4FilterFieldName,
+    ga4FilterMatchType,
+    ga4FilterValue,
+    drupalDomain,
+    image,
+    awardsShowcaseId,
+    customNewsFeedUrl,
+    customExclusiveFeedUrl,
+    customVideosFeedUrl,
+    customTopReadFeedUrl,
+    manualEvents,
+    active,
+    departments: Array.from(selectedDepts).sort(),
+  };
+  const original = {
+    displayName: brand.displayName,
+    url: brand.url,
+    color: brand.color,
+    secondaryColor: brand.secondaryColor,
+    group: brand.group,
+    ga4PropertyId: brand.ga4PropertyId,
+    ga4FilterFieldName: brand.ga4FilterFieldName,
+    ga4FilterMatchType: brand.ga4FilterMatchType || "EXACT",
+    ga4FilterValue: brand.ga4FilterValue,
+    drupalDomain: brand.drupalDomain,
+    image: brand.image,
+    awardsShowcaseId: brand.awardsShowcaseId,
+    customNewsFeedUrl: brand.customNewsFeedUrl,
+    customExclusiveFeedUrl: brand.customExclusiveFeedUrl,
+    customVideosFeedUrl: brand.customVideosFeedUrl,
+    customTopReadFeedUrl: brand.customTopReadFeedUrl,
+    manualEvents: brand.manualEvents,
+    active: brand.active,
+    departments: [...brand.departments].sort(),
+  };
+  useUnsavedWarning(
+    !busy && JSON.stringify(current) !== JSON.stringify(original),
+  );
+
   function toggleDept(slug: string) {
     setSelectedDepts((prev) => {
       const next = new Set(prev);
@@ -98,14 +147,16 @@ export default function BrandEditor({
       active,
       departments: Array.from(selectedDepts),
     };
-    if (url.trim()) body.url = url.trim();
-    if (color.trim()) body.color = color.trim();
-    if (secondaryColor.trim()) body.secondaryColor = secondaryColor.trim();
-    if (group.trim()) body.group = group.trim();
-    if (ga4PropertyId.trim()) body.ga4PropertyId = ga4PropertyId.trim();
-    if (drupalDomain.trim()) body.drupalDomain = drupalDomain.trim();
-    if (image.trim()) body.image = image.trim();
-    if (awardsShowcaseId.trim()) body.awardsShowcaseId = awardsShowcaseId.trim();
+    // Sent even when empty: the repository unsets empty fields, so clearing one
+    // here actually removes it instead of leaving the old value in place.
+    body.url = url.trim();
+    body.color = color.trim();
+    body.secondaryColor = secondaryColor.trim();
+    body.group = group.trim();
+    body.ga4PropertyId = ga4PropertyId.trim();
+    body.drupalDomain = drupalDomain.trim();
+    body.image = image.trim();
+    body.awardsShowcaseId = awardsShowcaseId.trim();
     // Always sent (even when empty) so clearing a field actually removes the
     // override on save.
     const customFeeds: Record<string, string> = {};
@@ -130,13 +181,14 @@ export default function BrandEditor({
         ...(ev.submissionEnd.trim() ? { submissionEnd: ev.submissionEnd.trim() } : {}),
         ...(ev.contactPerson.trim() ? { contactPerson: ev.contactPerson.trim() } : {}),
       }));
-    if (ga4FilterFieldName.trim() && ga4FilterValue.trim()) {
-      body.ga4Filter = {
-        fieldName: ga4FilterFieldName.trim(),
-        matchType: ga4FilterMatchType,
-        value: ga4FilterValue.trim(),
-      };
-    }
+    body.ga4Filter =
+      ga4FilterFieldName.trim() && ga4FilterValue.trim()
+        ? {
+            fieldName: ga4FilterFieldName.trim(),
+            matchType: ga4FilterMatchType,
+            value: ga4FilterValue.trim(),
+          }
+        : null;
 
     const res = await fetch("/api/admin/brands", {
       method: "POST",

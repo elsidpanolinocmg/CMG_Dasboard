@@ -24,6 +24,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
+  // Owning the account is not the same as being allowed into the admin panel.
+  // Said plainly, because they have already proved the password is theirs.
+  if (!person.isAdmin) {
+    return NextResponse.json(
+      { error: "This account does not have admin access." },
+      { status: 403 },
+    );
+  }
+
   const { token, expiresAt } = await createSessionToken(username);
 
   // Fire-and-forget: the login response doesn't depend on lastLoginAt being persisted.

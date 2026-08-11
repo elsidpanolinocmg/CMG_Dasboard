@@ -39,3 +39,9 @@ export async function upsert(
 export async function remove(deptSlug: string, slug: DashboardSlug): Promise<void> {
   await (await col()).deleteOne({ departmentSlug: deptSlug, slug });
 }
+
+/** Used when a department is deleted, so its sub-pages don't outlive it. */
+export async function removeByDepartment(deptSlug: string): Promise<number> {
+  const res = await (await col()).deleteMany({ departmentSlug: deptSlug });
+  return res.deletedCount ?? 0;
+}

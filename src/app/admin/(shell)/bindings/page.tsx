@@ -29,9 +29,10 @@ export default async function BindingsPage() {
             Wires a department to a data source for a specific purpose. The{" "}
             <em>CEO ·</em> purposes point the CEO dashboards (money, invoice
             register, marketing) at their Google Sheets — they use the reserved
-            scope <em>ceo</em> instead of a department. Click <em>Edit</em> on a
-            row to change the sheet ID, gid, tab name, or range. <em>Probe</em>{" "}
-            tests the binding live.
+            scope <em>ceo</em> instead of a department. Click a row to see what
+            it feeds and the sheet layout it expects. <em>Edit</em> changes the
+            sheet ID, gid, tab name, or range; <em>Probe</em> tests the binding
+            live.
           </Hint>
         </h1>
       </div>

@@ -18,16 +18,25 @@ export async function findByUsername(username: string): Promise<Person | null> {
 
 export async function findAuthByUsername(
   username: string,
-): Promise<{ passwordHash: string | undefined; active: boolean } | null> {
+): Promise<{
+  passwordHash: string | undefined;
+  active: boolean;
+  isAdmin: boolean;
+} | null> {
   const doc = await (await col()).findOne<{
     active?: boolean;
+    isAdmin?: boolean;
     auth?: { passwordHash?: string };
   }>(
     { username },
-    { projection: { _id: 0, active: 1, "auth.passwordHash": 1 } },
+    { projection: { _id: 0, active: 1, isAdmin: 1, "auth.passwordHash": 1 } },
   );
   if (!doc) return null;
-  return { passwordHash: doc.auth?.passwordHash, active: !!doc.active };
+  return {
+    passwordHash: doc.auth?.passwordHash,
+    active: !!doc.active,
+    isAdmin: !!doc.isAdmin,
+  };
 }
 
 export async function findByNameKey(key: string): Promise<Person | null> {
@@ -50,8 +59,40 @@ export async function listActive(): Promise<Person[]> {
   return (await col()).find({ active: true }).sort({ username: 1 }).toArray();
 }
 
-export async function listAll(): Promise<Person[]> {
-  return (await col()).find({}).sort({ username: 1 }).toArray();
+/** A person as the admin UI sees them: no password hash, but whether one exists. */
+export type PersonListItem = Person & { canLogin: boolean };
+
+/**
+ * Drops `auth.passwordHash` and replaces it with a plain `canLogin` flag —
+ * the admin UI only ever needed the yes/no, and this list is served verbatim
+ * by `GET /api/admin/people`. `auth.lastLoginAt` is kept; it is not a secret.
+ */
+export async function listAll(): Promise<PersonListItem[]> {
+  return (await col())
+    .aggregate<PersonListItem>([
+      {
+        $addFields: {
+          canLogin: {
+            $gt: [{ $strLenCP: { $ifNull: ["$auth.passwordHash", ""] } }, 0],
+          },
+        },
+      },
+      { $project: { "auth.passwordHash": 0 } },
+      { $sort: { username: 1 } },
+    ])
+    .toArray();
+}
+
+/** Whether this person may use the admin panel, read fresh on every request. */
+export async function findAdminStatus(
+  username: string,
+): Promise<{ active: boolean; isAdmin: boolean } | null> {
+  const doc = await (await col()).findOne<{ active?: boolean; isAdmin?: boolean }>(
+    { username },
+    { projection: { _id: 0, active: 1, isAdmin: 1 } },
+  );
+  if (!doc) return null;
+  return { active: !!doc.active, isAdmin: !!doc.isAdmin };
 }
 
 export async function listByDepartment(deptSlug: string): Promise<Person[]> {
@@ -101,6 +142,31 @@ export async function recordLogin(username: string): Promise<void> {
     { username },
     { $set: { "auth.lastLoginAt": new Date(), updatedAt: new Date() } },
   );
+}
+
+export async function setAdminAccess(
+  username: string,
+  isAdmin: boolean,
+): Promise<void> {
+  await (await col()).updateOne(
+    { username },
+    { $set: { isAdmin, updatedAt: new Date() } },
+  );
+}
+
+/** Active admins, used to refuse removing the last one. */
+export async function countAdmins(): Promise<number> {
+  return (await col()).countDocuments({ isAdmin: true, active: true });
+}
+
+export async function listAdmins(): Promise<string[]> {
+  const docs = await (await col())
+    .find<{ username: string }>(
+      { isAdmin: true },
+      { projection: { _id: 0, username: 1 } },
+    )
+    .toArray();
+  return docs.map((d) => d.username);
 }
 
 export async function setActive(username: string, active: boolean): Promise<void> {

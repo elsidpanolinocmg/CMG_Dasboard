@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSession } from "@/lib/auth/adminAuth";
+import { isDenied, requireAdminApi } from "@/lib/auth/adminAuth";
 import { logActivity } from "@/lib/auth/activityLog";
 import { getRepo } from "@/lib/repos/registry";
+import { validateDocument } from "@/lib/repos/validateInput";
 import { invalidateDeptCaches } from "@/lib/cache/invalidateForDept";
 
 export const runtime = "nodejs";
-
-async function unauthorized() {
-  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-}
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ entity: string }> },
 ) {
-  const session = await getAdminSession(req);
-  if (!session) return unauthorized();
+  const session = await requireAdminApi(req);
+  if (isDenied(session)) return session;
 
   const { entity } = await params;
   const repo = getRepo(entity);
@@ -29,17 +26,20 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ entity: string }> },
 ) {
-  const session = await getAdminSession(req);
-  if (!session) return unauthorized();
+  const session = await requireAdminApi(req);
+  if (isDenied(session)) return session;
 
   const { entity } = await params;
   const repo = getRepo(entity);
   if (!repo) return NextResponse.json({ error: "Unknown entity" }, { status: 404 });
 
   const body = await req.json().catch(() => null);
-  if (!body || typeof body !== "object") {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
+  const invalid = validateDocument(entity, body as Record<string, unknown>);
+  if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
+
   await repo.upsert(body);
   await logActivity(req, {
     action: `${entity}.upsert`,

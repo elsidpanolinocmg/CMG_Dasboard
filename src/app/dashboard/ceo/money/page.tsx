@@ -1,7 +1,7 @@
 import { RegionalDashboard, type RegionView } from "@/components/ceo/RegionalDashboard";
 import { cacheKeys, getCache, ttls } from "@/lib/cache";
 import { formatWeekRange, fromEpochDay, parseCivilDate, today, toEpochDay, weekEnd, weekStart } from "@/lib/ceo/week";
-import { DEFAULT_CONFIG } from "@/lib/ceo-money/config";
+import { loadCeoMoneySettings } from "@/lib/ceo-money/settings";
 import { latestIssueDay, loadInvoiceRegister, type InvoiceRegister } from "@/lib/ceo-money/invoice-register";
 import { buildRegionDashboard } from "@/lib/ceo-money/metrics";
 import { REGIONS, type Region } from "@/lib/ceo-money/regions";
@@ -66,6 +66,10 @@ export default async function CeoMoneyOverviewPage({
     }
   }
 
+  // Thresholds and exchange rates come from Page settings → CEO · Money,
+  // falling back to the built-in defaults.
+  const { config: ceoConfig } = await loadCeoMoneySettings();
+
   // Load every region first so all three can share a single week.
   const loaded: Array<{ region: Region; register: InvoiceRegister; latest: number | null }> = [];
   let anyLive = false;
@@ -94,7 +98,7 @@ export default async function CeoMoneyOverviewPage({
 
   const regions: RegionView[] = loaded.map(({ region, register }) => ({
     label: region.label,
-    data: buildRegionDashboard(register, asOf, DEFAULT_CONFIG, region.revenueTarget, region.overdueTarget),
+    data: buildRegionDashboard(register, asOf, ceoConfig, region.revenueTarget, region.overdueTarget),
   }));
 
   // Say so when the shared week isn't the current calendar week.
@@ -123,7 +127,7 @@ export default async function CeoMoneyOverviewPage({
       live={anyLive}
       sourceLabel="the accounts workbook (all tabs)"
       regions={regions}
-      config={DEFAULT_CONFIG}
+      config={ceoConfig}
       accounts={accounts}
       activeAccount="all"
       weekNote={weekNote}

@@ -13,8 +13,9 @@ export default async function PeoplePage() {
     active: p.active,
     nameKeys: p.nameKeys,
     departments: p.departments ?? [],
-    canLogin: !!p.auth?.passwordHash,
+    canLogin: p.canLogin,
     lastLoginAt: p.auth?.lastLoginAt ? p.auth.lastLoginAt.toISOString() : null,
+    isAdmin: !!p.isAdmin,
   }));
   return (
     <div className="flex flex-col gap-8">

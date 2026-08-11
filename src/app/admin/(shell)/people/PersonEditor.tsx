@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { humanize } from "@/lib/util/format";
 import Hint from "../_widgets/Hint";
+import { useUnsavedWarning } from "../_widgets/useUnsavedWarning";
 
 const ROLES = [
   "managing_editor",
@@ -27,6 +28,7 @@ export type ClientPerson = {
   }[];
   canLogin: boolean;
   lastLoginAt: string | null;
+  isAdmin: boolean;
 };
 
 function normalizeKey(raw: string): string {
@@ -56,6 +58,16 @@ export default function PersonEditor({
   const [newDept, setNewDept] = useState("");
   const [newRole, setNewRole] = useState<string>("");
   const [pwd, setPwd] = useState("");
+
+  // Profile and synonyms are saved together by the Profile button; department
+  // and password changes save on their own, so they are not tracked here.
+  const dirty =
+    !busy &&
+    (displayName !== person.displayName ||
+      email !== person.email ||
+      active !== person.active ||
+      JSON.stringify(synonyms) !== JSON.stringify(person.nameKeys));
+  useUnsavedWarning(dirty);
 
   async function call(path: string, payload: unknown, message?: string) {
     setBusy(true);
@@ -355,8 +367,9 @@ export default function PersonEditor({
           <button
             type="button"
             disabled={pwd.length < 6 || busy}
-            onClick={() => {
-              call(
+            onClick={async () => {
+              // Awaited, so the box is only emptied once the reset has landed.
+              await call(
                 "/api/admin/people/password",
                 { username: person.username, password: pwd },
                 "Password updated.",
@@ -368,6 +381,40 @@ export default function PersonEditor({
             Save password
           </button>
         </div>
+      </section>
+
+      <section className="flex flex-col gap-3 border border-black/10 dark:border-white/10 rounded-2xl p-6 bg-black/[0.015] dark:bg-white/[0.02]">
+        <h2 className="font-medium">
+          Admin access
+          <Hint>
+            Controls who can open the admin panel. A password alone is not
+            enough. Revoking takes effect immediately, even if the person is
+            already signed in.
+          </Hint>
+        </h2>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={person.isAdmin}
+            disabled={busy}
+            onChange={(e) =>
+              call(
+                "/api/admin/people/admin-access",
+                { username: person.username, isAdmin: e.target.checked },
+                e.target.checked
+                  ? "Admin access granted."
+                  : "Admin access removed.",
+              )
+            }
+            className="cursor-pointer"
+          />
+          <span>
+            Can use the admin panel
+            {!person.canLogin && (
+              <span className="opacity-60"> — set a password first</span>
+            )}
+          </span>
+        </label>
       </section>
 
       <section className="flex flex-col gap-3 border border-red-500/30 rounded-2xl p-6 bg-red-500/[0.04]">

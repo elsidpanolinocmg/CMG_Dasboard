@@ -34,15 +34,37 @@ export async function listGroups(): Promise<string[]> {
   return groups.filter((g): g is string => typeof g === "string" && g.length > 0).sort();
 }
 
+/**
+ * An explicitly empty optional field (`""` or `null`) means "clear this", and
+ * is unset rather than stored. Without that, `$set` would write the old value
+ * straight back and a field cleared in the editor would reappear on refresh.
+ *
+ * Only fields actually present in `brand` are touched, so partial updates —
+ * the active toggle sends just `{ slug, active }` — stay partial.
+ */
 export async function upsert(
   brand: Omit<Brand, "createdAt" | "updatedAt">,
 ): Promise<void> {
   const now = new Date();
+  const set: Record<string, unknown> = { updatedAt: now };
+  const unset: Record<string, ""> = {};
+
+  for (const [key, value] of Object.entries(brand)) {
+    if (key === "slug") {
+      set[key] = value;
+    } else if (value === "" || value === null) {
+      unset[key] = "";
+    } else {
+      set[key] = value;
+    }
+  }
+
   await (await col()).updateOne(
     { slug: brand.slug },
     {
-      $set: { ...brand, updatedAt: now },
+      $set: set,
       $setOnInsert: { createdAt: now },
+      ...(Object.keys(unset).length > 0 ? { $unset: unset } : {}),
     },
     { upsert: true },
   );

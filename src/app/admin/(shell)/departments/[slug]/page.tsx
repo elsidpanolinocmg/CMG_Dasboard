@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import * as departments from "@/lib/repos/departments";
 import * as people from "@/lib/repos/people";
 import * as brands from "@/lib/repos/brands";
+import * as bindings from "@/lib/repos/dataSourceBindings";
+import * as dashboards from "@/lib/repos/dashboards";
 import { humanize } from "@/lib/util/format";
 import DepartmentEditor from "./DepartmentEditor";
 
@@ -18,9 +20,11 @@ export default async function DepartmentDetailPage({
   const dept = await departments.findBySlug(slug);
   if (!dept) notFound();
 
-  const [team, publications] = await Promise.all([
+  const [team, publications, deptBindings, deptDashboards] = await Promise.all([
     people.listByDepartment(slug),
     brands.findByDepartment(slug),
+    bindings.listByDepartment(slug),
+    dashboards.listByDepartment(slug),
   ]);
 
   return (
@@ -38,6 +42,12 @@ export default async function DepartmentDetailPage({
         routePrefix={dept.routePrefix}
         order={dept.order}
         enabled={dept.enabled}
+        attached={{
+          people: team.length,
+          publications: publications.length,
+          bindings: deptBindings.length,
+          dashboards: deptDashboards.length,
+        }}
       />
 
       <section className="flex flex-col gap-3">

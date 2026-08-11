@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { del } from "@vercel/blob";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { getAdminSession } from "@/lib/auth/adminAuth";
+import { isDenied, requireAdminApi } from "@/lib/auth/adminAuth";
 import { logActivity } from "@/lib/auth/activityLog";
 
 export const runtime = "nodejs";
@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
       request: req,
       // Runs for the browser's token request, which carries the admin cookie.
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        const session = await getAdminSession(req);
-        if (!session) throw new Error("Unauthorized");
+        const session = await requireAdminApi(req);
+        if (isDenied(session)) throw new Error("Unauthorized");
 
         if (!pathname.startsWith("birthdays/")) {
           throw new Error("Invalid upload path");
@@ -101,8 +101,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await getAdminSession(req);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireAdminApi(req);
+  if (isDenied(session)) return session;
 
   const body = await req.json().catch(() => null);
   const url = body && typeof (body as { url?: unknown }).url === "string"

@@ -59,6 +59,8 @@ async function main() {
           active: true,
           nameKeys,
           "auth.passwordHash": passwordHash,
+          // A password alone no longer opens the admin panel.
+          isAdmin: true,
           updatedAt: now,
         },
         $setOnInsert: {

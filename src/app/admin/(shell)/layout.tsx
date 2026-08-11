@@ -25,6 +25,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     items: [
       { href: "/admin/bindings", label: "Data bindings" },
+      { href: "/admin/data-sources", label: "Data sources" },
+      { href: "/admin/dashboards", label: "Dashboards" },
       { href: "/admin/page-settings", label: "Page settings" },
     ],
   },

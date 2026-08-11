@@ -12,19 +12,24 @@ interface CacheRow {
   createdAt: Date;
 }
 
-async function loadCacheRows(): Promise<CacheRow[]> {
+const ROW_LIMIT = 200;
+
+async function loadCacheRows(): Promise<{ rows: CacheRow[]; total: number }> {
   const db = await getDb();
-  const docs = await db
-    .collection<CacheRow>("cache_entries")
-    .find({}, { projection: { _id: 0, key: 1, expiresAt: 1, staleAt: 1, createdAt: 1 } })
-    .sort({ key: 1 })
-    .limit(200)
-    .toArray();
-  return docs;
+  const col = db.collection<CacheRow>("cache_entries");
+  const [rows, total] = await Promise.all([
+    col
+      .find({}, { projection: { _id: 0, key: 1, expiresAt: 1, staleAt: 1, createdAt: 1 } })
+      .sort({ key: 1 })
+      .limit(ROW_LIMIT)
+      .toArray(),
+    col.countDocuments({}),
+  ]);
+  return { rows, total };
 }
 
 export default async function CachePage() {
-  const rows = await loadCacheRows();
+  const { rows, total } = await loadCacheRows();
   const now = Date.now();
   return (
     <div className="flex flex-col gap-8 max-w-5xl">
@@ -39,6 +44,12 @@ export default async function CachePage() {
       </div>
 
       <CacheActions prefixes={Object.values(cachePrefixes)} />
+
+      <p className="text-xs opacity-60 -mb-4">
+        {total > rows.length
+          ? `Showing the first ${rows.length} of ${total} entries, by key.`
+          : `${total} ${total === 1 ? "entry" : "entries"}.`}
+      </p>
 
       <section className="border border-black/10 dark:border-white/10 rounded-lg overflow-x-auto">
         <table className="w-full text-sm">

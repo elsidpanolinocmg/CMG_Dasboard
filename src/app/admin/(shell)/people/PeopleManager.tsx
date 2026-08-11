@@ -15,6 +15,7 @@ type ClientPerson = {
   departments: { departmentSlug: string; role: string; since: string | Date }[];
   canLogin: boolean;
   lastLoginAt: string | null;
+  isAdmin: boolean;
 };
 
 type SortKey = "username" | "displayName" | "email" | "active" | "departments";
@@ -274,7 +275,15 @@ export default function PeopleManager({ people }: { people: ClientPerson[] }) {
                   />
                 </td>
                 <td className="px-3 py-2 text-xs opacity-70">
-                  {p.canLogin ? "enabled" : ""}
+                  {p.isAdmin ? (
+                    <span className="rounded px-1.5 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 font-medium">
+                      admin
+                    </span>
+                  ) : p.canLogin ? (
+                    "enabled"
+                  ) : (
+                    ""
+                  )}
                 </td>
                 <td className="px-3 py-2 text-xs">
                   {p.departments.length === 0

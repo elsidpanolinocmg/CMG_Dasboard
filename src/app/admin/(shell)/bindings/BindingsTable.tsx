@@ -4,11 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import RemoveButton from "../_widgets/RemoveButton";
 import TestBindingButton from "./TestBindingButton";
+import BindingDetails from "./BindingDetails";
+import { specFor } from "./bindingSpecs";
 
 const PURPOSE_LABELS: Record<string, string> = {
   ceo_money: "CEO · Money sheet",
   ceo_invoice_register: "CEO · Invoice register",
   ceo_marketing: "CEO · Marketing sheet",
+  ceo_short_form_videos: "CEO · Short Form Videos",
 };
 
 export type ClientBinding = {
@@ -24,17 +27,20 @@ export default function BindingsTable({ rows }: { rows: ClientBinding[] }) {
       <table className="w-full text-sm">
         <thead className="bg-black/5 dark:bg-white/5">
           <tr className="text-left">
+            <th className="px-3 py-2 font-medium w-8" />
             <th className="px-3 py-2 font-medium">Department</th>
             <th className="px-3 py-2 font-medium">Purpose</th>
             <th className="px-3 py-2 font-medium">Source kind</th>
             <th className="px-3 py-2 font-medium">Config</th>
-            <th className="px-3 py-2 font-medium w-56 text-right">Actions</th>
+            <th className="px-3 py-2 font-medium w-48 text-right whitespace-nowrap">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 && (
             <tr>
-              <td colSpan={5} className="px-3 py-6 text-center opacity-60">
+              <td colSpan={6} className="px-3 py-6 text-center opacity-60">
                 No bindings yet.
               </td>
             </tr>
@@ -54,8 +60,10 @@ export default function BindingsTable({ rows }: { rows: ClientBinding[] }) {
 function Row({ row }: { row: ClientBinding }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const spec = specFor(row.purpose, row.departmentSlug);
 
   // Google Sheets: friendly fields.
   const initialSheets = {
@@ -139,10 +147,28 @@ function Row({ row }: { row: ClientBinding }) {
   }
 
   return (
-    <tr className="border-t border-black/10 dark:border-white/10 align-top">
+    <>
+    <tr
+      className="border-t border-black/10 dark:border-white/10 align-top cursor-pointer hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+      onClick={() => !editing && setOpen((v) => !v)}
+      title={open ? "Hide details" : "Show details"}
+    >
+      <td className="px-3 py-2 text-xs opacity-50 select-none">
+        {open ? "▾" : "▸"}
+      </td>
       <td className="px-3 py-2 font-mono text-xs">{row.departmentSlug}</td>
       <td className="px-3 py-2 font-mono text-xs">
-        {PURPOSE_LABELS[row.purpose] ?? row.purpose}
+        <span className="inline-flex items-center gap-1.5">
+          {PURPOSE_LABELS[row.purpose] ?? row.purpose}
+          {spec?.unused && (
+            <span
+              className="rounded px-1 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-medium"
+              title={spec.unused}
+            >
+              unused
+            </span>
+          )}
+        </span>
       </td>
       <td className="px-3 py-2 font-mono text-xs">{row.dataSourceKind}</td>
       <td className="px-3 py-2 text-xs">
@@ -210,8 +236,11 @@ function Row({ row }: { row: ClientBinding }) {
           <ConfigCell kind={row.dataSourceKind} config={row.config} />
         )}
       </td>
-      <td className="px-3 py-2 text-right">
-        <div className="flex justify-end items-center gap-2 flex-wrap">
+      <td
+        className="px-3 py-2 text-right whitespace-nowrap"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-end items-center gap-2">
           {editing ? (
             <>
               {error && (
@@ -264,6 +293,19 @@ function Row({ row }: { row: ClientBinding }) {
         </div>
       </td>
     </tr>
+    {open && !editing && (
+      <tr className="border-t border-black/10 dark:border-white/10">
+        <td colSpan={6} className="p-0">
+          <BindingDetails
+            departmentSlug={row.departmentSlug}
+            purpose={row.purpose}
+            dataSourceKind={row.dataSourceKind}
+            config={row.config}
+          />
+        </td>
+      </tr>
+    )}
+    </>
   );
 }
 

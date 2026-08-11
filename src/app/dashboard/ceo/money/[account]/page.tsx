@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { RegionalDashboard, type RegionView } from "@/components/ceo/RegionalDashboard";
 import { cacheKeys, getCache, ttls } from "@/lib/cache";
 import { formatWeekRange, fromEpochDay, parseCivilDate, today, toEpochDay, weekEnd, weekStart } from "@/lib/ceo/week";
-import { DEFAULT_CONFIG } from "@/lib/ceo-money/config";
+import { loadCeoMoneySettings } from "@/lib/ceo-money/settings";
 import { latestIssueDay, loadInvoiceRegister, type InvoiceRegister } from "@/lib/ceo-money/invoice-register";
 import { buildRegionDashboard } from "@/lib/ceo-money/metrics";
 import { getRegion, REGIONS, type Region } from "@/lib/ceo-money/regions";
@@ -87,6 +87,10 @@ export default async function CeoMoneyAccountPage({
     }
   }
 
+  // Thresholds and exchange rates come from Page settings → CEO · Money,
+  // falling back to the built-in defaults.
+  const { config: ceoConfig } = await loadCeoMoneySettings();
+
   // A failed read degrades this account's page to an empty sample register with a
   // warning rather than taking the page down.
   let register: InvoiceRegister;
@@ -119,7 +123,7 @@ export default async function CeoMoneyAccountPage({
 
   const regionView: RegionView = {
     label: region.label,
-    data: buildRegionDashboard(register, asOf, DEFAULT_CONFIG, region.revenueTarget, region.overdueTarget),
+    data: buildRegionDashboard(register, asOf, ceoConfig, region.revenueTarget, region.overdueTarget),
   };
 
   // Carry a URL week-pin across the account tabs so switching accounts keeps the
@@ -142,7 +146,7 @@ export default async function CeoMoneyAccountPage({
       live={register.source === "sheet"}
       sourceLabel={`the accounts workbook (${region.tab})`}
       regions={[regionView]}
-      config={DEFAULT_CONFIG}
+      config={ceoConfig}
       accounts={accounts}
       activeAccount={region.key}
       weekNote={weekNote}

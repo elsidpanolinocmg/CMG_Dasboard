@@ -2,6 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { useUnsavedWarning } from "../../_widgets/useUnsavedWarning";
+
+type Attached = {
+  people: number;
+  publications: number;
+  bindings: number;
+  dashboards: number;
+};
 
 export default function DepartmentEditor(props: {
   slug: string;
@@ -9,6 +17,7 @@ export default function DepartmentEditor(props: {
   routePrefix: string;
   order: number;
   enabled: boolean;
+  attached: Attached;
 }) {
   const router = useRouter();
   const [displayName, setDisplayName] = useState(props.displayName);
@@ -17,6 +26,13 @@ export default function DepartmentEditor(props: {
   const [enabled, setEnabled] = useState(props.enabled);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  const dirty =
+    displayName !== props.displayName ||
+    routePrefix !== props.routePrefix ||
+    Number(order) !== props.order ||
+    enabled !== props.enabled;
+  useUnsavedWarning(dirty && !busy);
 
   async function onSave(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -44,16 +60,40 @@ export default function DepartmentEditor(props: {
   }
 
   async function onDelete() {
-    if (!confirm(`Delete department "${props.displayName}"?`)) return;
+    const { people, publications, bindings, dashboards } = props.attached;
+    const effects = [
+      people && `${people} ${people === 1 ? "person" : "people"} will lose this department`,
+      publications &&
+        `${publications} ${publications === 1 ? "publication" : "publications"} will be detached`,
+      bindings && `${bindings} data ${bindings === 1 ? "binding" : "bindings"} will be deleted`,
+      dashboards &&
+        `${dashboards} sub-${dashboards === 1 ? "page" : "pages"} will be deleted`,
+    ].filter(Boolean) as string[];
+
+    const warning = effects.length
+      ? `Delete department "${props.displayName}"?\n\nThis also cleans up:\n  • ${effects.join("\n  • ")}\n\nThis cannot be undone.`
+      : `Delete department "${props.displayName}"?\n\nNothing else is attached to it.`;
+
+    if (!confirm(warning)) return;
     setBusy(true);
-    const res = await fetch("/api/admin/departments/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug: props.slug }),
-    });
-    setBusy(false);
-    if (res.ok) router.replace("/admin/departments");
-    else setFeedback("Delete failed");
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/admin/departments/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: props.slug }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        setFeedback(b?.error || `Delete failed (${res.status})`);
+        return;
+      }
+      router.replace("/admin/departments");
+    } catch {
+      setFeedback("Delete failed — network error");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

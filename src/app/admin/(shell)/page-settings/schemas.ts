@@ -137,7 +137,98 @@ const SHORTS_FIELDS: FieldDef[] = [
   },
 ];
 
+// Thresholds are entered as whole percentages here and divided by 100 where the
+// dashboard reads them, because "green at 30%" is how they are actually spoken
+// about. Blank means "keep the built-in default".
+const CEO_MONEY_FIELDS: FieldDef[] = [
+  {
+    key: "targetGreenAtPercent",
+    label: "Revenue green at",
+    type: "number",
+    min: 0,
+    step: 1,
+    unit: "% of target",
+    defaultValue: 100,
+    help: "At or above this share of the target, the tile is green.",
+  },
+  {
+    key: "targetAmberAtPercent",
+    label: "Revenue amber at",
+    type: "number",
+    min: 0,
+    step: 1,
+    unit: "% of target",
+    defaultValue: 80,
+    help: "Below this, the tile turns red.",
+  },
+  {
+    key: "overdueGreenAtPercent",
+    label: "Overdue green at or under",
+    type: "number",
+    min: 0,
+    step: 1,
+    unit: "% of money owed",
+    defaultValue: 30,
+    help: "Overdue receivables as a share of everything still owed. Less is better. Set high on purpose — with 30-day terms and weekly invoicing, a large part of what is outstanding is legitimately past due and simply being collected.",
+  },
+  {
+    key: "overdueAmberAtPercent",
+    label: "Overdue amber up to",
+    type: "number",
+    min: 0,
+    step: 1,
+    unit: "% of money owed",
+    defaultValue: 50,
+    help: "Beyond this, the tile turns red.",
+  },
+  {
+    key: "arWarningGrowthPercent",
+    label: "Overdue growth warning",
+    type: "number",
+    min: 0,
+    step: 0.5,
+    unit: "%",
+    defaultValue: 2,
+    help: "Week-on-week growth in overdue receivables that counts as worth watching.",
+  },
+  {
+    key: "arCriticalGrowthPercent",
+    label: "Overdue growth critical",
+    type: "number",
+    min: 0,
+    step: 0.5,
+    unit: "%",
+    defaultValue: 10,
+  },
+  {
+    key: "arGuardrailFractionPercent",
+    label: "Overdue guardrail",
+    type: "number",
+    min: 0,
+    step: 1,
+    unit: "%",
+    defaultValue: 25,
+  },
+  {
+    key: "rateUSD",
+    label: "USD → SGD",
+    type: "number",
+    min: 0,
+    step: 0.0001,
+    defaultValue: 1.35,
+    help: "Set once a year so exchange-rate drift stays out of performance. Applies to the invoice register.",
+  },
+  { key: "rateHKD", label: "HKD → SGD", type: "number", min: 0, step: 0.0001, defaultValue: 0.17 },
+  { key: "rateAUD", label: "AUD → SGD", type: "number", min: 0, step: 0.0001, defaultValue: 0.88 },
+  { key: "rateGBP", label: "GBP → SGD", type: "number", min: 0, step: 0.0001, defaultValue: 1.71 },
+  { key: "rateEUR", label: "EUR → SGD", type: "number", min: 0, step: 0.0001, defaultValue: 1.46 },
+];
+
 export const PAGE_SCHEMAS: Record<string, PageSchema> = {
+  "dashboard/ceo/money": {
+    label: "CEO · Money",
+    fields: CEO_MONEY_FIELDS,
+  },
   "dashboard/bizzcon/leaderboard": {
     label: "Bizzcon · Leaderboard",
     fields: LEADERBOARD_FIELDS,

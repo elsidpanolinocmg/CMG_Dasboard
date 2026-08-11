@@ -7,10 +7,13 @@ export default function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const from = params.get("from") || "/admin";
+  const denied = params.get("denied") === "1";
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    denied ? "Your admin access has ended. Sign in again, or ask an admin to restore it." : null,
+  );
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {

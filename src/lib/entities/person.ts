@@ -30,4 +30,10 @@ export interface Person extends Timestamped {
   nameKeys: string[];
   departments: PersonDepartmentMembership[];
   auth?: PersonAuth;
+  /**
+   * Grants access to the admin panel. Checked on every admin page and API
+   * request, so revoking it (or deactivating the person) takes effect at once
+   * rather than when their session expires. A password alone is not enough.
+   */
+  isAdmin?: boolean;
 }

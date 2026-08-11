@@ -33,6 +33,7 @@ export default async function PersonDetailPage({
     })),
     canLogin: !!person.auth?.passwordHash,
     lastLoginAt: person.auth?.lastLoginAt ? person.auth.lastLoginAt.toISOString() : null,
+    isAdmin: !!person.isAdmin,
   };
 
   return (

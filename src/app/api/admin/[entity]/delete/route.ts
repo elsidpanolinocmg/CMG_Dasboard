@@ -1,9 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { del } from "@vercel/blob";
-import { getAdminSession } from "@/lib/auth/adminAuth";
+import { isDenied, requireAdminApi } from "@/lib/auth/adminAuth";
 import { logActivity } from "@/lib/auth/activityLog";
 import { getRepo } from "@/lib/repos/registry";
+import { validateDeleteInput } from "@/lib/repos/validateInput";
 import * as birthdaysRepo from "@/lib/repos/birthdays";
+import * as peopleRepo from "@/lib/repos/people";
+import * as brandsRepo from "@/lib/repos/brands";
+import * as bindingsRepo from "@/lib/repos/dataSourceBindings";
+import * as dashboardsRepo from "@/lib/repos/dashboards";
+
+/**
+ * Deleting a department used to leave every reference to it behind — people and
+ * publications still listing it, plus orphaned bindings and sub-pages that no
+ * screen could reach. Clean those up in the same request and report what went.
+ */
+async function cascadeDepartmentDelete(slug: string) {
+  const [people, brands, bindings, dashboards] = await Promise.all([
+    peopleRepo.removeDepartmentEverywhere(slug),
+    brandsRepo.removeDepartmentEverywhere(slug),
+    bindingsRepo.removeByDepartment(slug),
+    dashboardsRepo.removeByDepartment(slug),
+  ]);
+  return { people, brands, bindings, dashboards };
+}
 
 export const runtime = "nodejs";
 
@@ -20,17 +40,19 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ entity: string }> },
 ) {
-  const session = await getAdminSession(req);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await requireAdminApi(req);
+  if (isDenied(session)) return session;
 
   const { entity } = await params;
   const repo = getRepo(entity);
   if (!repo) return NextResponse.json({ error: "Unknown entity" }, { status: 404 });
 
   const body = await req.json().catch(() => null);
-  if (!body || typeof body !== "object") {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
+  const invalid = validateDeleteInput(entity, body as Record<string, unknown>);
+  if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
 
   // Capture any media we should clean up after the row is gone
   let blobUrlToDelete: string | null = null;
@@ -42,6 +64,11 @@ export async function POST(
   }
 
   await repo.remove(body);
+
+  const cascade =
+    entity === "departments" && typeof body.slug === "string"
+      ? await cascadeDepartmentDelete(body.slug)
+      : null;
 
   if (blobUrlToDelete) {
     try {
@@ -65,6 +92,7 @@ export async function POST(
             ? body.id
             : undefined,
     before: body,
+    ...(cascade ? { metadata: { cascade } } : {}),
   });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, ...(cascade ? { cascade } : {}) });
 }

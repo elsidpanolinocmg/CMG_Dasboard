@@ -65,6 +65,12 @@ export async function upsert(
   );
 }
 
+/** Used when a department is deleted, so its wiring doesn't outlive it. */
+export async function removeByDepartment(deptSlug: string): Promise<number> {
+  const res = await (await col()).deleteMany({ departmentSlug: deptSlug });
+  return res.deletedCount ?? 0;
+}
+
 export async function remove(
   deptSlug: string,
   purpose: BindingPurpose,
