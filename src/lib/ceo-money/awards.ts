@@ -1,5 +1,5 @@
 import { toEpochDay, type CivilDate } from "@/lib/ceo/week";
-import type { RegisterRow } from "./invoice-register";
+import { receivableOwedAt, type RegisterRow } from "./invoice-register";
 
 /**
  * The awards table: every 2026 award, summed over that award's invoices (column F)
@@ -64,16 +64,11 @@ export function buildAwardsTable(rows: RegisterRow[], asOfDate: CivilDate): Awar
       a.cash += row.cashSgd;
     }
 
-    // Overdue 30+ as of the viewed day: issued this year, 30+ days old, and not
-    // paid on or before that day.
-    if (
-      !EXCLUDED.has(row.status) &&
-      row.day >= yearStart &&
-      row.day <= yearEnd &&
-      row.day <= overdueCutoff &&
-      !(row.paidOn !== null && row.paidOn <= asOf)
-    ) {
-      a.overdue += row.sgd;
+    // Overdue 30+ as of the viewed day: issued this year and 30+ days old. The
+    // owed amount (paid/unpaid, or a partial "with balance" remainder) comes from
+    // the same shared helper the money overdue tile and chart use.
+    if (row.day >= yearStart && row.day <= yearEnd && row.day <= overdueCutoff) {
+      a.overdue += receivableOwedAt(row, asOf);
     }
   }
 

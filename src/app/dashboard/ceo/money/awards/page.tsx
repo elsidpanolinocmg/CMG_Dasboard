@@ -1,8 +1,9 @@
 import { AwardsDashboard } from "@/components/ceo/AwardsDashboard";
 import { cacheKeys, getCache, ttls } from "@/lib/cache";
-import { formatWeekRange, fromEpochDay, parseCivilDate, today, toEpochDay, weekEnd, weekStart } from "@/lib/ceo/week";
+import { fromEpochDay, parseCivilDate, today, toEpochDay } from "@/lib/ceo/week";
 import { buildAwardsTable } from "@/lib/ceo-money/awards";
 import { loadInvoiceRegister, type InvoiceRegister, type RegisterRow } from "@/lib/ceo-money/invoice-register";
+import { formatBusinessWeek, reportingWeekFor } from "@/lib/ceo-money/reporting-week";
 import { REGIONS, type Region } from "@/lib/ceo-money/regions";
 
 // The reporting week rolls at Singapore midnight, so this page must never be
@@ -46,8 +47,12 @@ export default async function CeoAwardsPage({
 }) {
   const params = await searchParams;
   const explicit = explicitAsOf(params.asOf);
-  const now = today();
-  const cacheDate = explicit?.asOf ?? now;
+  // Award figures are year-to-date; the reporting week only sets the overdue
+  // "as of" date. It's the same Mon–Fri, one-week-arrears window the regions use.
+  const rw = reportingWeekFor(today());
+  const asOf = explicit?.asOf ?? fromEpochDay(rw.end);
+  const pinned = explicit?.pinned ?? false;
+  const cacheDate = asOf;
 
   if (params.cache === "clear") {
     try {
@@ -82,18 +87,8 @@ export default async function CeoAwardsPage({
   const live = registers.some((r) => r.source === "sheet");
   const warnings = registers.flatMap((r) => r.warnings);
 
-  // Follow the sheet: the week of the most recent invoice pooled across regions
-  // (capped at today), unless a week was pinned.
-  const todayDay = toEpochDay(now);
-  let latest: number | null = null;
-  for (const row of rows) {
-    if (row.day <= todayDay && (latest === null || row.day > latest)) latest = row.day;
-  }
-  const asOf = explicit?.asOf ?? (latest === null ? now : fromEpochDay(latest));
-  const pinned = explicit?.pinned ?? false;
-
   const awards = buildAwardsTable(rows, asOf);
-  const weekText = formatWeekRange(fromEpochDay(weekStart(toEpochDay(asOf))), fromEpochDay(weekEnd(toEpochDay(asOf))));
+  const weekText = formatBusinessWeek(fromEpochDay(rw.labelStart), fromEpochDay(rw.labelEnd));
 
   const accounts = [
     { key: "all", label: "All Regions", href: "/dashboard/ceo/money" },

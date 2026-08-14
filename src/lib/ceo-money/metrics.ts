@@ -167,6 +167,7 @@ export function buildTargetMetric(
   fullTarget: number | null,
   asOf: EpochDay,
   config: DashboardConfig,
+  paceFraction?: number,
 ): TargetMetric {
   if (fullTarget === null) {
     return {
@@ -179,7 +180,10 @@ export function buildTargetMetric(
     };
   }
 
-  const pacedTarget = fullTarget * weekPaceFraction(asOf);
+  // A completed week (the money dashboard always shows one in arrears) passes
+  // paceFraction = 1 to compare against the whole target; the live sample path
+  // falls back to pacing on business days elapsed.
+  const pacedTarget = fullTarget * (paceFraction ?? weekPaceFraction(asOf));
   if (pacedTarget <= 0) {
     return { actual, fullTarget, pacedTarget, attainment: null, rag: "neutral", note: "Week not started" };
   }
@@ -479,12 +483,19 @@ export function buildRegionDashboard(
   overdueTarget: number,
 ): RegionDashboard {
   const asOf = toEpochDay(asOfDate);
-  const start = weekStart(asOf);
+  // The money week is Friday–Thursday, held back to the last fully-settled week
+  // (see `reporting-week`). `asOfDate` falls inside the displayed week, so its
+  // Fri–Thu span is derived here. The week is always a completed one, so every
+  // figure is a full-week actual — nothing is pro-rated.
+  const start = weekStart(asOf); // Friday
+  const end = start + 6; // Thursday
+  const labelEnd = end; // the label's last day
+  const closeDate = fromEpochDay(end);
 
   // A region that invoiced nothing this week is not failing its target — it is a
   // quiet week (or, for a low-volume region, an ordinary one). Show it neutral
   // rather than red, so an empty region does not read as a collapse.
-  const invoiced = invoicedSgdIn(register, start, asOf);
+  const invoiced = invoicedSgdIn(register, start, end);
   const revenue: TargetMetric =
     invoiced === 0
       ? {
@@ -495,30 +506,30 @@ export function buildRegionDashboard(
           rag: "neutral",
           note: "No invoices this week",
         }
-      : buildTargetMetric(invoiced, revenueTarget, asOf, config);
+      : buildTargetMetric(invoiced, revenueTarget, end, config, 1);
 
   return {
     asOf: asOfDate,
     weekStart: fromEpochDay(start),
-    weekEnd: fromEpochDay(start + 6),
-    businessDayFraction: weekPaceFraction(asOf),
+    weekEnd: fromEpochDay(labelEnd),
+    businessDayFraction: 1,
     revenue,
     cash: buildCashMetric(
-      registerCashIn(register, start, asOf),
-      cashTargetIn(register, start, asOf),
+      registerCashIn(register, start, end),
+      cashTargetIn(register, start, end),
       config,
     ),
     overdue: buildOverdueMetric(
-      overdueReceivablesIn(register, asOf),
-      outstandingThisYearIn(register, asOf),
-      overdueCountIn(register, asOf),
+      overdueReceivablesIn(register, end),
+      outstandingThisYearIn(register, end),
+      overdueCountIn(register, end),
       config,
     ),
-    bankFees: bankFeesIn(register, start, asOf),
-    paidCount: paidCountIn(register, start, asOf),
-    ratesUsed: ratesUsedIn(register, start, asOf),
-    revenueExcluded: excludedIn(register, start, asOf),
-    overdueSeries: buildOverdueSeries(register, asOfDate, overdueTarget),
+    bankFees: bankFeesIn(register, start, end),
+    paidCount: paidCountIn(register, start, end),
+    ratesUsed: ratesUsedIn(register, start, end),
+    revenueExcluded: excludedIn(register, start, end),
+    overdueSeries: buildOverdueSeries(register, closeDate, overdueTarget),
     warnings: register.warnings,
   };
 }

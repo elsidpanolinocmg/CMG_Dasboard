@@ -7,7 +7,7 @@ import ViewportFit from "@/components/ViewportFit";
 import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
 import styles from "./ceo-dashboard.module.css";
 import { RefreshButton } from "./RefreshButton";
-import { formatCompactSGD } from "@/lib/ceo-money/money";
+import { formatCompactUSD } from "@/lib/ceo-money/money";
 import type { AwardRow } from "@/lib/ceo-money/awards";
 
 interface AccountLink {
@@ -75,7 +75,7 @@ export function AwardsDashboard({ awards, accounts }: AwardsDashboardProps) {
   const fontSize = `clamp(1.25rem, calc(0.8vw + ${8 / eff}vw), 4.2rem)`;
   const headerSize = `clamp(0.85rem, calc(0.5vw + ${4.5 / eff}vw), 2.6rem)`;
 
-  const money = (n: number) => (n === 0 ? "—" : formatCompactSGD(n));
+  const money = (n: number) => (n === 0 ? "—" : formatCompactUSD(n));
 
   const numCell = (value: number, kind: "cash" | "revenue" | "overdue") => (
     <td className={styles.awNum} data-kind={kind} data-zero={value === 0 ? "true" : "false"}>

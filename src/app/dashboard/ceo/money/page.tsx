@@ -1,9 +1,10 @@
 import { RegionalDashboard, type RegionView } from "@/components/ceo/RegionalDashboard";
 import { cacheKeys, getCache, ttls } from "@/lib/cache";
-import { formatWeekRange, fromEpochDay, parseCivilDate, today, toEpochDay, weekEnd, weekStart } from "@/lib/ceo/week";
+import { fromEpochDay, parseCivilDate, today, toEpochDay } from "@/lib/ceo/week";
 import { loadCeoMoneySettings } from "@/lib/ceo-money/settings";
-import { latestIssueDay, loadInvoiceRegister, type InvoiceRegister } from "@/lib/ceo-money/invoice-register";
+import { loadInvoiceRegister, type InvoiceRegister } from "@/lib/ceo-money/invoice-register";
 import { buildRegionDashboard } from "@/lib/ceo-money/metrics";
+import { formatBusinessWeek, reportingWeekFor } from "@/lib/ceo-money/reporting-week";
 import { REGIONS, type Region } from "@/lib/ceo-money/regions";
 
 // The reporting week rolls at Singapore midnight, so this page must never be
@@ -42,9 +43,10 @@ function explicitAsOf(raw: string | string[] | undefined): { asOf: string; pinne
 }
 
 /**
- * The all-regions overview: SG, HK and ME side by side in three columns. Each
- * region follows its own latest invoiced week (like its per-account page), so a
- * quiet week in one region never blanks the others.
+ * The all-regions overview: SG, HK and ME side by side in three columns. Every
+ * region shares one week — a Monday–Friday business week shown one week in
+ * arrears (see `reporting-week`), rolling every Friday, regardless of when each
+ * region last invoiced.
  */
 export default async function CeoMoneyOverviewPage({
   searchParams,
@@ -53,8 +55,10 @@ export default async function CeoMoneyOverviewPage({
 }) {
   const search = await searchParams;
   const explicit = explicitAsOf(search.asOf);
-  const now = today();
-  const cacheDate = explicit?.asOf ?? now;
+  const rw = reportingWeekFor(today());
+  // The window's close (Sunday) drives every figure; a pinned ?asOf= overrides it.
+  const asOf = explicit?.asOf ?? fromEpochDay(rw.end);
+  const cacheDate = asOf;
 
   if (search.cache === "clear") {
     for (const region of REGIONS) {
@@ -70,8 +74,7 @@ export default async function CeoMoneyOverviewPage({
   // falling back to the built-in defaults.
   const { config: ceoConfig } = await loadCeoMoneySettings();
 
-  // Load every region first so all three can share a single week.
-  const loaded: Array<{ region: Region; register: InvoiceRegister; latest: number | null }> = [];
+  const loaded: Array<{ region: Region; register: InvoiceRegister }> = [];
   let anyLive = false;
 
   for (const region of REGIONS) {
@@ -84,34 +87,21 @@ export default async function CeoMoneyOverviewPage({
       register = { rows: [], source: "sample", tab: region.tab, rates: {}, warnings: [`Could not read ${region.tab}: ${message}`] };
     }
     if (register.source === "sheet") anyLive = true;
-    loaded.push({ region, register, latest: latestIssueDay(register, toEpochDay(now)) });
+    loaded.push({ region, register });
   }
-
-  // One shared week for all three columns: the most recent week ANY region
-  // invoiced (capped at today), so cash/revenue read the same Fri–Thu window
-  // everywhere rather than a different week per region.
-  const maxLatest = loaded.reduce<number | null>(
-    (mx, l) => (l.latest === null ? mx : mx === null ? l.latest : Math.max(mx, l.latest)),
-    null,
-  );
-  const asOf = explicit?.asOf ?? (maxLatest === null ? now : fromEpochDay(maxLatest));
 
   const regions: RegionView[] = loaded.map(({ region, register }) => ({
     label: region.label,
     data: buildRegionDashboard(register, asOf, ceoConfig, region.revenueTarget, region.overdueTarget),
   }));
 
-  // Say so when the shared week isn't the current calendar week.
-  let weekNote: string | null = null;
-  if (!explicit && maxLatest !== null) {
-    const shownFriday = weekStart(toEpochDay(asOf));
-    if (shownFriday !== weekStart(toEpochDay(now))) {
-      weekNote = `Showing the latest week any region invoiced (${formatWeekRange(
-        fromEpochDay(shownFriday),
-        fromEpochDay(weekEnd(toEpochDay(asOf))),
-      )}), shared across all three regions.`;
-    }
-  }
+  // Explain the deliberate lag, unless a week was explicitly pinned.
+  const weekNote: string | null = explicit
+    ? null
+    : `Held back to let collections settle — the last fully-settled Friday–Thursday week (${formatBusinessWeek(
+        fromEpochDay(rw.labelStart),
+        fromEpochDay(rw.labelEnd),
+      )}), rolling every Friday.`;
 
   const asOfQuery = typeof search.asOf === "string" ? `?asOf=${encodeURIComponent(search.asOf)}` : "";
   const accounts = [

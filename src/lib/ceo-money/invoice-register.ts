@@ -55,6 +55,32 @@ export interface ColumnMap {
   cash: number;
   /** The award/event this invoice belongs to (column F in every tab). */
   award: number;
+  /**
+   * The currency the *payment* was settled in, when the tab records it separately
+   * from the invoice currency. A deal billed in USD may be paid in SGD or HKD, so
+   * the cash amount must convert at the payment currency, not the invoice one.
+   * Absent → assume the cash is in the invoice currency (the old behaviour).
+   */
+  cashCurrency?: number;
+  /**
+   * When set, an invoice paid in instalments (several dates + amounts in the cell)
+   * is broken into its individual payments, each counted in the week it landed —
+   * rather than the whole sum landing in the week of the last instalment.
+   */
+  splitInstalments?: boolean;
+  /**
+   * The column holding the per-instalment amounts, when it differs from `cash`
+   * (whose column can carry only the total). Paired one-for-one with the payment
+   * dates. Falls back to `cash` when absent.
+   */
+  cashInstalmentAmounts?: number;
+  /**
+   * When set, an invoice whose status mentions a "balance" (e.g. "PAID WITH
+   * BALANCE", "with balance 3 of 4 paid") is treated as partly settled: only its
+   * unpaid balance (gross − cash) counts as an overdue receivable, not the whole
+   * invoice and not zero. Absent → only strictly `UNPAID` invoices are overdue.
+   */
+  countBalanceAsOverdue?: boolean;
 }
 
 /** The one status whose invoices have actually been collected. */
@@ -112,6 +138,20 @@ export interface RegisterRow {
   status: string;
   /** Column F: the award/event this invoice was raised for. Empty if blank. */
   award: string;
+  /**
+   * The invoice's cash broken into individual dated payments (reporting currency).
+   * A one-off payment is a single entry; an instalment invoice on a split tab has
+   * one entry per instalment. Cash-in-a-week is summed from these so each payment
+   * counts in the week it landed. `cashSgd` remains the total across them.
+   */
+  payments: Payment[];
+  /**
+   * True when this invoice is a partly-settled "with balance" row on a tab that
+   * opts in (see `ColumnMap.countBalanceAsOverdue`): overdue counts only its
+   * unpaid remainder (gross − payments received), not the whole invoice and not
+   * zero. Everything else falls back to the all-or-nothing paid/unpaid rule.
+   */
+  isBalanceReceivable: boolean;
 }
 
 export interface InvoiceRegister {
@@ -208,6 +248,72 @@ export function cellToPaymentDay(cell: Cell): EpochDay | null {
   return latest;
 }
 
+/** Every date in a payment cell, in order (a single serial, or several typed dates). */
+function paymentDayList(cell: Cell): EpochDay[] {
+  if (typeof cell === "number" && Number.isFinite(cell)) {
+    if (cell < MIN_SERIAL || cell > MAX_SERIAL) return [];
+    return [Math.round(cell) - SHEETS_EPOCH_OFFSET];
+  }
+  if (typeof cell !== "string") return [];
+  const days: EpochDay[] = [];
+  for (const part of cell.split(/[\n,;]+/)) {
+    const parsed = parseCivilDate(part.trim());
+    if (parsed !== null) days.push(toEpochDay(parsed));
+  }
+  return days;
+}
+
+/** Every amount in a cell, in order. */
+function amountList(cell: Cell): number[] {
+  if (typeof cell === "number") return Number.isFinite(cell) ? [cell] : [];
+  if (typeof cell !== "string") return [];
+  const tokens = cell.match(NUMBER_TOKEN);
+  if (!tokens) return [];
+  const out: number[] = [];
+  for (const token of tokens) {
+    const n = Number(token.replace(/,/g, ""));
+    if (Number.isFinite(n)) out.push(n);
+  }
+  return out;
+}
+
+/** One payment behind an invoice: the day it landed and its value in the reporting currency. */
+export interface Payment {
+  day: EpochDay;
+  amount: number;
+}
+
+/**
+ * The individual payments behind an invoice, each on its own date and converted at
+ * `rate`. When `split` is on and the cell holds several dates matched one-for-one
+ * with several amounts (a true instalment), each instalment is returned separately
+ * so it counts in the week it actually landed. Otherwise the whole cash is a single
+ * payment on the last date — the previous behaviour — which also covers ordinary
+ * one-off payments and ambiguous cells (e.g. two dates but one amount).
+ */
+function cellToPayments(
+  dateCell: Cell,
+  splitAmountCell: Cell,
+  totalAmountCell: Cell,
+  rate: number,
+  split: boolean,
+): Payment[] {
+  if (split) {
+    const days = paymentDayList(dateCell);
+    // The per-instalment amounts live in their own column; the "total" column may
+    // hold only the sum. Pair the dates with the per-instalment amounts one-for-one.
+    const amounts = amountList(splitAmountCell);
+    if (days.length > 1 && days.length === amounts.length) {
+      return days.map((day, i) => ({ day, amount: amounts[i] * rate }));
+    }
+  }
+  // One-off, or a row we can't split cleanly: the whole cash on the last date.
+  const day = cellToPaymentDay(dateCell);
+  const amount = cellToAmount(totalAmountCell);
+  if (day === null || amount === null) return [];
+  return [{ day, amount: amount * rate }];
+}
+
 /**
  * The most recent day an invoice was *issued* — the latest date in column A.
  * Rows dated after `notAfter` are ignored, so a fat-fingered future date can't
@@ -263,9 +369,19 @@ function paymentsIn(register: InvoiceRegister, start: EpochDay, end: EpochDay): 
   );
 }
 
-/** Cash collected: column U, totalled over the payments that arrived in the window. */
+/**
+ * Cash collected: every individual payment that landed in the window, each counted
+ * in the week it arrived — so an instalment's earlier parts stay in their own weeks
+ * rather than being pulled forward into the week of the final instalment.
+ */
 export function cashCollectedIn(register: InvoiceRegister, start: EpochDay, end: EpochDay): number {
-  return paymentsIn(register, start, end).reduce((total, row) => total + row.cashSgd, 0);
+  let total = 0;
+  for (const row of register.rows) {
+    for (const p of row.payments) {
+      if (p.day >= start && p.day <= end) total += p.amount;
+    }
+  }
+  return total;
 }
 
 /**
@@ -301,9 +417,15 @@ export function cashTargetIn(register: InvoiceRegister, start: EpochDay, end: Ep
   return invoicedSgdIn(register, start, end) - bankFeesIn(register, start, end);
 }
 
-/** How many payments landed in the window. */
+/** How many individual payments landed in the window. */
 export function paidCountIn(register: InvoiceRegister, start: EpochDay, end: EpochDay): number {
-  return paymentsIn(register, start, end).length;
+  let n = 0;
+  for (const row of register.rows) {
+    for (const p of row.payments) {
+      if (p.day >= start && p.day <= end) n++;
+    }
+  }
+  return n;
 }
 
 /** An invoice is overdue once it is older than this many days. */
@@ -316,14 +438,36 @@ function yearStart(day: EpochDay): EpochDay {
 }
 
 /**
+ * What an invoice still owes as an overdue receivable, as of `asOf`, in the
+ * reporting currency — before any year/age filter the caller applies. Shared by
+ * the overdue figure and the YTD chart so the two never disagree.
+ *
+ *   · A void or credit note owes nothing.
+ *   · A "with balance" row owes gross minus the payments received by `asOf`, so
+ *     its balance shrinks month by month as instalments land.
+ *   · Every other row is all-or-nothing: its whole gross if it had not been paid
+ *     by `asOf`, else zero — which keeps a fully-paid invoice's bank fee (gross
+ *     minus a few dollars) from leaking into overdue.
+ */
+export function receivableOwedAt(row: RegisterRow, asOf: EpochDay): number {
+  if (EXCLUDED_STATUSES.has(row.status)) return 0;
+  if (row.isBalanceReceivable) {
+    let paid = 0;
+    for (const p of row.payments) if (p.day <= asOf) paid += p.amount;
+    return Math.max(0, row.sgd - paid);
+  }
+  return row.paidOn === null || row.paidOn > asOf ? row.sgd : 0;
+}
+
+/**
  * Overdue receivables: what is still owed on invoices raised this calendar year
  * and now more than 30 days old.
  *
- * Three filters, all on column A and column L:
+ * Filters on the issue date (column A):
  *   · issued this year — last year's debts are a different conversation
  *   · issued more than 30 days before the week being viewed
- *   · still UNPAID — a paid invoice is not a receivable, and an invoice raised
- *     after the week being viewed has not happened yet
+ * The owed amount per row (paid/unpaid, or a partial balance) comes from
+ * `receivableOwedAt`.
  */
 export function overdueReceivablesIn(register: InvoiceRegister, asOf: EpochDay): number {
   const from = yearStart(asOf);
@@ -332,8 +476,7 @@ export function overdueReceivablesIn(register: InvoiceRegister, asOf: EpochDay):
   let total = 0;
   for (const row of register.rows) {
     if (row.day < from || row.day >= cutoff) continue;
-    if (row.status !== UNPAID) continue;
-    total += row.sgd;
+    total += receivableOwedAt(row, asOf);
   }
   return total;
 }
@@ -346,7 +489,7 @@ export function overdueCountIn(register: InvoiceRegister, asOf: EpochDay): numbe
   let n = 0;
   for (const row of register.rows) {
     if (row.day < from || row.day >= cutoff) continue;
-    if (row.status === UNPAID) n++;
+    if (receivableOwedAt(row, asOf) > 0) n++;
   }
   return n;
 }
@@ -462,6 +605,31 @@ export function loadRates(): Record<string, number> {
 }
 
 /**
+ * Direct currency→USD rates, for currencies that convert more accurately straight
+ * to USD than via the SGD cross (which multiplies two rates and compounds their
+ * error). HKD is pegged to the US dollar, so its true USD rate barely moves while
+ * the SGD leg drifts — a direct rate keeps HK figures honest. Where a currency
+ * appears here, this value REPLACES the SGD-derived one for both invoice and
+ * payment conversion. `CEO_INVOICE_USD_RATES="HKD=0.128"` overrides the defaults.
+ */
+export const DEFAULT_USD_RATES: Readonly<Record<string, number>> = {
+  HKD: 0.127, // ≈ 7.87 HKD per USD (the peg), not the SGD-cross derivation
+};
+
+export function loadUsdRates(): Record<string, number> {
+  const rates: Record<string, number> = { ...DEFAULT_USD_RATES };
+
+  for (const pair of (process.env.CEO_INVOICE_USD_RATES ?? "").split(",")) {
+    const [code, value] = pair.split("=");
+    if (!code || !value) continue;
+    const rate = Number(value.trim());
+    if (Number.isFinite(rate) && rate > 0) rates[code.trim().toUpperCase()] = rate;
+  }
+
+  return rates;
+}
+
+/**
  * Falls back to the sample ledger when no register sheet is configured, so the
  * page still renders during development. The source is reported to the UI — a
  * demo must never masquerade as a real figure.
@@ -483,8 +651,21 @@ export async function loadInvoiceRegister(
   );
   const { tab, columns: col } = source;
   // Admin-panel rates win over the env var; both fall back to DEFAULT_RATES.
-  const { resolveInvoiceRates } = await import("./rates");
-  const rates = await resolveInvoiceRates();
+  const { resolveInvoiceRates, resolveUsdRates } = await import("./rates");
+  const toSgdRates = await resolveInvoiceRates();
+
+  // The dashboard reports in USD. The configured rates convert each currency TO
+  // SGD, so divide them all by the USD→SGD rate to get currency→USD instead:
+  // USD passes through 1:1 (most invoices are already USD), while SGD/HKD/… are
+  // converted to USD. Every downstream `sgd`/`cashSgd` field is therefore USD.
+  const usdPerSgd = toSgdRates.USD && toSgdRates.USD > 0 ? toSgdRates.USD : 1.35;
+  const rates: Record<string, number> = {};
+  for (const [code, r] of Object.entries(toSgdRates)) rates[code] = r / usdPerSgd;
+
+  // A direct currency→USD rate (e.g. HKD's peg) replaces the SGD-derived one,
+  // so a pegged currency isn't knocked off by drift in the SGD cross.
+  const usdDirect = await resolveUsdRates();
+  for (const [code, r] of Object.entries(usdDirect)) rates[code] = r;
 
   if (!spreadsheetId) {
     const sample = generateSampleLedger(todayDate);
@@ -493,15 +674,19 @@ export async function loadInvoiceRegister(
         const sgd = i.amount * (rates[i.currency] ?? 1);
         const paid = i.status === "paid";
         const payment = sample.payments.find((p) => p.invoiceNo === i.invoiceNo);
+        const paidOn = payment ? toEpochDay(payment.paidDate) : null;
+        // A plausible bank fee, so the sample tile behaves like the real one.
+        const cashSgd = paid ? sgd - 10 : 0;
         return {
           day: toEpochDay(i.issueDate),
-          paidOn: payment ? toEpochDay(payment.paidDate) : null,
+          paidOn,
           sgd,
-          // A plausible bank fee, so the sample tile behaves like the real one.
-          cashSgd: paid ? sgd - 10 : 0,
+          cashSgd,
           currency: i.currency,
           status: paid ? "PAID" : i.status === "void" ? "VOID" : "UNPAID",
           award: "",
+          payments: paidOn !== null ? [{ day: paidOn, amount: cashSgd }] : [],
+          isBalanceReceivable: false,
         };
       }),
       source: "sample",
@@ -537,8 +722,13 @@ export async function loadInvoiceRegister(
     const gross = cellToAmount(line[col.gross]);
     const cash = cellToAmount(line[col.cash]);
     const paidOn = cellToPaymentDay(line[col.paidOn]);
-    const status = normalizeStatus(String(line[col.status] ?? ""));
+    const rawStatus = String(line[col.status] ?? "");
+    const status = normalizeStatus(rawStatus);
     const award = String(line[col.award] ?? "").trim();
+
+    // A payment marked "PAID for confirmation" (or similar) has been recorded but
+    // not yet confirmed collected, so it must not count as cash until it clears.
+    const unconfirmed = /confirmation/i.test(rawStatus);
 
     if (status === "OTHER") otherStatuses++;
 
@@ -554,7 +744,9 @@ export async function loadInvoiceRegister(
       // Never guess. An unrecognised currency contributes nothing and is
       // reported — silently treating HKD as SGD would overstate it six-fold.
       unknownCurrencies.set(code, (unknownCurrencies.get(code) ?? 0) + 1);
-      rows.push({ day, paidOn, sgd: 0, cashSgd: 0, currency: code, status, award });
+      // Unknown currency: the amount can't be converted, so it's zeroed and owes
+      // nothing to the overdue figure either.
+      rows.push({ day, paidOn, sgd: 0, cashSgd: 0, currency: code, status, award, payments: [], isBalanceReceivable: false });
       continue;
     }
 
@@ -568,16 +760,36 @@ export async function loadInvoiceRegister(
     if (status === PAID && cash === null) paidWithoutCash++;
     if (status === PAID && paidOn === null) paidWithoutDate++;
 
-    // The cash column carries the same currency as the gross — the bank statement
-    // is in the currency the invoice was billed in.
+    // The gross converts at the invoice currency. The cash may have been settled
+    // in a different currency (billed USD, paid SGD/HKD), so when the tab records
+    // a payment currency, convert the cash at THAT rate; otherwise fall back to
+    // the invoice currency. An unrecognised payment currency falls back too,
+    // rather than zeroing money that was genuinely collected.
+    const cashCode =
+      col.cashCurrency !== undefined
+        ? String(line[col.cashCurrency] ?? "").trim().toUpperCase() || code
+        : code;
+    const cashRate = rates[cashCode] ?? rate;
+    const splitAmountCell = col.cashInstalmentAmounts !== undefined ? line[col.cashInstalmentAmounts] : line[col.cash];
+    const payments = unconfirmed
+      ? []
+      : cellToPayments(line[col.paidOn], splitAmountCell, line[col.cash], cashRate, !!col.splitInstalments);
+
+    // A "with balance" row (on a tab that opts in) is treated as partly settled:
+    // overdue counts only its unpaid remainder. Void/credit notes never qualify.
+    const isBalanceReceivable =
+      !EXCLUDED_STATUSES.has(status) && !!col.countBalanceAsOverdue && /balance/i.test(rawStatus);
+
     rows.push({
       day,
       paidOn,
       sgd: (gross ?? 0) * rate,
-      cashSgd: (cash ?? 0) * rate,
+      cashSgd: (cash ?? 0) * cashRate,
       currency: code,
       status,
       award,
+      payments,
+      isBalanceReceivable,
     });
   }
 

@@ -1,5 +1,5 @@
 import { fromEpochDay, toEpochDay, type CivilDate, type EpochDay } from "@/lib/ceo/week";
-import type { InvoiceRegister, RegisterRow } from "./invoice-register";
+import { receivableOwedAt, type InvoiceRegister, type RegisterRow } from "./invoice-register";
 
 /**
  * The overdue-receivables balance tracked across the year — the data behind the
@@ -14,9 +14,6 @@ import type { InvoiceRegister, RegisterRow } from "./invoice-register";
  */
 
 const OVERDUE_AFTER_DAYS = 30;
-
-/** Cancelled and credit-noted rows were never a real receivable. */
-const EXCLUDED = new Set(["VOID", "CREDIT_NOTE"]);
 
 export interface OverduePoint {
   /** Position through the year, 0 (Jan 1) to 1 (Dec 31), so two years align. */
@@ -44,18 +41,18 @@ export interface OverdueSeries {
   priorYearLabel: string;
 }
 
-/** SGD overdue on day `asOf`, among invoices issued in `year`. */
+/** Overdue on day `asOf`, among invoices issued in `year`, in reporting currency. */
 function overdueAt(rows: RegisterRow[], asOf: EpochDay, year: number): number {
   const yearStart = toEpochDay(`${year}-01-01`);
   const yearEnd = toEpochDay(`${year}-12-31`);
 
   let total = 0;
   for (const row of rows) {
-    if (EXCLUDED.has(row.status)) continue;
     if (row.day < yearStart || row.day > yearEnd) continue;
     if (row.day > asOf - OVERDUE_AFTER_DAYS) continue; // not yet 30 days old
-    if (row.paidOn !== null && row.paidOn <= asOf) continue; // already paid by then
-    total += row.sgd;
+    // Paid/unpaid, exclusions and partial "with balance" remainders all live in
+    // the shared helper, so this line matches the overdue tile exactly.
+    total += receivableOwedAt(row, asOf);
   }
   return total;
 }

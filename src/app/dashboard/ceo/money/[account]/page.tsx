@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { RegionalDashboard, type RegionView } from "@/components/ceo/RegionalDashboard";
 import { cacheKeys, getCache, ttls } from "@/lib/cache";
-import { formatWeekRange, fromEpochDay, parseCivilDate, today, toEpochDay, weekEnd, weekStart } from "@/lib/ceo/week";
+import { fromEpochDay, parseCivilDate, today, toEpochDay } from "@/lib/ceo/week";
 import { loadCeoMoneySettings } from "@/lib/ceo-money/settings";
-import { latestIssueDay, loadInvoiceRegister, type InvoiceRegister } from "@/lib/ceo-money/invoice-register";
+import { loadInvoiceRegister, type InvoiceRegister } from "@/lib/ceo-money/invoice-register";
 import { buildRegionDashboard } from "@/lib/ceo-money/metrics";
+import { formatBusinessWeek, reportingWeekFor } from "@/lib/ceo-money/reporting-week";
 import { getRegion, REGIONS, type Region } from "@/lib/ceo-money/regions";
 
 // The reporting week rolls at Singapore midnight, so this page must never be
@@ -74,10 +75,12 @@ export default async function CeoMoneyAccountPage({
   const search = await searchParams;
   const explicit = explicitAsOf(search.asOf);
 
-  // The register read ignores the date for a real sheet, so the raw read is
-  // bucketed by the explicit week when pinned, else by today (refreshes daily).
-  const now = today();
-  const cacheDate = explicit?.asOf ?? now;
+  // The money week is a Monday–Friday business week, one week in arrears, rolling
+  // every Friday — the same window every region shows. A pinned ?asOf= overrides.
+  const rw = reportingWeekFor(today());
+  const asOf = explicit?.asOf ?? fromEpochDay(rw.end);
+  const pinned = explicit?.pinned ?? false;
+  const cacheDate = asOf;
 
   if (search.cache === "clear") {
     try {
@@ -102,24 +105,13 @@ export default async function CeoMoneyAccountPage({
     register = { rows: [], source: "sample", tab: region.tab, rates: {}, warnings: [`Could not read ${region.tab}: ${message}`] };
   }
 
-  // With no explicit pin, follow the sheet: land on the week of the most recent
-  // invoice *issued*, so an empty current week never blanks the wall. Payments
-  // arriving against older invoices don't advance the week past the last billing.
-  const latest = latestIssueDay(register, toEpochDay(now));
-  const asOf = explicit?.asOf ?? (latest === null ? now : fromEpochDay(latest));
-  const pinned = explicit?.pinned ?? false;
-
-  // When following the sheet lands on a week other than the current one, say so.
-  let weekNote: string | null = null;
-  if (!explicit && latest !== null) {
-    const shownFriday = weekStart(latest);
-    if (shownFriday !== weekStart(toEpochDay(now))) {
-      weekNote = `Showing the latest week ${region.tab} invoiced (${formatWeekRange(
-        fromEpochDay(shownFriday),
-        fromEpochDay(weekEnd(latest)),
-      )}), not the current calendar week.`;
-    }
-  }
+  // Explain the deliberate lag, unless a week was explicitly pinned.
+  const weekNote: string | null = explicit
+    ? null
+    : `Held back to let collections settle — the last fully-settled Friday–Thursday week (${formatBusinessWeek(
+        fromEpochDay(rw.labelStart),
+        fromEpochDay(rw.labelEnd),
+      )}), rolling every Friday.`;
 
   const regionView: RegionView = {
     label: region.label,

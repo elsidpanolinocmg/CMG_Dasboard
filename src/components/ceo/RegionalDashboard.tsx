@@ -6,10 +6,9 @@ import { OverdueChart } from "./OverdueChart";
 import { RefreshButton } from "./RefreshButton";
 import { StatTile } from "./StatTile";
 import { buildTargetBullet } from "@/lib/ceo-money/bullet";
-import { BUSINESS_DAYS_PER_WEEK } from "@/lib/ceo-money/config";
-import { formatWeekRange } from "@/lib/ceo-money/date";
+import { formatBusinessWeek } from "@/lib/ceo-money/reporting-week";
 import type { RegionDashboard } from "@/lib/ceo-money/metrics";
-import { formatCentsSGD, formatCompactSGD, formatFullSGD } from "@/lib/ceo-money/money";
+import { formatCentsUSD, formatCompactUSD, formatFullUSD } from "@/lib/ceo-money/money";
 import type { OverdueSeries } from "@/lib/ceo-money/overdue-series";
 import { formatAttainment, formatCount } from "@/lib/ceo/format";
 import type { Rag } from "@/lib/ceo/rag";
@@ -68,7 +67,6 @@ export function RegionalDashboard({
 }: RegionalDashboardProps) {
   // Every region shares the same week, so the header can read it off the first.
   const head = regions[0]?.data;
-  const businessDaysElapsed = head ? Math.round(head.businessDayFraction * BUSINESS_DAYS_PER_WEEK) : 0;
 
   const warnings = regions.flatMap((r) => r.data.warnings.map((w) => `${r.label}: ${w}`));
 
@@ -101,8 +99,8 @@ export function RegionalDashboard({
           <h1>Cash, Revenue and Overdue Receivables</h1>
           {head && (
             <div className={styles.week}>
-              {formatWeekRange(head.weekStart, head.weekEnd)} · {businessDaysElapsed} of {BUSINESS_DAYS_PER_WEEK}{" "}
-              business days elapsed · revenue and cash targets pro-rated to that point
+              {formatBusinessWeek(head.weekStart, head.weekEnd)} · last fully-settled Fri–Thu week · targets shown in
+              full
             </div>
           )}
         </div>
@@ -138,7 +136,7 @@ export function RegionalDashboard({
                 <StatTile
                   compact
                   label="Cash Collected This Week"
-                value={formatFullSGD(data.cash.actual)}
+                value={formatFullUSD(data.cash.actual)}
                 rag={data.cash.rag}
                 note={data.cash.note}
                 subLines={[
@@ -146,26 +144,26 @@ export function RegionalDashboard({
                     ? `${formatAttainment(data.cash.attainment)} of what the week invoiced`
                     : "Nothing invoiced this week",
                   `${formatCount(data.paidCount)} payment${data.paidCount === 1 ? "" : "s"}, ${
-                    data.bankFees > 0 ? `${formatCentsSGD(data.bankFees)} in fees` : "no fees"
+                    data.bankFees > 0 ? `${formatCentsUSD(data.bankFees)} in fees` : "no fees"
                   }`,
                 ]}
                 bullet={buildTargetBullet(data.cash, config)}
-                format={formatFullSGD}
+                format={formatFullUSD}
               />
               <StatTile
                 compact
-                label="Revenue Closed This Week"
-                value={formatFullSGD(data.revenue.actual)}
+                label="Revenue Invoiced This Week"
+                value={formatFullUSD(data.revenue.actual)}
                 rag={data.revenue.rag}
                 note={data.revenue.note}
                 subLines={[
                   data.revenue.attainment !== null
                     ? `${formatAttainment(data.revenue.attainment)} of pace`
                     : "Awaiting target",
-                  data.revenue.fullTarget !== null ? `Week target ${formatFullSGD(data.revenue.fullTarget)}` : "",
+                  data.revenue.fullTarget !== null ? `Week target ${formatFullUSD(data.revenue.fullTarget)}` : "",
                 ].filter(Boolean)}
                 bullet={buildTargetBullet(data.revenue, config)}
-                format={formatFullSGD}
+                format={formatFullUSD}
                 />
               </div>
               <OverdueCard series={data.overdueSeries} />
@@ -218,17 +216,17 @@ function OverdueCard({ series }: { series: OverdueSeries }) {
   const rag: Rag = current <= target ? "good" : current <= target * 1.25 ? "warning" : "critical";
   const over = current > target;
   const note = over ? "Above target" : "Within target";
-  const gap = `${formatCompactSGD(Math.abs(current - target))} ${over ? "over" : "under"} target`;
+  const gap = `${formatCompactUSD(Math.abs(current - target))} ${over ? "over" : "under"} target`;
 
   return (
     <section
       className={`${styles.tile} ${styles.overdueTile}`}
       data-rag={rag}
       data-compact="true"
-      aria-label={`Overdue receivables, 30+ days: ${formatFullSGD(current)}, ${note}`}
+      aria-label={`Overdue receivables, 30+ days: ${formatFullUSD(current)}, ${note}`}
     >
       <div className={styles.tileLabel}>Overdue receivables, 30+ days</div>
-      <div className={styles.tileValue}>{formatFullSGD(current)}</div>
+      <div className={styles.tileValue}>{formatFullUSD(current)}</div>
       <div className={styles.tileSub}>
         <span>{gap}</span>
         <span className={styles.overdueLegend}>

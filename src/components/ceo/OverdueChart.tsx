@@ -1,5 +1,5 @@
 import styles from "./ceo-dashboard.module.css";
-import { formatCompactSGD } from "@/lib/ceo-money/money";
+import { formatCompactUSD } from "@/lib/ceo-money/money";
 import type { OverdueSeries, OverduePoint } from "@/lib/ceo-money/overdue-series";
 
 /**
@@ -57,8 +57,8 @@ export function OverdueChart({ series }: OverdueChartProps) {
           preserveAspectRatio="none"
           role="img"
           aria-label={
-            `Overdue receivables over the last four months of ${series.thisYearLabel}, currently ${formatCompactSGD(series.current)}, ` +
-            `against a target of ${formatCompactSGD(series.target)}; the same months of ${series.priorYearLabel} shown for comparison`
+            `Overdue receivables over the last four months of ${series.thisYearLabel}, currently ${formatCompactUSD(series.current)}, ` +
+            `against a target of ${formatCompactUSD(series.target)}; the same months of ${series.priorYearLabel} shown for comparison`
           }
         >
           <line
@@ -111,7 +111,7 @@ export function OverdueChart({ series }: OverdueChartProps) {
         )}
 
         <span className={styles.overdueTargetLabel} style={{ top: `${(targetY / H) * 100}%` }}>
-          Target {formatCompactSGD(series.target)}
+          Target {formatCompactUSD(series.target)}
         </span>
       </div>
 
@@ -119,7 +119,7 @@ export function OverdueChart({ series }: OverdueChartProps) {
         {series.thisYear.map((p, i) => (
           <span key={i} className={styles.overdueAxisCell}>
             <span className={styles.overdueAxisMonth}>{MONTHS[p.month - 1]}</span>
-            <span className={styles.overdueAxisValue}>{formatCompactSGD(p.value)}</span>
+            <span className={styles.overdueAxisValue}>{formatCompactUSD(p.value)}</span>
           </span>
         ))}
       </div>

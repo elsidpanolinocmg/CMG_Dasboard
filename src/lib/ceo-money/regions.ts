@@ -23,7 +23,38 @@ const STANDARD_COLUMNS: ColumnMap = {
   cash: 20, // U
 };
 
-/** HK Accounts: A / C / F / H / I / J / K / P. */
+/**
+ * SG's payment block records the currency the payment was received in (column T),
+ * separate from the invoice currency (G) — many USD invoices are settled in SGD.
+ * So SG converts cash at column T.
+ */
+const SG_COLUMNS: ColumnMap = {
+  ...STANDARD_COLUMNS,
+  cashCurrency: 19, // T
+  splitInstalments: true,
+  cashInstalmentAmounts: 17, // R — per-instalment amounts (U can hold only the total)
+  countBalanceAsOverdue: true, // "with balance" rows owe only their unpaid remainder
+};
+
+/**
+ * ME shares SG's base layout and, like SG, records the payment currency in
+ * column T (a handful of USD invoices are settled in SGD). Its instalment dates
+ * live in a free-text column that can't be split cleanly, and it has no "with
+ * balance" statuses, so only the payment-currency conversion carries over.
+ */
+const ME_COLUMNS: ColumnMap = {
+  ...STANDARD_COLUMNS,
+  cashCurrency: 19, // T — the currency the payment was received in
+};
+
+/**
+ * HK Accounts: A / C / F / H / I / J / K / P, with the payment currency in
+ * column O. Like SG, HK sometimes bills in one currency and is paid in another
+ * (a USD invoice settled in HKD, or the reverse), so cash converts at O, not the
+ * invoice currency H. Instalments here are recorded as free-text in the date
+ * column ("8.21 10k | 8.23 10k"), which can't be split cleanly, so they're left
+ * as a single payment on the first date.
+ */
 const HK_COLUMNS: ColumnMap = {
   issued: 0, // A
   company: 2, // C
@@ -33,6 +64,7 @@ const HK_COLUMNS: ColumnMap = {
   status: 9, // J
   paidOn: 10, // K
   cash: 15, // P
+  cashCurrency: 14, // O — the currency the payment was received in
 };
 
 export interface Region {
@@ -43,13 +75,13 @@ export interface Region {
   tab: string;
   columns: ColumnMap;
   /**
-   * Weekly revenue target, in SGD. INVENTED placeholders, scaled to each
+   * Weekly revenue target, in USD. INVENTED placeholders, scaled to each
    * region's rough billing volume so the bullet lands in a readable band —
    * nobody has agreed them. SG bills the most, HK less, ME least.
    */
   revenueTarget: number;
   /**
-   * The ceiling the overdue-receivables balance should stay under, in SGD, drawn
+   * The ceiling the overdue-receivables balance should stay under, in USD, drawn
    * as the target line on the YTD chart. Also INVENTED — set a little below where
    * each region's balance has typically sat, as a stretch, until a real one is
    * agreed. Scaled to the region like the revenue target.
@@ -62,25 +94,25 @@ export const REGIONS: Region[] = [
     key: "sg",
     label: "Singapore",
     tab: "SG Accounts",
-    columns: STANDARD_COLUMNS,
-    revenueTarget: 1_000_000,
-    overdueTarget: 800_000,
+    columns: SG_COLUMNS,
+    revenueTarget: 750_000,
+    overdueTarget: 600_000,
   },
   {
     key: "hk",
     label: "Hong Kong",
     tab: "HK Accounts",
     columns: HK_COLUMNS,
-    revenueTarget: 400_000,
-    overdueTarget: 320_000,
+    revenueTarget: 300_000,
+    overdueTarget: 240_000,
   },
   {
     key: "me",
     label: "Middle East",
     tab: "ME Accounts",
-    columns: STANDARD_COLUMNS,
-    revenueTarget: 150_000,
-    overdueTarget: 120_000,
+    columns: ME_COLUMNS,
+    revenueTarget: 110_000,
+    overdueTarget: 90_000,
   },
 ];
 
