@@ -37,6 +37,16 @@ const sections: { category?: string; items: DashboardLink[] }[] = [
       },
     ],
   },
+  {
+    category: "Deliverables",
+    items: [
+      {
+        label: "Client Deliverables Overdue",
+        href: "/dashboard/ceo/client-deliverables-overdue",
+        description: "Deliverables past their deadline and not yet done.",
+      },
+    ],
+  },
 ];
 
 export default function CeoPage() {

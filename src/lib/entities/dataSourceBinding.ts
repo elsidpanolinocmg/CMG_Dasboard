@@ -10,7 +10,8 @@ export type BindingPurpose =
   | "ceo_money"
   | "ceo_invoice_register"
   | "ceo_marketing"
-  | "ceo_short_form_videos";
+  | "ceo_short_form_videos"
+  | "ceo_client_deliverables";
 
 export interface DataSourceBinding extends Timestamped {
   departmentSlug: Slug;

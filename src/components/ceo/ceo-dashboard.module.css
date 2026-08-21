@@ -1607,3 +1607,255 @@
   min-width: 1.5em;
   text-align: right;
 }
+.deliverablesGroupLabel {
+  font-size: clamp(11px, 1vw, 16px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  margin-top: clamp(4px, 1vh, 12px);
+}
+.deliverablesGroupLabel:first-child {
+  margin-top: 0;
+}
+.deliverablesGroupLabel[data-track="true"] {
+  margin-top: clamp(10px, 2vh, 26px);
+}
+/* Colored indicator by the category label — the one place urgency is signalled,
+   so the card figures can stay a calm black. */
+.delivLabelDot {
+  width: clamp(9px, 0.8vw, 13px);
+  height: clamp(9px, 0.8vw, 13px);
+  border-radius: 50%;
+  flex: none;
+}
+.delivLabelDot[data-state="overdue"] {
+  background: var(--critical);
+}
+.delivLabelDot[data-state="ontrack"] {
+  background: var(--good);
+}
+
+/* Client Deliverables Overdue — summary tiles + per-campaign completion bars. */
+/* Title and the three overall figures share one glass card, like the body cards. */
+.delivHeaderCard {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  box-shadow: var(--shadow);
+  padding: clamp(12px, 1.8vh, 24px) clamp(16px, 1.8vw, 32px);
+}
+.delivTiles {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(16px, 2.4vw, 44px);
+}
+.delivTile {
+  text-align: right;
+}
+.delivTileValue {
+  font-family: var(--font-title), "Oswald", sans-serif;
+  font-weight: 700;
+  font-size: clamp(22px, 2.8vw, 48px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.delivTile[data-state="overdue"] .delivTileValue {
+  color: var(--critical);
+}
+.delivTileLabel {
+  margin-top: clamp(2px, 0.6vh, 8px);
+  font-size: clamp(11px, 1vw, 16px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+/* Wraps the two columns (which fill) and the shared legend (which hugs the bottom). */
+.delivBody {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 1.2vh, 16px);
+  min-height: 0;
+}
+.delivColumns {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(18px, 3vw, 56px);
+  align-items: stretch;
+  min-height: 0;
+}
+.delivColumn {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 1vh, 14px);
+  min-width: 0;
+  min-height: 0;
+}
+/* The card grid takes all the height left under the group label, so four cards
+   grow to fill the column instead of leaving space below. */
+.delivCardGrid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: clamp(8px, 1.2vw, 18px);
+  min-height: 0;
+}
+.delivPager {
+  font-size: clamp(11px, 1vw, 15px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: clamp(2px, 0.6vh, 8px);
+}
+/* Both column headers sit at the top of their column, so drop the stacked-layout
+   top margin that separated the on-track group from the overdue one. */
+.delivColumn .deliverablesGroupLabel[data-track="true"] {
+  margin-top: 0;
+}
+.delivEmpty {
+  font-size: clamp(12px, 1.2vw, 18px);
+  color: var(--text-secondary);
+  padding: clamp(4px, 1vh, 12px) 0;
+}
+.delivCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: clamp(8px, 1.4vh, 20px);
+  padding: clamp(12px, 1.8vh, 26px) clamp(14px, 1.4vw, 26px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  box-shadow: var(--shadow);
+  min-width: 0;
+  min-height: 0;
+}
+.delivCardMain {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2px, 0.6vh, 8px);
+  min-width: 0;
+}
+/* Stacked status bar — one rounded pill per status, sized to its share, with a
+   small gap between them. The gaps (card colour showing through) separate the
+   statuses softly, so it reads light and airy rather than a solid block. */
+.delivStatusBar {
+  display: flex;
+  gap: clamp(2px, 0.3vw, 4px);
+  height: clamp(10px, 1.8vh, 18px);
+  margin-top: clamp(5px, 1vh, 13px);
+}
+/* Only the two outer ends are rounded; internal segments are straight-cut, so
+   the whole bar reads as one rounded pill sliced into pieces. */
+.delivStatusSeg {
+  height: 100%;
+  min-width: clamp(5px, 0.5vw, 8px);
+  border-radius: 0;
+}
+.delivStatusSeg:first-child {
+  border-radius: 999px 0 0 999px;
+}
+.delivStatusSeg:last-child {
+  border-radius: 0 999px 999px 0;
+}
+/* A lone segment (a 100%-one-status card) stays a full pill. */
+.delivStatusSeg:only-child {
+  border-radius: 999px;
+}
+/* Shared legend under the two columns: a coloured chip per status. */
+.delivLegend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(8px, 1.2vw, 24px);
+  padding-top: clamp(2px, 0.6vh, 8px);
+}
+.delivLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: clamp(11px, 1vw, 15px);
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.delivLegendDot {
+  width: clamp(10px, 0.9vw, 14px);
+  height: clamp(10px, 0.9vw, 14px);
+  border-radius: 3px;
+  flex: none;
+}
+.delivCardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: clamp(8px, 1vw, 16px);
+}
+/* The award name reads as the card's label — muted, like a money tile label. */
+.delivCardName {
+  font-weight: 600;
+  font-size: clamp(15px, 2vw, 30px);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+/* The % done is the hero figure — big, dark, tight, like a money tile value. */
+.delivCardPct {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(36px, 4vw, 72px);
+  letter-spacing: -0.025em;
+  line-height: 1;
+  color: var(--text-primary);
+  margin-bottom: clamp(2px, 0.6vh, 8px);
+}
+/* The bar is intentionally slim — a reference, not the focus. */
+.delivBar {
+  height: clamp(5px, 0.9vh, 10px);
+  border-radius: 5px;
+  overflow: hidden;
+  background: rgba(11, 11, 11, 0.08);
+}
+.delivBar[data-state="overdue"] {
+  background: rgba(208, 59, 59, 0.18);
+}
+.delivBarFill {
+  height: 100%;
+  min-width: 2px;
+  background: var(--good);
+  border-radius: 5px;
+}
+.delivCardFoot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: clamp(6px, 0.8vw, 14px);
+}
+.delivCardCount {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(5px, 0.5vw, 9px);
+  font-weight: 700;
+  font-size: clamp(16px, 2vw, 34px);
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+.delivCardCount[data-state="overdue"] {
+  color: var(--text-primary);
+}
+.delivCardDue {
+  font-size: clamp(12px, 1.3vw, 22px);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

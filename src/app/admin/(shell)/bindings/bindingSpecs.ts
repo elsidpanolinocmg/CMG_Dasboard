@@ -203,6 +203,23 @@ export const BINDING_SPECS: Record<string, BindingSpec> = {
       ],
     },
   },
+  ceo_client_deliverables: {
+    label: "CEO · Client Deliverables Overdue",
+    summary: "Per-campaign article deliverables and their deadlines, for the CEO overdue board.",
+    usedBy: ["CEO → Client Deliverables Overdue"],
+    readBy: ["src/lib/ceo-deliverables/deliverables.ts"],
+    layout: {
+      tabs: ["One tab per awards campaign; only 2026 tabs are read."],
+      columns: [
+        { column: "A", name: "Status", note: "Deliverables run from row 18 down; Done / Cancelled / Vetting / …" },
+        { column: "B", name: "Deadline", note: "The campaign's publication date sits in B17 (e.g. 'March 27')." },
+      ],
+      notes: [
+        "A deliverable is overdue when its campaign deadline (B17) has passed and its status is not 'Done'.",
+        "'Cancelled' rows drop out of the totals; every other non-'Done' status is outstanding.",
+      ],
+    },
+  },
   sponsorship: {
     label: "Sponsorship",
     summary: "Reserved for sponsorship figures.",
