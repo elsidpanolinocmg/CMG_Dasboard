@@ -20,9 +20,6 @@ const INTERVIEWS_FROM_ROW = 5;
 /** Tabs that are not awards campaigns. */
 const NON_CAMPAIGN = new Set(["READ ME :)", "Timeline", "Claude Cache"]);
 
-/** The sheet the CEO board links to, used when no admin binding / env var is set. */
-const DEFAULT_SHEET_ID = "15teZgQ9NvEyAVUfPewoI4-gQzoNbam5qKyHwuhbdIYA";
-
 /** Statuses that mean the video is finished (drives the % and the green segment). */
 const DONE_STATUSES = new Set(["published", "approved"]);
 /** Statuses that drop out of the totals altogether. */
@@ -91,7 +88,7 @@ function byDoneThenCount(a: StatusSlice, b: StatusSlice): number {
 export async function loadVideoInterviews(): Promise<VideoInterviews> {
   const spreadsheetId = await resolveCeoSheetId(
     "ceo_video_interviews",
-    process.env.CEO_VIDEO_INTERVIEWS_SHEET_ID ?? DEFAULT_SHEET_ID,
+    process.env.CEO_VIDEO_INTERVIEWS_SHEET_ID,
   );
   if (!spreadsheetId) return EMPTY;
 
