@@ -45,6 +45,11 @@ const sections: { category?: string; items: DashboardLink[] }[] = [
         href: "/dashboard/ceo/client-deliverables-overdue",
         description: "Deliverables past their deadline and not yet done.",
       },
+      {
+        label: "Video Interview Progress Tracker",
+        href: "/dashboard/ceo/video-interview-progress-tracker",
+        description: "Video interview production stages and completion progress.",
+      },
     ],
   },
 ];

@@ -4,6 +4,8 @@ import styles from "./ceo-dashboard.module.css";
 import { DeliverablesBody } from "./ClientDeliverablesRotator";
 import type { ClientDeliverables } from "@/lib/ceo-deliverables/deliverables";
 
+// Oswald for the condensed title/KPI numbers. Body text is Inter, supplied as
+// --font-body by the CEO layout and applied through the panel's base font.
 const titleFont = Oswald({ subsets: ["latin"], weight: ["500", "700"], display: "swap", variable: "--font-title" });
 
 export interface ClientDeliverablesDashboardProps {
@@ -27,24 +29,24 @@ export function ClientDeliverablesDashboard({ data, live }: ClientDeliverablesDa
       <ViewportFit />
 
       <header className={`${styles.masthead} ${styles.delivHeaderCard}`}>
-        <div>
+        <div className={styles.delivTitleBlock}>
           <h1>Client Deliverables Overdue</h1>
           <div className={styles.week}>{subtitle}</div>
         </div>
         <div className={styles.delivTiles}>
           <div className={styles.delivTile} data-state="overdue">
             <div className={styles.delivTileValue}>{totalOverdue}</div>
-            <div className={styles.delivTileLabel}>Overdue</div>
+            <div className={styles.delivTileLabel}>Overdue Deliverables</div>
           </div>
           <div className={styles.delivTile}>
             <div className={styles.delivTileValue}>{pctDone}%</div>
             <div className={styles.delivTileLabel}>
-              Done · {totalDone}/{totalDeliverables}
+              Published · {totalDone}/{totalDeliverables}
             </div>
           </div>
           <div className={styles.delivTile}>
             <div className={styles.delivTileValue}>{overdue.length}</div>
-            <div className={styles.delivTileLabel}>Behind</div>
+            <div className={styles.delivTileLabel}>Campaigns Behind</div>
           </div>
         </div>
       </header>

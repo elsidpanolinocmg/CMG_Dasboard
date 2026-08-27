@@ -18,6 +18,7 @@ const PURPOSES = [
   { value: "ceo_marketing", label: "CEO · Marketing sheet" },
   { value: "ceo_short_form_videos", label: "CEO · Short Form Videos" },
   { value: "ceo_client_deliverables", label: "CEO · Client Deliverables Overdue" },
+  { value: "ceo_video_interviews", label: "CEO · Video Interview Progress Tracker" },
 ] as const;
 
 type Purpose = (typeof PURPOSES)[number]["value"];

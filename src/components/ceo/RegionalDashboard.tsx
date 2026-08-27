@@ -141,11 +141,10 @@ export function RegionalDashboard({
                 note={data.cash.note}
                 subLines={[
                   data.cash.attainment !== null
-                    ? `${formatAttainment(data.cash.attainment)} of what the week invoiced`
+                    ? `${formatAttainment(data.cash.attainment)} of Invoiced`
                     : "Nothing invoiced this week",
-                  `${formatCount(data.paidCount)} payment${data.paidCount === 1 ? "" : "s"}, ${
-                    data.bankFees > 0 ? `${formatCentsUSD(data.bankFees)} in fees` : "no fees"
-                  }`,
+                  `${formatCount(data.paidCount)} Payment${data.paidCount === 1 ? "" : "s"}`,
+                  data.bankFees > 0 ? `${formatCentsUSD(data.bankFees)} in Fees` : "No Fees",
                 ]}
                 bullet={buildTargetBullet(data.cash, config)}
                 format={formatFullUSD}
@@ -160,7 +159,7 @@ export function RegionalDashboard({
                   data.revenue.attainment !== null
                     ? `${formatAttainment(data.revenue.attainment)} of pace`
                     : "Awaiting target",
-                  data.revenue.fullTarget !== null ? `Week target ${formatFullUSD(data.revenue.fullTarget)}` : "",
+                  data.revenue.fullTarget !== null ? `Week Target ${formatFullUSD(data.revenue.fullTarget)}` : "",
                 ].filter(Boolean)}
                 bullet={buildTargetBullet(data.revenue, config)}
                 format={formatFullUSD}

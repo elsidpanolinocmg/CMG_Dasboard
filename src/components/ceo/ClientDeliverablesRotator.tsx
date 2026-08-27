@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import DashboardControls from "@/components/DashboardControls";
 import styles from "./ceo-dashboard.module.css";
@@ -48,6 +48,43 @@ function colorOf(colors: Map<string, string>, status: string): string {
   return colors.get(status.toLowerCase()) ?? STATUS_FALLBACK;
 }
 
+/**
+ * How alarming a campaign's overdue backlog is — a blend of how much of the
+ * campaign is still undone and how big the absolute pile is, so a nearly-finished
+ * campaign isn't flagged red just for a high raw count, yet a genuinely large pile
+ * still escalates:
+ *   high (red)    — under 60% done AND at least 6 remaining
+ *   medium (orange) — under 85% done, OR 10+ remaining
+ *   low (amber)   — otherwise (nearly done with a small pile left)
+ */
+type Backlog = "low" | "medium" | "high";
+function backlogSeverity(done: number, total: number): Backlog {
+  const outstanding = total - done;
+  const pctDone = total ? (done / total) * 100 : 0;
+  if (pctDone < 60 && outstanding >= 6) return "high";
+  if (pctDone < 85 || outstanding >= 10) return "medium";
+  return "low";
+}
+
+/** A little pennant flag, coloured by backlog severity (via CSS `data-severity`). */
+function BacklogFlag({ severity, outstanding }: { severity: Backlog; outstanding: number }) {
+  return (
+    <svg
+      className={styles.delivLabelFlag}
+      data-severity={severity}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-label={`${severity} backlog`}
+    >
+      <title>{`${outstanding} outstanding — ${severity} backlog`}</title>
+      {/* Pole. */}
+      <rect x="4" y="2" width="2.2" height="20" rx="1.1" fill="currentColor" />
+      {/* Rectangular banner on the pole. */}
+      <rect x="6" y="3" width="13.5" height="8" rx="0.8" fill="currentColor" />
+    </svg>
+  );
+}
+
 /** One campaign as a card: name and % at the top, count and deadline at the foot. */
 function DeliverableCard({
   c,
@@ -80,15 +117,13 @@ function DeliverableCard({
             />
           ))}
         </div>
-        <span className={styles.delivCardDue}>
-          {c.done}/{c.total} · due {c.deadline}
-        </span>
       </div>
       <div className={styles.delivCardFoot}>
         <span className={styles.delivCardCount} data-state={state}>
-          {state === "overdue" && <span className={styles.delivLabelDot} data-state={state} aria-hidden="true" />}
+          {state === "overdue" && <BacklogFlag severity={backlogSeverity(c.done, c.total)} outstanding={c.outstanding} />}
           {c.outstanding} {verb}
         </span>
+        <span className={styles.delivCardDue}>{c.dueLabel}</span>
       </div>
     </div>
   );
@@ -112,6 +147,15 @@ interface RotatingCardsProps {
 function RotatingCards({ rows, state, verb, empty, intervalMs, colors }: RotatingCardsProps) {
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const [page, setPage] = useState(0);
+  // Timestamp of the viewer's last manual page change; auto-advance holds off for
+  // a beat after it so a manual browse isn't yanked to the next page mid-read.
+  const heldAt = useRef(0);
+
+  // Jump to a page (wrapping) and register the interaction so rotation pauses.
+  const goTo = (i: number) => {
+    setPage(((i % totalPages) + totalPages) % totalPages);
+    heldAt.current = Date.now();
+  };
 
   // Reset to the first page whenever the list changes (e.g. a data refresh).
   useEffect(() => {
@@ -120,7 +164,11 @@ function RotatingCards({ rows, state, verb, empty, intervalMs, colors }: Rotatin
 
   useEffect(() => {
     if (totalPages <= 1 || intervalMs <= 0) return;
-    const t = setInterval(() => setPage((p) => (p + 1) % totalPages), intervalMs);
+    const hold = Math.max(intervalMs, 15_000);
+    const t = setInterval(() => {
+      if (Date.now() - heldAt.current < hold) return; // skip while recently browsed
+      setPage((p) => (p + 1) % totalPages);
+    }, intervalMs);
     return () => clearInterval(t);
   }, [totalPages, intervalMs]);
 
@@ -131,17 +179,68 @@ function RotatingCards({ rows, state, verb, empty, intervalMs, colors }: Rotatin
   const current = page % totalPages;
   const shown = rows.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
 
+  // Stop pager interactions from bubbling to the window bottom-zone handler that
+  // opens the DashboardControls overlay — the pager sits inside that zone.
+  const stopBubble = (e: ReactPointerEvent) => e.stopPropagation();
+
   return (
     <>
-      <div className={styles.delivCardGrid}>
-        {shown.map((c) => (
-          <DeliverableCard key={c.campaign} c={c} state={state} verb={verb} colors={colors} />
-        ))}
+      {/* The card stage holds the (re-keyed, fading) grid plus hover-reveal prev/next
+          arrows overlaid on its left and right edges — clear of the bottom controls
+          zone, so paging never pops the controls overlay. */}
+      <div className={styles.delivCardStage}>
+        {totalPages > 1 && (
+          <button
+            type="button"
+            className={styles.delivStageArrow}
+            data-side="left"
+            onPointerDown={stopBubble}
+            onClick={() => goTo(current - 1)}
+            aria-label="Previous page"
+          >
+            ‹
+          </button>
+        )}
+        {/* `key={current}` remounts the grid on each page turn, replaying the
+            fade-in animation so the rotation crossfades rather than snapping. */}
+        <div className={styles.delivCardGrid} key={current}>
+          {shown.map((c) => (
+            <DeliverableCard key={c.campaign} c={c} state={state} verb={verb} colors={colors} />
+          ))}
+        </div>
+        {totalPages > 1 && (
+          <button
+            type="button"
+            className={styles.delivStageArrow}
+            data-side="right"
+            onPointerDown={stopBubble}
+            onClick={() => goTo(current + 1)}
+            aria-label="Next page"
+          >
+            ›
+          </button>
+        )}
       </div>
-      {/* Always shown — even a single page reads "1 / 1" — so both category
-          columns end at the same height and stay aligned. */}
-      <div className={styles.delivPager}>
-        {current + 1} / {totalPages}
+      {/* One clickable dot per page (current filled) — a compact indicator that also
+          lets touch users page. Shown even for a single page so both columns end at
+          the same height. */}
+      <div
+        className={styles.delivPager}
+        role="group"
+        aria-label={`Page ${current + 1} of ${totalPages}`}
+        onPointerDown={stopBubble}
+      >
+        {Array.from({ length: totalPages }, (_, i) => (
+          <button
+            key={i}
+            type="button"
+            className={styles.delivPagerDot}
+            data-active={i === current}
+            onClick={() => goTo(i)}
+            aria-label={`Page ${i + 1}`}
+            aria-current={i === current ? "true" : undefined}
+          />
+        ))}
       </div>
     </>
   );
@@ -166,24 +265,24 @@ export function DeliverablesBody({ overdue, onTrack, statusLegend }: Deliverable
     <>
       <div className={styles.delivBody}>
         <div className={styles.delivColumns}>
-          <div className={styles.delivColumn}>
+          <div className={styles.delivColumn} data-state="overdue">
             <div className={styles.deliverablesGroupLabel}>Overdue · past deadline</div>
             <RotatingCards
               rows={overdue}
               state="overdue"
-              verb="late"
+              verb="pending"
               empty="Nothing overdue — every past-deadline deliverable is done."
               intervalMs={intervalMs}
             colors={statusColors}
             />
           </div>
 
-          <div className={styles.delivColumn}>
+          <div className={styles.delivColumn} data-state="ontrack">
             <div className={styles.deliverablesGroupLabel} data-track="true">On track · deadline ahead</div>
             <RotatingCards
               rows={onTrack}
               state="ontrack"
-              verb="left"
+              verb="in progress"
               empty="No upcoming campaigns with work outstanding."
               intervalMs={intervalMs}
             colors={statusColors}

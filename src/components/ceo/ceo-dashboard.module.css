@@ -36,7 +36,8 @@
   --shadow: 0 1px 2px rgba(11, 11, 11, 0.04);
 
   color: var(--text-primary);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Inter (via the CEO layout's --font-body) when present, else the OS default. */
+  font-family: var(--font-body), system-ui, -apple-system, "Segoe UI", sans-serif;
   line-height: 1.45;
 
   display: grid;
@@ -258,6 +259,14 @@
 }
 .panel[data-money="true"] .tileSub {
   font-size: clamp(13px, 1.3vw, 20px);
+}
+/* A faint divider between the sub facts (attainment | payments · fees), so they
+   read as distinct rather than floating apart on whitespace. */
+.panel[data-money="true"] .tileSub > *:not(:first-child)::before {
+  content: "|";
+  margin-right: clamp(5px, 0.6vw, 11px);
+  color: var(--text-muted);
+  font-weight: 400;
 }
 .panel[data-money="true"] .badge {
   font-size: clamp(13px, 1.05vw, 19px);
@@ -1442,7 +1451,7 @@
   font-size: clamp(14px, 1.2vw, 24px);
 }
 .panel[data-marketing="true"] .tile[data-compact="true"] .tileValue {
-  font-size: clamp(26px, 3.9vh, 60px);
+  font-size: clamp(28px, 6vh, 66px);
 }
 .panel[data-marketing="true"] .tileSub {
   font-size: clamp(13px, 1.3vw, 20px);
@@ -1481,7 +1490,7 @@
   font-size: clamp(13px, 1.1vw, 22px);
 }
 .panel[data-marketing="true"] .regionTopRow[data-cards="4"] .tile[data-compact="true"] .tileValue {
-  font-size: clamp(25px, 3.8vh, 58px);
+  font-size: clamp(26px, 4.5vh, 62px);
 }
 .panel[data-marketing="true"] .regionTopRow[data-cards="4"] .tileSub {
   font-size: clamp(13px, 1.4vw, 21px);
@@ -1607,7 +1616,11 @@
   min-width: 1.5em;
   text-align: right;
 }
+/* Each category label is a soft pill — red for Overdue (default), green for On
+   track — so the two zones read as distinct at a glance. */
 .deliverablesGroupLabel {
+  align-self: flex-start;
+  width: fit-content;
   font-size: clamp(11px, 1vw, 16px);
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1619,6 +1632,7 @@
   margin-top: 0;
 }
 .deliverablesGroupLabel[data-track="true"] {
+  color: var(--text-primary);
   margin-top: clamp(10px, 2vh, 26px);
 }
 /* Colored indicator by the category label — the one place urgency is signalled,
@@ -1635,24 +1649,65 @@
 .delivLabelDot[data-state="ontrack"] {
   background: var(--good);
 }
+/* A backlog flag on the overdue cards — its colour climbs with how many
+   deliverables are still outstanding: amber for a few, orange for a handful, red
+   for a large pile. Sized like the old dot so the count stays put. */
+.delivLabelFlag {
+  width: clamp(14px, 1.3vw, 21px);
+  height: clamp(14px, 1.3vw, 21px);
+  flex: none;
+  transform: translateY(0.06em);
+}
+.delivLabelFlag[data-severity="low"] {
+  color: #eab308; /* amber */
+}
+.delivLabelFlag[data-severity="medium"] {
+  color: #ea580c; /* orange */
+}
+.delivLabelFlag[data-severity="high"] {
+  color: var(--critical); /* red */
+}
 
 /* Client Deliverables Overdue — summary tiles + per-campaign completion bars. */
 /* Title and the three overall figures share one glass card, like the body cards. */
 .delivHeaderCard {
-  align-items: center;
-  border: 1px solid var(--border);
+  /* Like marketing's spanning card: title sized to its content on the left, then a
+     single dividing rule, then the totals filling all the remaining width. */
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
   border-radius: var(--radius);
-  background: var(--surface-1);
-  box-shadow: var(--shadow);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgba(11, 11, 11, 0.09);
+  box-shadow: 0 12px 30px rgba(11, 11, 11, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   padding: clamp(12px, 1.8vh, 24px) clamp(16px, 1.8vw, 32px);
 }
-.delivTiles {
+/* Only as wide as the title needs; the rule sits just after it. */
+.delivTitleBlock {
+  flex: 0 1 auto;
   display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: clamp(16px, 2.6vw, 48px);
+  min-width: 0;
+}
+/* Takes all the space left once the title is sized, so the totals spread out; the
+   left rule divides them from the title. */
+.delivTiles {
+  flex: 1 1 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   align-items: baseline;
-  gap: clamp(16px, 2.4vw, 44px);
+  gap: clamp(12px, 2vw, 40px);
+  padding-left: clamp(16px, 2.6vw, 48px);
+  border-left: 1px solid var(--border);
 }
 .delivTile {
-  text-align: right;
+  text-align: center;
 }
 .delivTileValue {
   font-family: var(--font-title), "Oswald", sans-serif;
@@ -1696,6 +1751,54 @@
   min-width: 0;
   min-height: 0;
 }
+/* Holds the card grid and the hover-reveal paging arrows overlaid on its edges. */
+.delivCardStage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* Prev/next arrows overlaid on the left/right edge of a category's cards, revealed
+   on hover (or keyboard focus). Vertically centred, so they stay clear of the
+   bottom controls zone; a glass chip keeps them legible over the cards. */
+.delivStageArrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(30px, 2.6vw, 46px);
+  height: clamp(46px, 8vh, 88px);
+  border: 1px solid rgba(11, 11, 11, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  color: var(--text-primary);
+  font-size: clamp(22px, 2.2vw, 38px);
+  line-height: 1;
+  cursor: pointer;
+  appearance: none;
+  opacity: 0;
+  box-shadow: 0 8px 22px rgba(11, 11, 11, 0.14);
+  transition: opacity 160ms ease, background 160ms ease;
+}
+.delivStageArrow[data-side="left"] {
+  left: clamp(-4px, 0vw, 4px);
+}
+.delivStageArrow[data-side="right"] {
+  right: clamp(-4px, 0vw, 4px);
+}
+.delivCardStage:hover .delivStageArrow,
+.delivStageArrow:focus-visible {
+  opacity: 1;
+}
+.delivStageArrow:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
 /* The card grid takes all the height left under the group label, so four cards
    grow to fill the column instead of leaving space below. */
 .delivCardGrid {
@@ -1705,14 +1808,48 @@
   grid-auto-rows: 1fr;
   gap: clamp(8px, 1.2vw, 18px);
   min-height: 0;
+  /* Replayed on each page turn (the grid is re-keyed) so rotation fades in. */
+  animation: delivFade 450ms ease;
+}
+@keyframes delivFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .delivCardGrid {
+    animation: none;
+  }
 }
 .delivPager {
-  font-size: clamp(11px, 1vw, 15px);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
-  text-align: center;
-  margin-top: clamp(2px, 0.6vh, 8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(5px, 0.5vw, 9px);
+  margin-top: clamp(4px, 0.9vh, 12px);
+}
+.delivPagerDot {
+  width: clamp(6px, 0.6vw, 9px);
+  height: clamp(6px, 0.6vw, 9px);
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(11, 11, 11, 0.16);
+  cursor: pointer;
+  appearance: none;
+  transition: background 200ms ease, transform 150ms ease;
+}
+.delivPagerDot[data-active="true"] {
+  background: var(--text-secondary);
+}
+.delivPagerDot:hover {
+  background: var(--text-secondary);
+  transform: scale(1.25);
 }
 /* Both column headers sit at the top of their column, so drop the stacked-layout
    top margin that separated the on-track group from the overdue one. */
@@ -1724,16 +1861,20 @@
   color: var(--text-secondary);
   padding: clamp(4px, 1vh, 12px) 0;
 }
+/* Frosted glass — a translucent gradient over a backdrop blur, matching the
+   money/marketing tiles, so the warm background glow shows softly through. */
 .delivCard {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: clamp(8px, 1.4vh, 20px);
   padding: clamp(12px, 1.8vh, 26px) clamp(14px, 1.4vw, 26px);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface-1);
-  box-shadow: var(--shadow);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgba(11, 11, 11, 0.09);
+  box-shadow: 0 12px 30px rgba(11, 11, 11, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   min-width: 0;
   min-height: 0;
 }
@@ -1800,8 +1941,8 @@
 }
 /* The award name reads as the card's label — muted, like a money tile label. */
 .delivCardName {
-  font-weight: 600;
-  font-size: clamp(15px, 2vw, 30px);
+  font-weight: 500;
+  font-size: clamp(15px, 1.9vw, 28px);
   letter-spacing: 0.01em;
   white-space: nowrap;
   overflow: hidden;
@@ -1810,7 +1951,7 @@
 }
 /* The % done is the hero figure — big, dark, tight, like a money tile value. */
 .delivCardPct {
-  font-weight: 650;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   font-size: clamp(36px, 4vw, 72px);
   letter-spacing: -0.025em;
@@ -1836,16 +1977,18 @@
 }
 .delivCardFoot {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: clamp(6px, 0.8vw, 14px);
+  gap: clamp(2px, 0.4vh, 6px) clamp(6px, 0.8vw, 14px);
 }
 .delivCardCount {
   display: inline-flex;
   align-items: center;
   gap: clamp(5px, 0.5vw, 9px);
-  font-weight: 700;
-  font-size: clamp(16px, 2vw, 34px);
+  font-weight: 500;
+  font-size: clamp(14px, 1.5vw, 24px);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   color: var(--text-secondary);
 }
@@ -1853,9 +1996,8 @@
   color: var(--text-primary);
 }
 .delivCardDue {
-  font-size: clamp(12px, 1.3vw, 22px);
+  flex: none;
+  font-size: clamp(11px, 1.15vw, 18px);
   color: var(--text-muted);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }

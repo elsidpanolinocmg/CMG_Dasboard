@@ -44,6 +44,8 @@ export interface CampaignDeliverables {
   done: number;
   /** Not yet done. */
   outstanding: number;
+  /** Human timing vs the deadline, e.g. "5 months overdue" / "due in 6 days". */
+  dueLabel: string;
   /** The status breakdown for the stacked bar — Done first, then by count. */
   statuses: StatusSlice[];
 }
@@ -82,6 +84,21 @@ function byDoneThenCount(a: StatusSlice, b: StatusSlice): number {
   const bd = b.status.toLowerCase() === "done";
   if (ad !== bd) return ad ? -1 : 1;
   return b.count - a.count || a.status.localeCompare(b.status);
+}
+
+/** How far a deadline is from today, in words: "5 months overdue", "due in 6 days". */
+function humanizeDue(deadlineDay: EpochDay | null, todayDay: EpochDay): string {
+  if (deadlineDay === null) return "";
+  const diff = todayDay - deadlineDay; // positive = overdue
+  if (diff === 0) return "due today";
+  const mag = Math.abs(diff);
+  const span =
+    mag < 14
+      ? `${mag} day${mag === 1 ? "" : "s"}`
+      : mag < 60
+        ? `${Math.round(mag / 7)} weeks`
+        : `${Math.round(mag / 30)} months`;
+  return diff > 0 ? `${span} overdue` : `due in ${span}`;
 }
 
 /** `"March 27"` → the epoch day of 27 March 2026, or null if it doesn't parse. */
@@ -175,6 +192,7 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
       total,
       done,
       outstanding,
+      dueLabel: humanizeDue(deadlineDay, todayDay),
       statuses,
     };
 

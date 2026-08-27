@@ -220,6 +220,23 @@ export const BINDING_SPECS: Record<string, BindingSpec> = {
       ],
     },
   },
+  ceo_video_interviews: {
+    label: "CEO · Video Interview Progress Tracker",
+    summary: "Per-campaign award video interviews and their production status, for the CEO progress tracker.",
+    usedBy: ["CEO → Video Interview Progress Tracker"],
+    readBy: ["src/lib/ceo-video-interviews/interviews.ts"],
+    layout: {
+      tabs: ["One tab per awards campaign; the READ ME, Timeline and Claude Cache tabs are skipped."],
+      columns: [
+        { column: "A", name: "Status", note: "Interviews run from row 5 down; Published / Approved / For client approval / …" },
+        { column: "D", name: "Client Name", note: "A row is a real interview only when column D names a client." },
+      ],
+      notes: [
+        "'Published' and 'Approved' count as complete; every other live status is in production.",
+        "'Cancelled' rows drop out of the totals.",
+      ],
+    },
+  },
   sponsorship: {
     label: "Sponsorship",
     summary: "Reserved for sponsorship figures.",
