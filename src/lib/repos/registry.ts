@@ -6,6 +6,7 @@ import * as externalDataSources from "./externalDataSources";
 import * as dataSourceBindings from "./dataSourceBindings";
 import * as adminReferences from "./adminReferences";
 import * as savedReferences from "./savedReferences";
+import * as quickLinks from "./quickLinks";
 import * as pageSettings from "./pageSettings";
 import * as birthdays from "./birthdays";
 import * as holidays from "./holidays";
@@ -56,6 +57,11 @@ export const repoRegistry: Record<string, RepoEntry> = {
     list: () => adminReferences.listAll(),
     upsert: (doc) => adminReferences.upsert(doc),
     remove: (input) => adminReferences.remove(input.id),
+  },
+  "quick-links": {
+    list: () => quickLinks.listAll(),
+    upsert: (doc) => quickLinks.upsert(doc),
+    remove: (input) => quickLinks.remove(input.id),
   },
   "saved-references": {
     list: () => savedReferences.listAll(),

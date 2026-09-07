@@ -60,3 +60,46 @@ export type CampaignWindowStats = {
   ctor: number | null;
   error: string | null;
 };
+
+/**
+ * One audience as written on the stats sheet's "Live Dashboard Data" tab.
+ *
+ * Every figure is nullable because the sheet genuinely leaves cells empty —
+ * a publication with no campaign history has no open rate, and the free
+ * Investment Asia account has no monthly cost. Null renders as "—" rather than
+ * a zero that would read as a real measurement.
+ *
+ * Rates are already in percent units (18.5 means 18.5%), matching what the
+ * Mailchimp API returns and what the dashboard prints.
+ */
+export type MailchimpSheetAudience = {
+  title: string;
+  subscribers: number | null;
+  openRate: number | null;
+  clickRate: number | null;
+  /** Lifetime unsubscribes, as a count. */
+  unsubCount: number | null;
+  /** Derived from the count: unsubs / (subscribers + unsubs), in percent. */
+  unsubRate: number | null;
+  /** Movement over the sheet's own reporting window (its Plus7D column). */
+  added: number | null;
+  unsubscribed: number | null;
+  cleaned: number | null;
+  net: number | null;
+  target: number | null;
+  /** As written — "S$282.00", "Free account", or null. */
+  monthlyCost: string | null;
+  note: string | null;
+};
+
+export type MailchimpSheetSnapshot = {
+  rows: MailchimpSheetAudience[];
+  /** The sheet's own LastChecked stamp: when Mailchimp was actually read. */
+  lastChecked: string | null;
+  tab: string;
+  /** Configuration and layout problems, shown on the page rather than thrown. */
+  warnings: string[];
+};
+
+/** The sheet's movement columns are a fixed 7-day window. */
+export const MAILCHIMP_SHEET_WINDOW_DAYS = 7;

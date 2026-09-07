@@ -220,6 +220,42 @@ export const BINDING_SPECS: Record<string, BindingSpec> = {
       ],
     },
   },
+  mailchimp_stats: {
+    label: "Mailchimp · Stats sheet",
+    summary:
+      "Every figure on the Mailchimp dashboard. Without it the page has nothing to show.",
+    usedBy: ["Mailchimp dashboard"],
+    readBy: ["src/lib/sources/mailchimpSheet.ts"],
+    layout: {
+      tabs: ["Daily Subscribers Stats (found by gid, so a rename does not break it)"],
+      columns: [
+        { name: "Title", note: "The publication. A row without one is skipped." },
+        { name: "Subscribers", note: "Audience size." },
+        { name: "OpenRate", note: "Percent already (18.5 = 18.5%), not a fraction." },
+        { name: "ClickRate", note: "Percent already." },
+        { name: "UnsubCount", note: "Lifetime unsubscribes; the dashboard's Unsub % is derived from it." },
+        { name: "Plus7D", note: "Subscribers added over the sheet's own 7-day window." },
+        { name: "MinusUns", note: "Unsubscribed over that window." },
+        { name: "MinusCln", note: "Cleaned over that window." },
+        { name: "Net", note: "Plus7D − MinusUns − MinusCln, as the sheet calculates it." },
+        { name: "Target", note: "Read but not yet shown on the dashboard." },
+        { name: "MonthlyCost", note: "Read but not yet shown. Free text — 'S$282.00', 'Free account'." },
+        { name: "LastChecked", note: "When the sheet last read Mailchimp. Shown as the dashboard's as-of time, and flagged amber once it is more than 36 hours old." },
+        { name: "Note", note: "Per-row caveat; becomes the row's tooltip." },
+      ],
+      notes: [
+        "Columns are matched by header name, not position, so inserting a column is safe. Renaming one is not.",
+        "The first row is the header row; every row below it with a Title is an audience.",
+        "Blank cells render as \"—\" rather than zero, so a missing figure never reads as a real measurement.",
+        "The dashboard does not call the Mailchimp API at all — whatever this sheet says is what it shows.",
+        "The sheet's own job runs daily, so the dashboard caches a reading for six hours. Refresh on the board clears that cache; it does not make the sheet's job run again.",
+      ],
+    },
+    configNotes: [
+      "Scope is the reserved slug 'mailchimp', not a department.",
+      "gid is what actually locates the tab — set it from the URL after #gid= so renaming the tab cannot break the dashboard. sheetName is the fallback.",
+    ],
+  },
   ceo_video_interviews: {
     label: "CEO · Video Interview Progress Tracker",
     summary: "Per-campaign award video interviews and their production status, for the CEO progress tracker.",

@@ -7,6 +7,7 @@ export * from "./externalDataSource";
 export * from "./dataSourceBinding";
 export * from "./adminReference";
 export * from "./savedReference";
+export * from "./quickLink";
 export * from "./cacheEntry";
 export * from "./activityLog";
 export * from "./pageSetting";

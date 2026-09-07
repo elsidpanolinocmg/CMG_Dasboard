@@ -12,6 +12,7 @@ const PURPOSE_LABELS: Record<string, string> = {
   ceo_invoice_register: "CEO · Invoice register",
   ceo_marketing: "CEO · Marketing sheet",
   ceo_short_form_videos: "CEO · Short Form Videos",
+  mailchimp_stats: "Mailchimp · Stats sheet",
   ceo_client_deliverables: "CEO · Client Deliverables Overdue",
   ceo_video_interviews: "CEO · Video Interview Progress Tracker",
 };

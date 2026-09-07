@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -18,13 +19,11 @@ const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : use
 import Link from "next/link";
 import DashboardControls from "@/components/DashboardControls";
 import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
-import { MAILCHIMP_WINDOW_OPTIONS } from "./windowDays";
+import type { MailchimpDisplay } from "./page";
 import {
-  LEAD_SOURCE_BUCKETS,
-  type AudienceMovement,
-  type LeadSourceBucket,
-  type LeadSourceMovement,
-  type MailchimpAudienceStats,
+  MAILCHIMP_SHEET_WINDOW_DAYS,
+  type MailchimpSheetAudience,
+  type MailchimpSheetSnapshot,
 } from "@/lib/sources/mailchimpTypes";
 
 const MC_BLACK = "#000000";
@@ -32,9 +31,10 @@ const MC_YELLOW = "#FFE01B";
 const MC_INK = "#1a1a1a";
 const MC_MUTED = "#6b6b6b";
 const MC_RED = "#9b1c1c";
+const MC_GREEN = "#166534";
+const MC_AMBER = "#a16207";
 const ALT_ROW_BG = "#fafafa";
 const ROW_BORDER = "#e5e5e5";
-const CHIP_BG = "#fff7c2";
 
 const PAGE_OPTIONS = [3, 4, 5, 6];
 const ROTATION_OPTIONS = [
@@ -45,102 +45,176 @@ const ROTATION_OPTIONS = [
   { label: "5 minutes", value: 300_000 },
 ];
 
-const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
-const TOP_LEAD_SOURCES = 3;
 
 type Props = {
-  audiences: MailchimpAudienceStats[];
-  engagement: MailchimpAudienceStats[];
-  movement: {
-    perAudience: AudienceMovement[];
-    totals: Record<LeadSourceBucket, LeadSourceMovement>;
-    grandTotals: { subscribed: number; unsubscribed: number; cleaned: number };
-    windowDays: number;
-  };
+  snapshot: MailchimpSheetSnapshot;
+  display: MailchimpDisplay;
+  /** Decided on the server, where the clock is current and shared. */
+  sheetIsStale: boolean;
 };
 
 type CombinedRow = {
   key: string;
   title: string;
-  listName: string | null;
-  members: number;
-  unsubsLifetime: number;
-  cleanedLifetime: number;
+  members: number | null;
   openRate: number | null;
   clickRate: number | null;
+  /** Lifetime unsubscribes as a count — the headline figure for the column. */
+  unsubs: number | null;
+  /** The same, as a share of everyone who ever joined. Shown underneath. */
   unsubRate: number | null;
-  byBucket: Record<LeadSourceBucket, LeadSourceMovement>;
-  windowSubs: number;
-  windowUnsubs: number;
-  windowCleaned: number;
-  windowNet: number;
-  error: string | null;
+  windowSubs: number | null;
+  windowUnsubs: number | null;
+  windowCleaned: number | null;
+  windowNet: number | null;
+  target: number | null;
+  /** As written on the sheet — "S$282.00", "Free account", or blank. */
+  monthlyCost: string | null;
+  /** Subscribers as a share of target, in percent. Null without both. */
+  targetPct: number | null;
+  /** Per-row caveat from the sheet, shown as the audience's tooltip. */
+  note: string | null;
 };
 
 function fmt(n: number): string {
   return n.toLocaleString();
 }
+/** A blank cell in the sheet is not a zero, so it prints as a dash. */
+function fmtNum(n: number | null): string {
+  return n === null || !Number.isFinite(n) ? "—" : fmt(n);
+}
+/** The percentage that sits under a count. Blank when there is nothing to show. */
+function pctSub(v: number | null): string | undefined {
+  if (v === null || !Number.isFinite(v)) return undefined;
+  return `${v.toFixed(v >= 10 ? 1 : 2)}%`;
+}
 function fmtPct(v: number | null): string {
   if (v === null || !Number.isFinite(v)) return "—";
   return `${v.toFixed(2)}%`;
 }
+/**
+ * Progress toward the subscriber target. Green once met, amber from three
+ * quarters of the way, otherwise plain — the same traffic-light reading the CEO
+ * boards use, so "are we there yet" is answerable at a glance.
+ */
+function targetColor(pct: number | null): string {
+  if (pct === null) return MC_MUTED;
+  if (pct >= 100) return MC_GREEN;
+  if (pct >= 75) return MC_AMBER;
+  return MC_INK;
+}
+
+/**
+ * The numeric part of a cost cell. The column is free text — "S$282.00" is a
+ * figure, "Free account" is not — so anything unparseable contributes nothing
+ * to the total rather than counting as zero.
+ */
+function parseCost(raw: string | null): number | null {
+  if (!raw) return null;
+  const n = Number(raw.replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * A count with its percentage underneath. The count is the figure people act
+ * on; the rate is context for it, so it is smaller and second — never the other
+ * way round.
+ */
+function StackedValue({
+  value,
+  pct,
+  pctColor,
+  valueColor,
+  bold,
+}: {
+  value: string;
+  pct: number | null;
+  pctColor?: string;
+  valueColor?: string;
+  bold?: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-end leading-tight">
+      <span
+        className={`font-mono tabular-nums ${bold ? "font-bold" : ""}`}
+        style={{ color: valueColor ?? MC_INK }}
+      >
+        {value}
+      </span>
+      {pct !== null && Number.isFinite(pct) && (
+        <span
+          className="font-mono tabular-nums"
+          style={{ color: pctColor ?? MC_MUTED, fontSize: "0.72em" }}
+        >
+          {pct.toFixed(pct >= 10 ? 1 : 2)}%
+        </span>
+      )}
+    </div>
+  );
+}
+
 function avg(arr: number[]): number | null {
   if (arr.length === 0) return null;
   return arr.reduce((s, v) => s + v, 0) / arr.length;
 }
 
-function buildCombinedRows(
-  audiences: MailchimpAudienceStats[],
-  engagement: MailchimpAudienceStats[],
-  perAudience: AudienceMovement[],
-): CombinedRow[] {
-  // Index engagement and movement by listId so we can join on the audience list.
-  const engById = new Map(engagement.map((e) => [e.listId, e]));
-  const movById = new Map(perAudience.map((m) => [m.listId, m]));
-  const empty = (): Record<LeadSourceBucket, LeadSourceMovement> => {
-    const out = {} as Record<LeadSourceBucket, LeadSourceMovement>;
-    for (const b of LEAD_SOURCE_BUCKETS) {
-      out[b] = { bucket: b, subscribed: 0, unsubscribed: 0, cleaned: 0 };
-    }
-    return out;
-  };
-  return audiences.map((a) => {
-    const eng = engById.get(a.listId);
-    const mov = movById.get(a.listId);
-    const byBucket = mov?.byBucket ?? empty();
-    const w = mov?.totals ?? { subscribed: 0, unsubscribed: 0, cleaned: 0 };
-    return {
-      key: `${a.title}-${a.listId}`,
-      title: a.title,
-      listName: a.listName,
-      members: a.memberCount,
-      unsubsLifetime: a.unsubscribeCount,
-      cleanedLifetime: a.cleanedCount,
-      openRate: eng?.openRate ?? a.openRate,
-      clickRate: eng?.clickRate ?? a.clickRate,
-      unsubRate: eng?.unsubscribeRate ?? a.unsubscribeRate,
-      byBucket,
-      windowSubs: w.subscribed,
-      windowUnsubs: w.unsubscribed,
-      windowCleaned: w.cleaned,
-      windowNet: w.subscribed - w.unsubscribed - w.cleaned,
-      error: a.error || mov?.error || null,
-    };
-  });
+function buildCombinedRows(audiences: MailchimpSheetAudience[]): CombinedRow[] {
+  return audiences.map((a, i) => ({
+    // The row's position, not its title. The sheet is rewritten in place by its
+    // own job, so a read that lands mid-write can see the same publication
+    // twice — and React refuses to render a list with a repeated key.
+    key: `${i}:${a.title}`,
+    title: a.title,
+    members: a.subscribers,
+    openRate: a.openRate,
+    clickRate: a.clickRate,
+    unsubs: a.unsubCount,
+    unsubRate: a.unsubRate,
+    windowSubs: a.added,
+    windowUnsubs: a.unsubscribed,
+    windowCleaned: a.cleaned,
+    // The sheet computes Net itself; fall back to the arithmetic only when it
+    // left that cell empty but gave us the parts.
+    windowNet: a.net ?? derivedNet(a),
+    target: a.target,
+    monthlyCost: a.monthlyCost,
+    targetPct:
+      a.target !== null && a.target > 0 && a.subscribers !== null
+        ? (a.subscribers / a.target) * 100
+        : null,
+    note: a.note,
+  }));
 }
 
-export default function MailchimpLeaderboard({ audiences, engagement, movement }: Props) {
+function derivedNet(a: MailchimpSheetAudience): number | null {
+  if (a.added === null && a.unsubscribed === null && a.cleaned === null) return null;
+  return (a.added ?? 0) - (a.unsubscribed ?? 0) - (a.cleaned ?? 0);
+}
+
+/** Sums a column, ignoring blanks; null when every row was blank. */
+function sumOrNull(values: (number | null)[]): number | null {
+  const present = values.filter((v): v is number => v !== null && Number.isFinite(v));
+  return present.length === 0 ? null : present.reduce((s, v) => s + v, 0);
+}
+
+export default function MailchimpLeaderboard({
+  snapshot,
+  display,
+  sheetIsStale,
+}: Props) {
   const router = useRouter();
   const [isRefreshing, startRefresh] = useTransition();
 
-  const rows = useMemo(
-    () => buildCombinedRows(audiences, engagement, movement.perAudience),
-    [audiences, engagement, movement.perAudience],
-  );
+  const rows = useMemo(() => buildCombinedRows(snapshot.rows), [snapshot.rows]);
 
-  const [pageSize, setPageSize] = useState<number>(6);
+  // Seeded from the admin panel's page settings; the on-screen controls still
+  // override them for the rest of this session.
+  const [pageSize, setPageSize] = useState<number>(display.pageSize);
   const [pageIndex, setPageIndex] = useState(0);
-  const [rotationInterval, setRotationInterval] = useState(60_000);
+  const [rotationInterval, setRotationInterval] = useState(display.rotationMs);
+  // Once the viewer picks a size from the controls, the narrow-screen cap steps
+  // aside — they can see what they asked for.
+  const [userSetPageSize, setUserSetPageSize] = useState(false);
   const rotationTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   // On a landscape phone, "Show All" scrolls the table with the header + Total
   // row pinned, instead of crushing every audience onto one screen.
@@ -148,28 +222,18 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
 
   function handleRefresh() {
     // Force-clear the server cache (page reads ?cache=clear), then drop the
-    // query so a subsequent reload doesn't keep clearing. Preserve current window.
+    // query so a subsequent reload doesn't keep clearing. This re-reads the
+    // sheet — it does not make the sheet's own job run again.
     startRefresh(() => {
-      router.replace(
-        `/dashboard/mailchimp?cache=clear&days=${movement.windowDays}&t=${Date.now()}`,
-      );
+      router.replace(`/dashboard/mailchimp?cache=clear&t=${Date.now()}`);
     });
   }
 
-  function handleWindowChange(nextDays: number) {
-    if (nextDays === movement.windowDays) return;
-    startRefresh(() => {
-      router.replace(`/dashboard/mailchimp?days=${nextDays}`);
-    });
-  }
-
-  // After mount, drop to a phone-friendly page size if the viewport is small.
-  // Done in useEffect (not useState init) so SSR and first client render match.
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      setPageSize(4);
-    }
-  }, []);
+  // A phone can't show six audiences legibly, so it caps the admin's page size
+  // rather than replacing it — a board configured to show 3 stays on 3.
+  const isNarrow = useMediaQuery("(max-width: 767px)");
+  const effectivePageSize =
+    isNarrow && !userSetPageSize ? Math.min(pageSize, 4) : pageSize;
 
   useEffect(() => {
     const mq = window.matchMedia("(orientation: landscape) and (max-height: 600px)");
@@ -179,14 +243,17 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
     return () => mq.removeEventListener("change", apply);
   }, []);
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-  const displayed = rows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+  const totalPages = Math.max(1, Math.ceil(rows.length / effectivePageSize));
+  const displayed = rows.slice(
+    pageIndex * effectivePageSize,
+    (pageIndex + 1) * effectivePageSize,
+  );
   const padded: (CombinedRow | null)[] = [...displayed];
-  while (padded.length < pageSize) padded.push(null);
+  while (padded.length < effectivePageSize) padded.push(null);
 
   // "Show All" sets pageSize to the row count. On a landscape phone, scroll the
   // table with the header + Total pinned rather than fitting everything.
-  const showingAll = rows.length > 0 && pageSize >= rows.length;
+  const showingAll = rows.length > 0 && effectivePageSize >= rows.length;
   const scrollAll = isShortLandscape && showingAll;
 
   // Portrait mobile cards: size by the PAGE SIZE (number of slots), not how many
@@ -196,7 +263,7 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
   // "Show All" is the exception: cards keep a readable size and the list scrolls.
   const cardBaseRem = showingAll
     ? 0.85
-    : Math.max(0.5, 0.95 - (pageSize - 3) * 0.15);
+    : Math.max(0.5, 0.95 - (effectivePageSize - 3) * 0.15);
 
   // Auto-fit: shrink ALL cards uniformly just enough that the tallest one (e.g.
   // a card whose chips wrap to a 2nd line) fits its equal-height box — so every
@@ -208,7 +275,7 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
   // Reset to full size whenever the page / data / viewport changes, then measure.
   useIsoLayoutEffect(() => {
     setFitScale(1);
-  }, [rows, pageIndex, pageSize]);
+  }, [rows, pageIndex, effectivePageSize]);
 
   useIsoLayoutEffect(() => {
     const grid = cardsGridRef.current;
@@ -222,7 +289,7 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
     }
     // Content scales linearly with the font, so one shrink makes it fit.
     if (worst > 1.01) setFitScale(Math.max(0.5, 1 / worst));
-  }, [fitScale, rows, pageIndex, pageSize]);
+  }, [fitScale, rows, pageIndex, effectivePageSize]);
 
   // Landscape table auto-fit: the row-distribution fit isn't reliable across
   // browsers (Chrome's smaller dvh can leave the table too tall to fit, which
@@ -233,7 +300,7 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
 
   useIsoLayoutEffect(() => {
     setTableFit(1);
-  }, [rows, pageIndex, pageSize]);
+  }, [rows, pageIndex, effectivePageSize]);
 
   useIsoLayoutEffect(() => {
     const t = tableRef.current;
@@ -244,7 +311,7 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
     if (t.scrollHeight > t.clientHeight * 1.01 && tableFit > 0.5) {
       setTableFit((f) => Math.max(0.5, f * (t.clientHeight / t.scrollHeight)));
     }
-  }, [tableFit, rows, pageIndex, pageSize]);
+  }, [tableFit, rows, pageIndex, effectivePageSize]);
 
   // Re-measure on resize / rotation (card + table heights change).
   useEffect(() => {
@@ -275,28 +342,60 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
 
   // Auto-refresh data — server component re-reads cache on router.refresh.
   useEffect(() => {
-    const id = setInterval(() => router.refresh(), REFRESH_INTERVAL_MS);
+    const id = setInterval(() => router.refresh(), display.refreshMs);
     return () => clearInterval(id);
-  }, [router]);
+  }, [router, display.refreshMs]);
 
   // Viewport-scaled sizing — same clamp formula family as the editorial leaderboard.
-  const count = pageSize || 1;
+  const count = effectivePageSize || 1;
   const eff = Math.min(count + 1, 12);
   const rowHeightVh = 70 / (count + 1);
   const fontSize = `clamp(0.8rem, min(calc(0.55vw + ${6 / eff}vw), ${rowHeightVh * 0.3}vh), 2.6rem)`;
   const headerSize = `clamp(0.65rem, min(calc(0.35vw + ${4 / eff}vw), ${rowHeightVh * 0.18}vh), 1.4rem)`;
-  const chipSize = `clamp(0.6rem, min(calc(0.3vw + ${3 / eff}vw), ${rowHeightVh * 0.16}vh), 1.1rem)`;
   const totalBigSize = `clamp(1rem, calc(0.6vw + ${7 / eff}vw), 2.6rem)`;
-  // Landscape table chip base size: only the dense Show 6 (or "All") shrinks the
-  // chips; Show 3–5 keep the original 0.52rem. Used by the .mc-table CSS var.
-  const chipRem = Math.max(0.45, 0.52 - Math.max(0, pageSize - 5) * 0.07);
 
-  // Aggregate footer numbers.
-  const okRows = rows.filter((r) => !r.error);
-  const totalSubs = okRows.reduce((s, r) => s + r.members, 0);
-  const avgOpen = avg(okRows.filter((r) => r.openRate !== null).map((r) => r.openRate!));
-  const avgClick = avg(okRows.filter((r) => r.clickRate !== null).map((r) => r.clickRate!));
-  const avgUnsubRate = avg(okRows.filter((r) => r.unsubRate !== null).map((r) => r.unsubRate!));
+  // Aggregate footer numbers. Every column is summed over the rows that
+  // actually carry a figure, so a publication with a blank cell drags nothing
+  // down — it simply isn't counted in that column.
+  const totalSubs = sumOrNull(rows.map((r) => r.members));
+  const avgOpen = avg(rows.filter((r) => r.openRate !== null).map((r) => r.openRate!));
+  const avgClick = avg(rows.filter((r) => r.clickRate !== null).map((r) => r.clickRate!));
+  const avgUnsubRate = avg(rows.filter((r) => r.unsubRate !== null).map((r) => r.unsubRate!));
+  const totalUnsubsLifetime = sumOrNull(rows.map((r) => r.unsubs));
+  const totalAdded = sumOrNull(rows.map((r) => r.windowSubs));
+  const totalUnsubs = sumOrNull(rows.map((r) => r.windowUnsubs));
+  const totalCleaned = sumOrNull(rows.map((r) => r.windowCleaned));
+  const totalNet = sumOrNull(rows.map((r) => r.windowNet));
+  // Only publications that actually carry a target are counted on both sides,
+  // so the percentage compares like with like rather than measuring every
+  // subscriber against a partial goal.
+  const withTarget = rows.filter((r) => r.target !== null && r.target > 0);
+  const totalTarget = sumOrNull(withTarget.map((r) => r.target));
+  const subsAgainstTarget = sumOrNull(withTarget.map((r) => r.members));
+  const totalTargetPct =
+    totalTarget !== null && totalTarget > 0 && subsAgainstTarget !== null
+      ? (subsAgainstTarget / totalTarget) * 100
+      : null;
+  // "Free account" and blanks contribute nothing; only real S$ figures add up.
+  const totalCost = sumOrNull(rows.map((r) => parseCost(r.monthlyCost)));
+
+  // The sheet's own LastChecked stamp — when Mailchimp was actually read, which
+  // is older than when this page rendered. Formatted after mount so the server's
+  // timezone never disagrees with the reader's.
+  const asOf = useFormattedStamp(snapshot.lastChecked);
+
+  // The admin panel can set a size or interval the dropdowns don't list, so the
+  // current value is folded in — otherwise the select renders with nothing
+  // chosen and the first change silently jumps to an unrelated option.
+  const pageChoices = Array.from(new Set([...PAGE_OPTIONS, display.pageSize])).sort(
+    (a, b) => a - b,
+  );
+  const rotationChoices = ROTATION_OPTIONS.some((o) => o.value === display.rotationMs)
+    ? ROTATION_OPTIONS
+    : [
+        ...ROTATION_OPTIONS,
+        { label: `${Math.round(display.rotationMs / 1000)} seconds`, value: display.rotationMs },
+      ].sort((a, b) => a.value - b.value);
 
   const swipe = useSwipeNav({
     onNext: () => setPageIndex((i) => Math.min(totalPages - 1, i + 1)),
@@ -326,7 +425,6 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
             {
               fontSize,
               "--mc-fit": tableFit,
-              "--mc-chip": `${chipRem}rem`,
             } as unknown as CSSProperties
           }
         >
@@ -340,18 +438,20 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
                 letterSpacing: "0.10em",
               }}
             >
-              <th className="px-3 sm:px-4 py-3 w-[26%]">Audience</th>
-              <th className="px-2 py-3 w-[10%] text-right">Subscribers</th>
-              <th className="px-2 py-3 w-[7%] text-right">Open</th>
-              <th className="px-2 py-3 w-[7%] text-right">Click</th>
-              <th className="px-2 py-3 w-[7%] text-right">Unsub</th>
-              <th className="px-2 py-3 w-[6%] text-right">+ {movement.windowDays}d</th>
-              <th className="px-2 py-3 w-[6%] text-right">− Uns</th>
-              <th className="px-2 py-3 w-[6%] text-right">− Cln</th>
-              <th className="px-3 sm:px-4 py-3 w-[8%] text-right">Net</th>
+              <th className="px-3 sm:px-4 py-3 w-[20%]">Audience</th>
+              <th className="px-2 py-3 w-[9%] text-right">Subscribers</th>
+              <th className="px-2 py-3 w-[10%] text-right">Target</th>
+              <th className="px-2 py-3 w-[6%] text-right">Open</th>
+              <th className="px-2 py-3 w-[6%] text-right">Click</th>
+              <th className="px-2 py-3 w-[6%] text-right">Unsub</th>
+              <th className="px-2 py-3 w-[6%] text-right">+ {MAILCHIMP_SHEET_WINDOW_DAYS}d</th>
+              <th className="px-2 py-3 w-[5%] text-right">− Uns</th>
+              <th className="px-2 py-3 w-[5%] text-right">− Cln</th>
+              <th className="px-2 py-3 w-[7%] text-right">Net</th>
+              <th className="px-3 sm:px-4 py-3 w-[9%] text-right">Cost / mo</th>
             </tr>
             <tr>
-              <td colSpan={9} style={{ padding: 0, height: 3, background: MC_YELLOW }} />
+              <td colSpan={11} style={{ padding: 0, height: 3, background: MC_YELLOW }} />
             </tr>
           </thead>
           <tbody>
@@ -361,7 +461,6 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
                 row={row}
                 idx={idx}
                 rowHeightVh={rowHeightVh}
-                chipSize={chipSize}
               />
             ))}
             {/* Footer total row */}
@@ -383,7 +482,14 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
                 className="px-2 py-2 text-right font-mono font-bold align-middle tabular-nums"
                 style={{ color: MC_BLACK, fontSize: totalBigSize }}
               >
-                {fmt(totalSubs)}
+                {fmtNum(totalSubs)}
+              </td>
+              <td className="px-2 py-2 text-right align-middle">
+                <StackedValue
+                  value={fmtNum(totalTarget)}
+                  pct={totalTargetPct}
+                  pctColor={targetColor(totalTargetPct)}
+                />
               </td>
               <td
                 className="px-2 py-2 text-right font-mono align-middle tabular-nums"
@@ -397,48 +503,41 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
               >
                 {fmtPct(avgClick)}
               </td>
-              <td
-                className="px-2 py-2 text-right font-mono align-middle tabular-nums"
-                style={{ color: MC_INK }}
-              >
-                {fmtPct(avgUnsubRate)}
+              <td className="px-2 py-2 text-right align-middle">
+                <StackedValue value={fmtNum(totalUnsubsLifetime)} pct={avgUnsubRate} />
               </td>
               <td
                 className="px-2 py-2 text-right font-mono font-bold align-middle tabular-nums"
                 style={{ color: MC_BLACK }}
               >
-                +{fmt(movement.grandTotals.subscribed)}
+                {signedOrDash(totalAdded)}
               </td>
               <td
                 className="px-2 py-2 text-right font-mono align-middle tabular-nums"
                 style={{ color: MC_RED }}
               >
-                −{fmt(movement.grandTotals.unsubscribed)}
+                {negativeOrDash(totalUnsubs)}
               </td>
               <td
                 className="px-2 py-2 text-right font-mono align-middle tabular-nums"
                 style={{ color: MC_RED }}
               >
-                −{fmt(movement.grandTotals.cleaned)}
+                {negativeOrDash(totalCleaned)}
               </td>
               <td
                 className="px-3 sm:px-4 py-2 text-right font-mono font-bold align-middle tabular-nums"
                 style={{
-                  color:
-                    movement.grandTotals.subscribed -
-                      movement.grandTotals.unsubscribed -
-                      movement.grandTotals.cleaned >=
-                    0
-                      ? MC_BLACK
-                      : MC_RED,
+                  color: (totalNet ?? 0) >= 0 ? MC_BLACK : MC_RED,
                   fontSize: totalBigSize,
                 }}
               >
-                {signedFmt(
-                  movement.grandTotals.subscribed -
-                    movement.grandTotals.unsubscribed -
-                    movement.grandTotals.cleaned,
-                )}
+                {signedOrDash(totalNet)}
+              </td>
+              <td
+                className="px-3 sm:px-4 py-2 text-right font-mono align-middle tabular-nums"
+                style={{ color: MC_INK, fontSize: "0.85em" }}
+              >
+                {totalCost === null ? "—" : `S$${fmt(Math.round(totalCost))}`}
               </td>
             </tr>
           </tbody>
@@ -461,16 +560,11 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
           style={
             showingAll
               ? { gridAutoRows: "min-content" }
-              : { gridTemplateRows: `repeat(${pageSize}, minmax(0, 1fr))` }
+              : { gridTemplateRows: `repeat(${effectivePageSize}, minmax(0, 1fr))` }
           }
         >
           {displayed.map((row) => (
-            <MobileCard
-              key={row.key}
-              row={row}
-              windowDays={movement.windowDays}
-              baseRem={cardBaseRem * fitScale}
-            />
+            <MobileCard key={row.key} row={row} baseRem={cardBaseRem * fitScale} />
           ))}
         </div>
         {/* Mobile totals card */}
@@ -482,41 +576,44 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
           }}
         >
           <div className="grid grid-cols-4 gap-x-2 gap-y-1">
-            <TotalCell label="Subs" value={fmt(totalSubs)} bold />
+            <TotalCell label="Subs" value={fmtNum(totalSubs)} bold />
+            <TotalCell
+              label="Target"
+              value={fmtNum(totalTarget)}
+              sub={pctSub(totalTargetPct)}
+              subColor={targetColor(totalTargetPct)}
+            />
             <TotalCell label="Open" value={fmtPct(avgOpen)} />
             <TotalCell label="Click" value={fmtPct(avgClick)} />
-            <TotalCell label="Unsub" value={fmtPct(avgUnsubRate)} />
             <TotalCell
-              label={`+${movement.windowDays}d`}
-              value={`+${fmt(movement.grandTotals.subscribed)}`}
+              label="Unsub"
+              value={fmtNum(totalUnsubsLifetime)}
+              sub={pctSub(avgUnsubRate)}
+            />
+            <TotalCell
+              label={`+${MAILCHIMP_SHEET_WINDOW_DAYS}d`}
+              value={signedOrDash(totalAdded)}
               bold
             />
             <TotalCell
               label="− Uns"
-              value={`−${fmt(movement.grandTotals.unsubscribed)}`}
+              value={negativeOrDash(totalUnsubs)}
               valueColor={MC_RED}
             />
             <TotalCell
               label="− Cln"
-              value={`−${fmt(movement.grandTotals.cleaned)}`}
+              value={negativeOrDash(totalCleaned)}
               valueColor={MC_RED}
             />
             <TotalCell
               label="Net"
-              value={signedFmt(
-                movement.grandTotals.subscribed -
-                  movement.grandTotals.unsubscribed -
-                  movement.grandTotals.cleaned,
-              )}
-              valueColor={
-                movement.grandTotals.subscribed -
-                  movement.grandTotals.unsubscribed -
-                  movement.grandTotals.cleaned >=
-                0
-                  ? MC_BLACK
-                  : MC_RED
-              }
+              value={signedOrDash(totalNet)}
+              valueColor={(totalNet ?? 0) >= 0 ? MC_BLACK : MC_RED}
               bold
+            />
+            <TotalCell
+              label="Cost / mo"
+              value={totalCost === null ? "—" : `S$${fmt(Math.round(totalCost))}`}
             />
           </div>
         </div>
@@ -541,11 +638,12 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
           value={pageSize}
           onChange={(e) => {
             setPageSize(Number(e.target.value));
+            setUserSetPageSize(true);
             setPageIndex(0);
           }}
           className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 [&>option]:bg-gray-800 [&>option]:text-white"
         >
-          {PAGE_OPTIONS.map((n) => (
+          {pageChoices.map((n) => (
             <option key={n} value={n}>
               Show {n}
             </option>
@@ -567,27 +665,26 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
           onChange={(e) => setRotationInterval(Number(e.target.value))}
           className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 [&>option]:bg-gray-800 [&>option]:text-white"
         >
-          {ROTATION_OPTIONS.map((opt) => (
+          {rotationChoices.map((opt) => (
             <option key={opt.value} value={opt.value}>
               Rotate · {opt.label}
             </option>
           ))}
         </select>
-        <select
-          value={movement.windowDays}
-          onChange={(e) => handleWindowChange(Number(e.target.value))}
-          disabled={isRefreshing}
-          title="Date range for the +/- columns"
-          className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 disabled:opacity-50 [&>option]:bg-gray-800 [&>option]:text-white"
-        >
-          {MAILCHIMP_WINDOW_OPTIONS.map((d) => (
-            <option key={d} value={d}>
-              Window · last {d} days
-            </option>
-          ))}
-        </select>
+        {asOf && (
+          <span
+            className={`text-sm ${sheetIsStale ? "text-amber-300" : "text-white/70"}`}
+            title={
+              sheetIsStale
+                ? `The sheet updates daily, and this reading is older than that — its job may have failed. Tab: ${snapshot.tab}`
+                : `Sheet tab: ${snapshot.tab}`
+            }
+          >
+            {sheetIsStale ? "⚠ " : ""}Sheet as of {asOf}
+          </span>
+        )}
         <Link
-          href={`/dashboard/mailchimp/reports?days=${movement.windowDays}`}
+          href="/dashboard/mailchimp/reports"
           className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60"
         >
           Reports →
@@ -597,24 +694,61 @@ export default function MailchimpLeaderboard({ audiences, engagement, movement }
   );
 }
 
+/** Nothing to subscribe to — the store only distinguishes server from client. */
+const subscribeNothing = () => () => {};
+
+/**
+ * Matches a media query, reported as false during SSR so the server and the
+ * first client render agree. Subscribing through useSyncExternalStore keeps the
+ * value in step with a rotation or resize without a setState-in-effect.
+ */
+function useMediaQuery(query: string): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(query);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}
+
+/**
+ * Formats the sheet's ISO stamp in the reader's own timezone. Returns null
+ * during SSR so the server's timezone can't disagree with the browser's and
+ * trip a hydration mismatch.
+ */
+function useFormattedStamp(iso: string | null): string | null {
+  const mounted = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  if (!mounted || !iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function signedFmt(n: number): string {
   return `${n >= 0 ? "+" : ""}${fmt(n)}`;
 }
 
-function MobileCard({
-  row,
-  windowDays,
-  baseRem,
-}: {
-  row: CombinedRow;
-  windowDays: number;
-  baseRem: number;
-}) {
-  const buckets = LEAD_SOURCE_BUCKETS.map((b) => row.byBucket[b])
-    .filter((b) => b.subscribed + b.unsubscribed + b.cleaned > 0)
-    .sort((a, b) => b.subscribed - a.subscribed)
-    .slice(0, TOP_LEAD_SOURCES);
-  const netColor = row.windowNet < 0 ? MC_RED : MC_BLACK;
+/** Movement figures: signed when present, a dash when the sheet left it blank. */
+function signedOrDash(n: number | null): string {
+  return n === null || !Number.isFinite(n) ? "—" : signedFmt(n);
+}
+
+/** Losses print with a leading minus; blank stays a dash, zero stays "0". */
+function negativeOrDash(n: number | null): string {
+  if (n === null || !Number.isFinite(n)) return "—";
+  return n === 0 ? "0" : `−${fmt(n)}`;
+}
+
+function MobileCard({ row, baseRem }: { row: CombinedRow; baseRem: number }) {
+  const netColor = (row.windowNet ?? 0) < 0 ? MC_RED : MC_BLACK;
   return (
     <div
       className="rounded-lg h-full min-h-0 overflow-hidden flex flex-col justify-between"
@@ -637,91 +771,59 @@ function MobileCard({
         <span
           className="font-bold uppercase leading-tight flex-1 min-w-0 break-words"
           style={{ color: MC_BLACK, letterSpacing: "0.04em", fontSize: "1em" }}
+          title={row.note ?? undefined}
         >
           {row.title}
         </span>
-        {!row.error && (
-          <span
-            className="font-mono font-bold tabular-nums shrink-0"
-            style={{ color: MC_BLACK, fontSize: "1.1em" }}
-          >
-            {fmt(row.members)}
-          </span>
-        )}
-      </div>
-      {row.error ? (
-        <div
-          className="inline-block uppercase font-semibold tracking-wider"
-          style={{
-            fontSize: "0.74em",
-            background: "#ffe4e4",
-            color: MC_RED,
-            border: `1px solid #f5b5b5`,
-            padding: "2px 8px",
-            borderRadius: 9999,
-          }}
+        <span
+          className="font-mono font-bold tabular-nums shrink-0"
+          style={{ color: MC_BLACK, fontSize: "1.1em" }}
         >
-          Error loading data
+          {fmtNum(row.members)}
+        </span>
+      </div>
+      {/* Engagement rates row */}
+      <div className="grid grid-cols-4 gap-2" style={{ marginBottom: "0.5em" }}>
+        <Metric label="Open" value={fmtPct(row.openRate)} />
+        <Metric label="Click" value={fmtPct(row.clickRate)} />
+        <Metric label="Unsub" value={fmtNum(row.unsubs)} sub={pctSub(row.unsubRate)} />
+        <Metric
+          label="Target"
+          value={fmtNum(row.target)}
+          sub={pctSub(row.targetPct)}
+          subColor={targetColor(row.targetPct)}
+        />
+      </div>
+      {/* Movement row */}
+      <div
+        className="grid grid-cols-4 gap-2"
+        style={{ borderTop: `1px dashed ${ROW_BORDER}`, paddingTop: "0.5em" }}
+      >
+        <Metric
+          label={`+${MAILCHIMP_SHEET_WINDOW_DAYS}d`}
+          value={signedOrDash(row.windowSubs)}
+          valueColor={MC_BLACK}
+          bold
+        />
+        <Metric
+          label="− Uns"
+          value={negativeOrDash(row.windowUnsubs)}
+          valueColor={row.windowUnsubs ? MC_RED : MC_MUTED}
+        />
+        <Metric
+          label="− Cln"
+          value={negativeOrDash(row.windowCleaned)}
+          valueColor={row.windowCleaned ? MC_RED : MC_MUTED}
+        />
+        <Metric label="Net" value={signedOrDash(row.windowNet)} valueColor={netColor} bold />
+      </div>
+      {row.monthlyCost && (
+        <div
+          className="text-right"
+          style={{ color: MC_MUTED, fontSize: "0.66em", marginTop: "0.35em" }}
+        >
+          {row.monthlyCost} / mo
         </div>
-      ) : (
-        <>
-          {/* Engagement rates row */}
-          <div className="grid grid-cols-3 gap-2" style={{ marginBottom: "0.5em" }}>
-            <Metric label="Open" value={fmtPct(row.openRate)} />
-            <Metric label="Click" value={fmtPct(row.clickRate)} />
-            <Metric label="Unsub" value={fmtPct(row.unsubRate)} />
-          </div>
-          {/* Movement row */}
-          <div
-            className="grid grid-cols-4 gap-2"
-            style={{ borderTop: `1px dashed ${ROW_BORDER}`, paddingTop: "0.5em" }}
-          >
-            <Metric
-              label={`+${windowDays}d`}
-              value={row.windowSubs ? `+${fmt(row.windowSubs)}` : "0"}
-              valueColor={MC_BLACK}
-              bold
-            />
-            <Metric
-              label="− Uns"
-              value={row.windowUnsubs ? `−${fmt(row.windowUnsubs)}` : "0"}
-              valueColor={row.windowUnsubs ? MC_RED : MC_MUTED}
-            />
-            <Metric
-              label="− Cln"
-              value={row.windowCleaned ? `−${fmt(row.windowCleaned)}` : "0"}
-              valueColor={row.windowCleaned ? MC_RED : MC_MUTED}
-            />
-            <Metric label="Net" value={signedFmt(row.windowNet)} valueColor={netColor} bold />
-          </div>
-          {/* Lead source chips — allowed to wrap to a 2nd line; the card grows to
-              fit (see the grid's minmax row sizing) instead of clipping them. */}
-          {buckets.length > 0 && (
-            <div className="flex flex-wrap gap-1" style={{ marginTop: "0.4em" }}>
-              {buckets.map((b) => (
-                <span
-                  key={b.bucket}
-                  className="inline-flex items-baseline gap-1 uppercase font-semibold tracking-wider"
-                  style={{
-                    fontSize: "0.68em",
-                    background: CHIP_BG,
-                    color: MC_BLACK,
-                    border: `1px solid ${MC_YELLOW}`,
-                    padding: "0 6px",
-                    borderRadius: 9999,
-                    lineHeight: 1.2,
-                  }}
-                  title={`+${b.subscribed} · −${b.unsubscribed} unsubs · −${b.cleaned} cleaned`}
-                >
-                  <span>{b.bucket}</span>
-                  <span className="font-mono" style={{ color: MC_INK }}>
-                    +{b.subscribed}
-                  </span>
-                </span>
-              ))}
-            </div>
-          )}
-        </>
       )}
     </div>
   );
@@ -730,12 +832,17 @@ function MobileCard({
 function Metric({
   label,
   value,
+  sub,
   valueColor,
+  subColor,
   bold,
 }: {
   label: string;
   value: string;
+  /** Context under the figure — a rate under a count, never the other way round. */
+  sub?: string;
   valueColor?: string;
+  subColor?: string;
   bold?: boolean;
 }) {
   return (
@@ -749,6 +856,14 @@ function Metric({
       >
         {value}
       </span>
+      {sub && (
+        <span
+          className="font-mono tabular-nums leading-none"
+          style={{ color: subColor ?? MC_MUTED, fontSize: "0.62em" }}
+        >
+          {sub}
+        </span>
+      )}
     </div>
   );
 }
@@ -756,12 +871,16 @@ function Metric({
 function TotalCell({
   label,
   value,
+  sub,
   valueColor,
+  subColor,
   bold,
 }: {
   label: string;
   value: string;
+  sub?: string;
   valueColor?: string;
+  subColor?: string;
   bold?: boolean;
 }) {
   return (
@@ -778,6 +897,14 @@ function TotalCell({
       >
         {value}
       </span>
+      {sub && (
+        <span
+          className="font-mono tabular-nums"
+          style={{ color: subColor ?? MC_MUTED, fontSize: "0.58rem" }}
+        >
+          {sub}
+        </span>
+      )}
     </div>
   );
 }
@@ -786,19 +913,11 @@ function CombinedRowView({
   row,
   idx,
   rowHeightVh,
-  chipSize,
 }: {
   row: CombinedRow | null;
   idx: number;
   rowHeightVh: number;
-  chipSize: string;
 }) {
-  const buckets = row
-    ? LEAD_SOURCE_BUCKETS.map((b) => row.byBucket[b])
-        .filter((b) => b.subscribed + b.unsubscribed + b.cleaned > 0)
-        .sort((a, b) => b.subscribed - a.subscribed)
-        .slice(0, TOP_LEAD_SOURCES)
-    : [];
   return (
     <tr
       style={{
@@ -810,108 +929,77 @@ function CombinedRowView({
     >
       <td className="px-3 sm:px-4 py-2 align-middle">
         {row && (
-          <div className="flex flex-col gap-1">
-            <span
-              className="font-bold uppercase leading-tight"
-              style={{ color: MC_BLACK, letterSpacing: "0.04em" }}
-              title={row.title}
-            >
-              {row.title}
-            </span>
-            {buckets.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {buckets.map((b) => (
-                  <span
-                    key={b.bucket}
-                    className="inline-flex items-baseline gap-1 uppercase font-semibold tracking-wider"
-                    style={{
-                      fontSize: chipSize,
-                      background: CHIP_BG,
-                      color: MC_BLACK,
-                      border: `1px solid ${MC_YELLOW}`,
-                      padding: "1px 8px",
-                      borderRadius: 9999,
-                      lineHeight: 1.4,
-                    }}
-                    title={`+${b.subscribed} · −${b.unsubscribed} unsubs · −${b.cleaned} cleaned`}
-                  >
-                    <span>{b.bucket}</span>
-                    <span className="font-mono" style={{ color: MC_INK }}>
-                      +{b.subscribed}
-                    </span>
-                  </span>
-                ))}
-              </div>
-            )}
-            {row.error && (
-              <span
-                className="inline-block uppercase font-semibold tracking-wider"
-                style={{
-                  fontSize: chipSize,
-                  background: "#ffe4e4",
-                  color: "#9b1c1c",
-                  border: `1px solid #f5b5b5`,
-                  padding: "1px 8px",
-                  borderRadius: 9999,
-                  width: "fit-content",
-                }}
-              >
-                Error
-              </span>
-            )}
-          </div>
+          <span
+            className="font-bold uppercase leading-tight"
+            style={{ color: MC_BLACK, letterSpacing: "0.04em" }}
+            title={row.note ?? row.title}
+          >
+            {row.title}
+          </span>
         )}
       </td>
       <td
         className="px-2 py-2 text-right font-mono font-bold align-middle tabular-nums"
         style={{ color: MC_BLACK, fontSize: "1.2em" }}
       >
-        {row ? (row.error ? "—" : fmt(row.members)) : ""}
+        {row ? fmtNum(row.members) : ""}
+      </td>
+      <td className="px-2 py-2 text-right align-middle">
+        {row && (
+          <StackedValue
+            value={fmtNum(row.target)}
+            pct={row.targetPct}
+            pctColor={targetColor(row.targetPct)}
+          />
+        )}
       </td>
       <td
         className="px-2 py-2 text-right font-mono align-middle tabular-nums"
         style={{ color: MC_INK }}
       >
-        {row ? (row.error ? "—" : fmtPct(row.openRate)) : ""}
+        {row ? fmtPct(row.openRate) : ""}
       </td>
       <td
         className="px-2 py-2 text-right font-mono align-middle tabular-nums"
         style={{ color: MC_INK }}
       >
-        {row ? (row.error ? "—" : fmtPct(row.clickRate)) : ""}
+        {row ? fmtPct(row.clickRate) : ""}
       </td>
-      <td
-        className="px-2 py-2 text-right font-mono align-middle tabular-nums"
-        style={{ color: MC_INK }}
-      >
-        {row ? (row.error ? "—" : fmtPct(row.unsubRate)) : ""}
+      <td className="px-2 py-2 text-right align-middle">
+        {row && <StackedValue value={fmtNum(row.unsubs)} pct={row.unsubRate} />}
       </td>
       <td
         className="px-2 py-2 text-right font-mono font-bold align-middle tabular-nums"
         style={{ color: MC_BLACK }}
       >
-        {row ? (row.windowSubs ? `+${fmt(row.windowSubs)}` : "0") : ""}
+        {row ? signedOrDash(row.windowSubs) : ""}
       </td>
       <td
         className="px-2 py-2 text-right font-mono align-middle tabular-nums"
         style={{ color: row?.windowUnsubs ? MC_RED : MC_MUTED }}
       >
-        {row ? (row.windowUnsubs ? `−${fmt(row.windowUnsubs)}` : "0") : ""}
+        {row ? negativeOrDash(row.windowUnsubs) : ""}
       </td>
       <td
         className="px-2 py-2 text-right font-mono align-middle tabular-nums"
         style={{ color: row?.windowCleaned ? MC_RED : MC_MUTED }}
       >
-        {row ? (row.windowCleaned ? `−${fmt(row.windowCleaned)}` : "0") : ""}
+        {row ? negativeOrDash(row.windowCleaned) : ""}
       </td>
       <td
         className="px-3 sm:px-4 py-2 text-right font-mono font-bold align-middle tabular-nums"
         style={{
-          color: row && row.windowNet < 0 ? MC_RED : MC_BLACK,
+          color: row && (row.windowNet ?? 0) < 0 ? MC_RED : MC_BLACK,
           fontSize: "1.15em",
         }}
       >
-        {row ? signedFmt(row.windowNet) : ""}
+        {row ? signedOrDash(row.windowNet) : ""}
+      </td>
+      <td
+        className="px-3 sm:px-4 py-2 text-right font-mono align-middle tabular-nums"
+        style={{ color: MC_MUTED, fontSize: "0.85em" }}
+      >
+        {row ? (row.monthlyCost ?? "—") : ""}
       </td>
     </tr>
   );

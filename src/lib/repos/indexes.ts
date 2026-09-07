@@ -47,6 +47,9 @@ export const indexSpecs: IndexSpec[] = [
   { collection: "admin_references", keys: { id: 1 }, options: { unique: true } },
   { collection: "admin_references", keys: { order: 1 } },
 
+  { collection: "quick_links", keys: { id: 1 }, options: { unique: true } },
+  { collection: "quick_links", keys: { order: 1 } },
+
   { collection: "saved_references", keys: { id: 1 }, options: { unique: true } },
 
   { collection: "cache_entries", keys: { key: 1 }, options: { unique: true } },

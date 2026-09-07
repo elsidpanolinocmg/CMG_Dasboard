@@ -1,11 +1,15 @@
 import Link from "next/link";
 import * as brandsRepo from "@/lib/repos/brands";
+import * as quickLinksRepo from "@/lib/repos/quickLinks";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const allBrands = await brandsRepo.listAll({ active: true });
   const editorialBrands = allBrands.filter((b) => b.departments?.includes("editorial"));
+  // A quick-links failure must not take the whole home page down — the links
+  // are an extra, the dashboard index is the point of the page.
+  const quickLinks = await quickLinksRepo.listVisible().catch(() => []);
 
   return (
     <div className="bg-transparent min-h-screen flex items-start sm:items-center justify-center flex-col gap-6 px-4 py-10 text-lg">
@@ -62,6 +66,22 @@ export default async function Home() {
             </Link>
           ))}
         </div>
+
+        {quickLinks.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="font-semibold opacity-60 text-sm uppercase tracking-wide mb-1">
+              Quick links
+            </span>
+            {quickLinks.map((l) => (
+              <QuickLink
+                key={l.id}
+                label={l.label}
+                href={l.href}
+                description={l.description}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <Link href="/dashboard/mailchimp" className="font-semibold hover:underline">
@@ -95,5 +115,39 @@ function Column({
         </Link>
       ))}
     </div>
+  );
+}
+
+/**
+ * Admin-managed link. The href is entered by hand in the admin panel and can
+ * point anywhere, so external targets get `target="_blank"` and `noreferrer`,
+ * while in-app paths stay client-routed through Link.
+ */
+function QuickLink({
+  label,
+  href,
+  description,
+}: {
+  label: string;
+  href: string;
+  description?: string;
+}) {
+  const internal = href.startsWith("/");
+  const body = (
+    <>
+      <span className="hover:underline">{label}</span>
+      {description && (
+        <span className="block text-sm opacity-60">{description}</span>
+      )}
+    </>
+  );
+  return internal ? (
+    <Link href={href} className="leading-tight">
+      {body}
+    </Link>
+  ) : (
+    <a href={href} target="_blank" rel="noreferrer" className="leading-tight">
+      {body}
+    </a>
   );
 }

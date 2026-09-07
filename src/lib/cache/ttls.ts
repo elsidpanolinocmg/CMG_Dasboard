@@ -22,6 +22,12 @@ export const ttls = {
   EDITORIAL_PAGEVIEWS_STALE: 15 * MINUTE,
   DRUPAL_AUTHORS: 1 * DAY,
   DRUPAL_AUTHORS_STALE: 1 * HOUR,
+  // The stats sheet's own job rewrites it once a day, so re-reading it more
+  // often than a few times a day buys nothing but Sheets API calls. Six hours
+  // still picks up a daily run within a quarter of a day, and the Refresh
+  // button clears the cache outright when someone wants it now.
+  MAILCHIMP_SHEET: 6 * HOUR,
+  MAILCHIMP_SHEET_STALE: 1 * HOUR,
   // Subscriber counts refresh daily.
   MAILCHIMP_AUDIENCES: 24 * HOUR,
   MAILCHIMP_AUDIENCES_STALE: 1 * HOUR,

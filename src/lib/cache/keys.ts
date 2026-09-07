@@ -19,6 +19,7 @@ export const cacheKeys = {
   editorialLeaderboard: (range: string, section: string) =>
     `editorial:leaderboard:${range}:${section || "all"}`,
   drupalAuthors: (brand: string) => `drupal:authors:${brand}`,
+  mailchimpSheet: () => `mailchimp:sheet`,
   mailchimpAudiences: () => `mailchimp:audiences`,
   mailchimpEngagement: () => `mailchimp:engagement`,
   mailchimpMovement: (days: number) => `mailchimp:movement:${days}d`,

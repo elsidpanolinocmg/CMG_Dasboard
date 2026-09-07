@@ -363,16 +363,6 @@ select option {
   .mc-table tbody tr:last-child td {
     font-size: calc(0.82rem * var(--mc-fit, 1)) !important;
   }
-  /* Lead-source chips (the only inline-flex spans in the table). Their base size
-     (--mc-chip) is set per page size in JS — only the dense Show 6 shrinks them,
-     since that's where a wrapped chip row pushed the bottom rows out and clipped
-     in Chrome. --mc-fit then keeps the whole table fitting if a row still wraps. */
-  .mc-table .inline-flex {
-    font-size: calc(var(--mc-chip, 0.52rem) * var(--mc-fit, 1)) !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    line-height: 1.2 !important;
-  }
   /* The reports "Open % excludes Apple Mail…" footnote — shrink it on a landscape
      phone so it doesn't eat the table's vertical space. */
   .mc-note {
