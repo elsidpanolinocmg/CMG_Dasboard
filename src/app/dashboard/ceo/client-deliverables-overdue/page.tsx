@@ -16,6 +16,7 @@ export default async function CeoClientDeliverablesPage() {
     totalDeliverables: 0,
     totalPastDeadline: 0,
     statusLegend: [],
+    updatedAt: null,
     source: "none",
     warnings: [],
   };
