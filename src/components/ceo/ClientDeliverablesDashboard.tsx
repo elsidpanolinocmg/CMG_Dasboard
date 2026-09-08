@@ -13,16 +13,37 @@ export interface ClientDeliverablesDashboardProps {
   live: boolean;
 }
 
+/** An ISO timestamp as a short Singapore-time label, e.g. "7 Sep 2026, 3:42 PM". */
+function formatUpdated(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Singapore",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(d);
+}
+
 /**
  * Client deliverables against their campaign deadlines. A summary tile row, then
  * a completion bar per campaign split into two groups — overdue (past deadline)
  * and on track (deadline ahead). Shares the CEO white theme.
  */
 export function ClientDeliverablesDashboard({ data, live }: ClientDeliverablesDashboardProps) {
-  const { overdue, onTrack, totalOverdue, totalDone, totalDeliverables, statusLegend } = data;
+  const { overdue, onTrack, totalOverdue, totalDone, totalDeliverables, statusLegend, updatedAt } = data;
   const pctDone = totalDeliverables ? Math.round((totalDone / totalDeliverables) * 100) : 0;
 
-  const subtitle = ["2026", live ? null : "No sheet connected — no figures available."].filter(Boolean).join(" · ");
+  const subtitle = [
+    "2026",
+    updatedAt ? `Updated ${formatUpdated(updatedAt)}` : null,
+    live ? null : "No sheet connected — no figures available.",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <section className={`${styles.panel} ${titleFont.variable}`} data-fullscreen="true" data-sfv="true">
