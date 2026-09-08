@@ -1,6 +1,26 @@
+import { google } from "googleapis";
 import { resolveCeoSheetId } from "@/lib/ceo/sheet-binding";
 import { today, toEpochDay, type EpochDay } from "@/lib/ceo/week";
-import { getSheetsClient } from "@/lib/sources/googleOAuth";
+import { getOAuth2Client, getSheetsClient } from "@/lib/sources/googleOAuth";
+
+/**
+ * The workbook's last-edit time from Drive (any tab), as ISO 8601 — a truer "as of"
+ * than our read time. Returns null when the token has no Drive scope or the call
+ * fails, so the caller can fall back to the fetch time.
+ */
+async function readSheetModifiedTime(spreadsheetId: string): Promise<string | null> {
+  try {
+    const drive = google.drive({ version: "v3", auth: getOAuth2Client() });
+    const res = await drive.files.get({
+      fileId: spreadsheetId,
+      fields: "modifiedTime",
+      supportsAllDrives: true,
+    });
+    return res.data.modifiedTime ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Reads the client-deliverables workbook: one tab per awards campaign, each on
@@ -62,6 +82,9 @@ export interface ClientDeliverables {
   totalPastDeadline: number;
   /** Every status seen across 2026 campaigns, Done first — for a shared legend. */
   statusLegend: string[];
+  /** When the data was captured: the sheet's own last-edit time when Drive allows
+   *  it, else the moment this read ran. ISO 8601, or null if unknown. */
+  updatedAt: string | null;
   source: "sheet" | "none";
   warnings: string[];
 }
@@ -74,6 +97,7 @@ const EMPTY: ClientDeliverables = {
   totalDeliverables: 0,
   totalPastDeadline: 0,
   statusLegend: [],
+  updatedAt: null,
   source: "none",
   warnings: [],
 };
@@ -216,6 +240,9 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
     .sort(byDoneThenCount)
     .map((s) => s.status);
 
+  // The sheet's own last-edit time when Drive permits it, else our read time.
+  const updatedAt = (await readSheetModifiedTime(spreadsheetId)) ?? new Date().toISOString();
+
   return {
     overdue,
     onTrack: onTrack.map(({ deadlineDay: _d, ...c }) => c),
@@ -224,6 +251,7 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
     totalDeliverables,
     totalPastDeadline,
     statusLegend,
+    updatedAt,
     source: "sheet",
     warnings: [],
   };
