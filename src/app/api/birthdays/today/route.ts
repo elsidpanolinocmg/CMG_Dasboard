@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTodaysBirthdaySlides } from "@/lib/birthdays/today";
+import { getRotationSlides } from "@/lib/rotation/slides";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 300; // 5 minutes
@@ -7,7 +8,10 @@ export const revalidate = 300; // 5 minutes
 export async function GET(req: NextRequest) {
   try {
     const pageKey = req.nextUrl.searchParams.get("page") ?? undefined;
-    const slides = await getTodaysBirthdaySlides(pageKey);
+    // With a page key this also returns the custom pages rotating on that page.
+    const slides = pageKey
+      ? await getRotationSlides(pageKey)
+      : await getTodaysBirthdaySlides();
     return NextResponse.json(slides, {
       headers: {
         // Allow CDN/edge caching for 5 min, allow stale for 1 hour while revalidating.

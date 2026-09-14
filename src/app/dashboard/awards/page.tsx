@@ -5,7 +5,7 @@ import { getAwards, type AwardsBrand } from "@/lib/sources/drupalAwards";
 import { manualAwards } from "@/lib/sources/manualEvents";
 import LoadingPage from "@/components/LoadingPage";
 import AwardsGridClient from "./AwardsGridClient";
-import { getTodaysBirthdaySlides } from "@/lib/birthdays/today";
+import { getRotationSlides } from "@/lib/rotation/slides";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +31,7 @@ async function loadAwards() {
 async function AwardsContent() {
   const [awards, birthdays] = await Promise.all([
     loadAwards(),
-    getTodaysBirthdaySlides("dashboard/awards"),
+    getRotationSlides("dashboard/awards"),
   ]);
   return <AwardsGridClient awards={awards} birthdays={birthdays} />;
 }

@@ -65,7 +65,7 @@ function buildSlides(brands: BrandEntry[], birthdays: BirthdaySlideEntry[]): Sli
 
 export default function BrandRotationClient({ brands, birthdays: birthdaysProp = [] }: Props) {
   const isMobile = useIsMobile();
-  const birthdays = isMobile ? [] : birthdaysProp;
+  const birthdays = useMemo(() => (isMobile ? [] : birthdaysProp), [isMobile, birthdaysProp]);
   const [rotationInterval, setRotationInterval] = useState(60_000);
   const [currentIndex, setCurrentIndex] = useState(0);
   const rotationTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -91,6 +91,20 @@ export default function BrandRotationClient({ brands, birthdays: birthdaysProp =
     );
   }
 
+  // Manual Prev/Next lands on brands and birthdays as before, but skips custom
+  // pages that the admin kept out of Next — those only come up on the timer.
+  const step = (dir: 1 | -1) =>
+    setCurrentIndex((i) => {
+      const n = slides.length;
+      let j = i;
+      for (let k = 0; k < n; k++) {
+        j = (j + dir + n) % n;
+        const s = slides[j];
+        if (s.kind !== "birthday" || s.entry.kind !== "custom" || s.entry.inNext) return j;
+      }
+      return i;
+    });
+
   const safeIndex = currentIndex % slides.length;
   const current = slides[safeIndex];
 
@@ -110,7 +124,7 @@ export default function BrandRotationClient({ brands, birthdays: birthdaysProp =
       )}
       <DashboardControls>
         <button
-          onClick={() => setCurrentIndex((i) => (i - 1 + slides.length) % slides.length)}
+          onClick={() => step(-1)}
           className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60"
         >
           ◀ Prev
@@ -127,7 +141,7 @@ export default function BrandRotationClient({ brands, birthdays: birthdaysProp =
           ))}
         </select>
         <button
-          onClick={() => setCurrentIndex((i) => (i + 1) % slides.length)}
+          onClick={() => step(1)}
           className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60"
         >
           Next ▶

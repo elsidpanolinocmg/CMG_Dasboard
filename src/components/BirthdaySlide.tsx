@@ -2,11 +2,18 @@
 
 export interface BirthdaySlideEntry {
   id: string;
+  /** Missing on older payloads, which are always birthdays. */
+  kind?: "birthday" | "custom";
+  /** Birthday: the person's name. Custom page: the page title. */
   displayName: string;
   mediaKind: "image" | "video";
   mediaPath: string;
   hideGreeting?: boolean;
   finishVideo?: boolean;
+  /** Custom pages only: Next/Prev step onto this slide, not only the timer. */
+  inNext?: boolean;
+  /** Custom pages only: show the title as a caption. */
+  showTitle?: boolean;
 }
 
 interface Props {
@@ -63,7 +70,15 @@ export default function BirthdaySlide({ entry, className, onVideoEnded }: Props)
           />
         </>
       )}
-      {!entry.hideGreeting && (
+      {entry.kind === "custom" ? (
+        entry.showTitle && (
+          <div className="absolute inset-x-0 bottom-0 p-8 md:p-12 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white text-center">
+            <div className="text-2xl md:text-4xl font-semibold tracking-wide drop-shadow">
+              {entry.displayName}
+            </div>
+          </div>
+        )
+      ) : !entry.hideGreeting && (
         <div className="absolute inset-x-0 bottom-0 p-8 md:p-12 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white text-center">
           <div className="text-2xl md:text-4xl font-semibold tracking-wide drop-shadow">
             🎉 Happy Birthday, {entry.displayName}! 🎂

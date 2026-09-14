@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import * as brands from "@/lib/repos/brands";
 import LoadingPage from "@/components/LoadingPage";
 import BrandRotationClient, { type BrandEntry } from "./BrandRotationClient";
-import { getTodaysBirthdaySlides } from "@/lib/birthdays/today";
+import { getRotationSlides } from "@/lib/rotation/slides";
 import { brandSiteConfig } from "@/lib/util/brandSiteConfig";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function EditorialPage() {
   const [publications, birthdaySlides] = await Promise.all([
     brands.findByDepartment("editorial"),
-    getTodaysBirthdaySlides("dashboard/editorial"),
+    getRotationSlides("dashboard/editorial"),
   ]);
   const entries: BrandEntry[] = publications.map((b) => ({
     brand: b.slug,

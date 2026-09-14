@@ -44,7 +44,7 @@ export default function BindingDetails({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Section title="Current settings">
           <dl className="flex flex-col gap-1.5">
-            <Row label="Scope" value={departmentSlug === "ceo" ? "ceo (CEO dashboards)" : departmentSlug} />
+            <Row label="Scope" value={scopeLabel(departmentSlug)} />
             <Row label="Source" value={dataSourceKind} />
             {kindFields.map((f) => {
               const raw = config[f.field];
@@ -233,4 +233,11 @@ function Row({ label, value }: { label: string; value: string }) {
       <dd className="font-mono text-xs">{value}</dd>
     </div>
   );
+}
+
+/** Reserved scopes are not departments, so name what they belong to. */
+function scopeLabel(departmentSlug: string): string {
+  if (departmentSlug === "ceo") return "ceo (CEO dashboards)";
+  if (departmentSlug === "mailchimp") return "mailchimp (Mailchimp dashboard)";
+  return departmentSlug;
 }

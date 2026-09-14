@@ -17,6 +17,18 @@ const ALLOWED_CONTENT_TYPES = [
   "video/webm",
 ];
 
+// Folder prefix -> entity the upload belongs to. Custom pages share this
+// endpoint with birthdays; only the storage folder and audit label differ.
+const UPLOAD_TARGETS: Record<string, string> = {
+  "birthdays/": "birthdays",
+  "custom-pages/": "custom-pages",
+};
+
+function targetFor(pathname: string): string | null {
+  const prefix = Object.keys(UPLOAD_TARGETS).find((p) => pathname.startsWith(p));
+  return prefix ? UPLOAD_TARGETS[prefix] : null;
+}
+
 function isOurBlobUrl(url: string): boolean {
   try {
     const u = new URL(url);
@@ -48,7 +60,8 @@ export async function POST(req: NextRequest) {
         const session = await requireAdminApi(req);
         if (isDenied(session)) throw new Error("Unauthorized");
 
-        if (!pathname.startsWith("birthdays/")) {
+        const target = targetFor(pathname);
+        if (!target) {
           throw new Error("Invalid upload path");
         }
 
@@ -65,8 +78,8 @@ export async function POST(req: NextRequest) {
               })
             : {};
           await logActivity(req, {
-            action: "birthdays.upload",
-            targetType: "birthdays",
+            action: `${target}.upload`,
+            targetType: target,
             targetId: payload.id,
             metadata: {
               mediaKind: payload.mediaKind,

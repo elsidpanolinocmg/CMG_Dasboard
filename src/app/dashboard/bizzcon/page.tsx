@@ -5,7 +5,7 @@ import { getEvents, type EventBrand } from "@/lib/sources/drupalEvents";
 import { manualBizzconEvents } from "@/lib/sources/manualEvents";
 import LoadingPage from "@/components/LoadingPage";
 import BizzconGridClient from "./BizzconGridClient";
-import { getTodaysBirthdaySlides } from "@/lib/birthdays/today";
+import { getRotationSlides } from "@/lib/rotation/slides";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +36,7 @@ async function loadEvents() {
 async function BizzconContent() {
   const [events, birthdays] = await Promise.all([
     loadEvents(),
-    getTodaysBirthdaySlides("dashboard/bizzcon"),
+    getRotationSlides("dashboard/bizzcon"),
   ]);
   return <BizzconGridClient events={events} birthdays={birthdays} />;
 }

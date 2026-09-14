@@ -3,7 +3,7 @@ import nextDynamic from "next/dynamic";
 import { Suspense } from "react";
 import * as brandsRepo from "@/lib/repos/brands";
 import LoadingPage from "@/components/LoadingPage";
-import { getTodaysBirthdaySlides } from "@/lib/birthdays/today";
+import { getRotationSlides } from "@/lib/rotation/slides";
 import { brandSiteConfig } from "@/lib/util/brandSiteConfig";
 
 const BrandDashboard = nextDynamic(() => import("@/components/BrandDashboard"));
@@ -22,7 +22,7 @@ export default async function BrandDrillInPage({
   const brand = decodeURIComponent(rawBrand).toLowerCase();
   const [row, birthdays] = await Promise.all([
     brandsRepo.findBySlug(brand),
-    getTodaysBirthdaySlides("dashboard/[brand]"),
+    getRotationSlides("dashboard/[brand]"),
   ]);
   if (!row) notFound();
 

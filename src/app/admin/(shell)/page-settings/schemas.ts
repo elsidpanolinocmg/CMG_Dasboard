@@ -233,7 +233,48 @@ const CEO_MONEY_FIELDS: FieldDef[] = [
   { key: "rateEUR", label: "EUR → SGD", type: "number", min: 0, step: 0.0001, defaultValue: 1.46 },
 ];
 
+/**
+ * The Mailchimp board reads its figures from a spreadsheet (see the
+ * "Mailchimp · Stats sheet" binding), so nothing here changes the numbers —
+ * only how the wallboard presents them. That sheet is rewritten once a day,
+ * which is why the refresh default is measured in hours rather than minutes.
+ */
+const MAILCHIMP_FIELDS: FieldDef[] = [
+  {
+    key: "pageSize",
+    label: "Rows per page",
+    type: "number",
+    min: 1,
+    step: 1,
+    defaultValue: 6,
+  },
+  {
+    key: "rotationSeconds",
+    label: "Page rotation",
+    type: "number",
+    min: 0,
+    step: 1,
+    unit: "seconds",
+    defaultValue: 60,
+    help: "Auto-advance through the pages of audiences. 0 pauses rotation.",
+  },
+  {
+    key: "refreshMinutes",
+    label: "Auto-refresh interval",
+    type: "number",
+    min: 1,
+    step: 15,
+    unit: "minutes",
+    defaultValue: 180,
+    help: "How often the board re-reads the sheet in the background. The sheet itself only updates once a day, so a shorter interval will not produce fresher figures.",
+  },
+];
+
 export const PAGE_SCHEMAS: Record<string, PageSchema> = {
+  "dashboard/mailchimp": {
+    label: "Mailchimp",
+    fields: MAILCHIMP_FIELDS,
+  },
   "dashboard/ceo/money": {
     label: "CEO · Money",
     fields: CEO_MONEY_FIELDS,

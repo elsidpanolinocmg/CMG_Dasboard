@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 /**
- * `ceo_*` purposes belong to the CEO dashboards, which are not a department;
- * they are stored under the reserved scope slug `ceo`.
+ * `ceo_*` purposes belong to the CEO dashboards and `mailchimp_*` to the
+ * Mailchimp dashboard. Neither is a department, so both are stored under a
+ * reserved scope slug of their own.
  */
 const PURPOSES = [
   { value: "leaderboard", label: "leaderboard" },
@@ -19,14 +20,26 @@ const PURPOSES = [
   { value: "ceo_short_form_videos", label: "CEO · Short Form Videos" },
   { value: "ceo_client_deliverables", label: "CEO · Client Deliverables Overdue" },
   { value: "ceo_video_interviews", label: "CEO · Video Interview Progress Tracker" },
+  { value: "mailchimp_stats", label: "Mailchimp · Stats sheet" },
 ] as const;
 
 type Purpose = (typeof PURPOSES)[number]["value"];
 
-const CEO_SCOPE = "ceo";
+/** Purpose prefix → the reserved scope slug its bindings are stored under. */
+const RESERVED_SCOPES: { prefix: string; scope: string }[] = [
+  { prefix: "ceo_", scope: "ceo" },
+  { prefix: "mailchimp_", scope: "mailchimp" },
+];
 
-function isCeoPurpose(p: Purpose): boolean {
-  return p.startsWith("ceo_");
+/** How each reserved scope reads in the disabled Department select. */
+const SCOPE_LABELS: Record<string, string> = {
+  ceo: "ceo (CEO dashboards)",
+  mailchimp: "mailchimp (Mailchimp dashboard)",
+};
+
+/** The reserved scope for a purpose, or null when it is a department binding. */
+function reservedScopeFor(p: Purpose): string | null {
+  return RESERVED_SCOPES.find((r) => p.startsWith(r.prefix))?.scope ?? null;
 }
 
 export default function BindingForm({
@@ -52,14 +65,14 @@ export default function BindingForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const ceo = isCeoPurpose(purpose);
-  const effectiveSlug = ceo ? CEO_SCOPE : departmentSlug;
+  const reservedScope = reservedScopeFor(purpose);
+  const effectiveSlug = reservedScope ?? departmentSlug;
   const friendlySheets = dataSourceKind === "google_sheets";
 
   function onPurposeChange(next: Purpose) {
     setPurpose(next);
-    // CEO purposes are always Google Sheets today; preselect it if available.
-    if (isCeoPurpose(next) && sourceKinds.includes("google_sheets")) {
+    // Reserved-scope purposes are all Google Sheets today; preselect it.
+    if (reservedScopeFor(next) && sourceKinds.includes("google_sheets")) {
       setDataSourceKind("google_sheets");
     }
   }
@@ -146,13 +159,13 @@ export default function BindingForm({
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="opacity-70">Department</span>
-          {ceo ? (
+          {reservedScope ? (
             <select
               className="border border-black/15 dark:border-white/15 rounded px-2 py-1 bg-transparent opacity-70"
-              value={CEO_SCOPE}
+              value={reservedScope}
               disabled
             >
-              <option value={CEO_SCOPE}>ceo (CEO dashboards)</option>
+              <option value={reservedScope}>{SCOPE_LABELS[reservedScope]}</option>
             </select>
           ) : (
             <select

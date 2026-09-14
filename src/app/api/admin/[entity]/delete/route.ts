@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/auth/activityLog";
 import { getRepo } from "@/lib/repos/registry";
 import { validateDeleteInput } from "@/lib/repos/validateInput";
 import * as birthdaysRepo from "@/lib/repos/birthdays";
+import * as customPagesRepo from "@/lib/repos/customPages";
 import * as peopleRepo from "@/lib/repos/people";
 import * as brandsRepo from "@/lib/repos/brands";
 import * as bindingsRepo from "@/lib/repos/dataSourceBindings";
@@ -58,6 +59,12 @@ export async function POST(
   let blobUrlToDelete: string | null = null;
   if (entity === "birthdays" && typeof body.id === "string") {
     const existing = await birthdaysRepo.findById(body.id);
+    if (existing && typeof existing.mediaPath === "string" && isOurBlobUrl(existing.mediaPath)) {
+      blobUrlToDelete = existing.mediaPath;
+    }
+  }
+  if (entity === "custom-pages" && typeof body.id === "string") {
+    const existing = await customPagesRepo.findById(body.id);
     if (existing && typeof existing.mediaPath === "string" && isOurBlobUrl(existing.mediaPath)) {
       blobUrlToDelete = existing.mediaPath;
     }

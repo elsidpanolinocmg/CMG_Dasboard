@@ -18,9 +18,11 @@ const IDENTIFIER_FIELDS: Record<string, string[]> = {
   "data-sources": ["kind"],
   bindings: ["departmentSlug", "purpose", "dataSourceKind"],
   "admin-references": ["id"],
+  "quick-links": ["id"],
   "saved-references": ["id"],
   "page-settings": ["pageKey"],
   birthdays: ["id"],
+  "custom-pages": ["id"],
   holidays: ["date"],
 };
 

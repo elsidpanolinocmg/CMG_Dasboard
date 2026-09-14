@@ -8,6 +8,7 @@ import ViewportFit from "@/components/ViewportFit";
 import BirthdaySlide, { type BirthdaySlideEntry } from "@/components/BirthdaySlide";
 import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { buildNavSteps } from "@/lib/rotation/navSteps";
 
 export interface BizzconEvent {
   id: string;
@@ -60,7 +61,7 @@ const ROTATION_OPTIONS = [
 
 export default function BizzconGridClient({ events, birthdays: birthdaysProp = [] }: Props) {
   const isMobile = useIsMobile();
-  const birthdays = isMobile ? [] : birthdaysProp;
+  const birthdays = useMemo(() => (isMobile ? [] : birthdaysProp), [isMobile, birthdaysProp]);
   const tableRef = useRef<HTMLDivElement>(null);
   const [pageSize, setPageSize] = useState<number | "all">(5);
   const [pageIndex, setPageIndex] = useState(0);
@@ -229,10 +230,41 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
       ? birthdays[birthdayShownIdx]
       : null;
 
+  // Prev/Next walk the table pages plus any custom pages the admin allowed in
+  // Next. Birthdays and other custom pages still only appear on the timer.
+  const navSteps = useMemo(
+    () =>
+      buildNavSteps(
+        totalPages,
+        birthdays.flatMap((b, i) => (b.kind === "custom" && b.inNext ? [i] : [])),
+      ),
+    [totalPages, birthdays],
+  );
+  const navPos = (() => {
+    if (birthdayShownIdx !== null) {
+      const at = navSteps.findIndex((s) => s.type === "extra" && s.index === birthdayShownIdx);
+      if (at >= 0) return at;
+    }
+    return Math.max(0, navSteps.findIndex((s) => s.type === "page" && s.index === pageIndex));
+  })();
+  const goNav = (dir: 1 | -1) => {
+    const target = navSteps[navPos + dir];
+    if (!target) return;
+    regularTicks.current = 0;
+    if (target.type === "page") {
+      setBirthdayShownIdx(null);
+      setPageIndex(target.index);
+    } else {
+      setBirthdayShownIdx(target.index);
+    }
+  };
+  const canPrev = navPos > 0;
+  const canNext = navPos < navSteps.length - 1;
+
   const swipe = useSwipeNav({
-    onNext: () => setPageIndex((i) => Math.min(totalPages - 1, i + 1)),
-    onPrev: () => setPageIndex((i) => Math.max(0, i - 1)),
-    enabled: totalPages > 1,
+    onNext: () => goNav(1),
+    onPrev: () => goNav(-1),
+    enabled: navSteps.length > 1,
   });
 
   return (
@@ -444,8 +476,8 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
 
       <DashboardControls>
         <button
-          onClick={() => setPageIndex((i) => Math.max(0, i - 1))}
-          disabled={pageIndex === 0}
+          onClick={() => goNav(-1)}
+          disabled={!canPrev}
           className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           ◀ Prev
@@ -468,8 +500,8 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
           {pageIndex + 1} / {totalPages}
         </span>
         <button
-          onClick={() => setPageIndex((i) => Math.min(totalPages - 1, i + 1))}
-          disabled={pageIndex >= totalPages - 1}
+          onClick={() => goNav(1)}
+          disabled={!canNext}
           className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           Next ▶

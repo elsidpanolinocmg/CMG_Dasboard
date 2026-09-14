@@ -19,6 +19,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     items: [
       { href: "/admin/birthdays", label: "Birthdays" },
+      { href: "/admin/custom-pages", label: "Custom pages" },
       { href: "/admin/holidays", label: "Holidays" },
     ],
   },
@@ -28,6 +29,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/data-sources", label: "Data sources" },
       { href: "/admin/dashboards", label: "Dashboards" },
       { href: "/admin/page-settings", label: "Page settings" },
+      { href: "/admin/quick-links", label: "Quick links" },
     ],
   },
   {
