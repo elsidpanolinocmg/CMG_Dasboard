@@ -19,23 +19,15 @@ function fullscreenEnabled(): boolean {
 }
 
 /**
- * Full-screen image or video. A Fullscreen button sits in the corner and fades
- * out when the pointer is idle, so a TV screen shows only the media; double-
- * clicking anywhere also toggles fullscreen. The usual bottom control panel
- * (Fullscreen + Home) is still there.
+ * Full-screen image or video. Fullscreen lives in the bottom control panel
+ * (with Home); double-clicking anywhere also toggles it. Videos get a sound
+ * toggle in the corner that fades out when the pointer is idle.
  */
 export default function CustomPageView({ title, mediaKind, mediaPath, showTitle }: Props) {
-  const [isFullscreen, setIsFullscreen] = useState(false);
   // iPhone Safari has no Fullscreen API, so the button is hidden there.
   const supported = useSyncExternalStore(subscribeNothing, fullscreenEnabled, () => false);
   const [idle, setIdle] = useState(false);
   const [muted, setMuted] = useState(true);
-
-  useEffect(() => {
-    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
-  }, []);
 
   useEffect(() => {
     let timer = setTimeout(() => setIdle(true), IDLE_MS);
@@ -123,11 +115,6 @@ export default function CustomPageView({ title, mediaKind, mediaPath, showTitle 
         {mediaKind === "video" && (
           <button type="button" onClick={() => setMuted((m) => !m)} className={cornerButton}>
             {muted ? "🔇 Sound off" : "🔊 Sound on"}
-          </button>
-        )}
-        {supported && (
-          <button type="button" onClick={toggleFullscreen} className={cornerButton}>
-            {isFullscreen ? "Exit fullscreen ⛶" : "Fullscreen ⛶"}
           </button>
         )}
       </div>
