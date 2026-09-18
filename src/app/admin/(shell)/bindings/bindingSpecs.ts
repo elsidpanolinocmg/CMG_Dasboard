@@ -204,9 +204,9 @@ export const BINDING_SPECS: Record<string, BindingSpec> = {
     },
   },
   ceo_client_deliverables: {
-    label: "CEO · Client Deliverables Overdue",
-    summary: "Per-campaign article deliverables and their deadlines, for the CEO overdue board.",
-    usedBy: ["CEO → Client Deliverables Overdue"],
+    label: "CEO · PRs & Interviews",
+    summary: "Per-campaign article deliverables and their deadlines, for the CEO PRs & Interviews board.",
+    usedBy: ["CEO → PRs & Interviews"],
     readBy: ["src/lib/ceo-deliverables/deliverables.ts"],
     layout: {
       tabs: ["One tab per awards campaign; only 2026 tabs are read."],
@@ -270,6 +270,24 @@ export const BINDING_SPECS: Record<string, BindingSpec> = {
       notes: [
         "'Published' and 'Approved' count as complete; every other live status is in production.",
         "'Cancelled' rows drop out of the totals.",
+      ],
+    },
+  },
+  ceo_magazine_materials: {
+    label: "CEO · Magazine Materials Tracker",
+    summary: "Per-brand magazine ad/advertorial materials and their deadlines, for the CEO materials tracker.",
+    usedBy: ["CEO → Magazine Materials Tracker"],
+    readBy: ["src/lib/ceo-magazine/materials.ts"],
+    layout: {
+      tabs: ["One tab per magazine brand; the traffic/mastersheet/guidelines tabs are skipped."],
+      columns: [
+        { column: "C", name: "Year", note: "Only 2026 rows are tracked; materials run from row 3 down." },
+        { column: "G", name: "Company", note: "A row is a real material only when column G names a company." },
+        { column: "J", name: "Status", note: "On page / Approved / Proceed by default = done; Cancelled / Moved to later issue / Archived drop out." },
+        { column: "M", name: "Deadline", note: "Free-text date in 2026 (e.g. '9 February', 'Jan 24'). Past-deadline & not-done = overdue." },
+      ],
+      notes: [
+        "A brand is overdue when it has any outstanding material whose deadline has passed.",
       ],
     },
   },

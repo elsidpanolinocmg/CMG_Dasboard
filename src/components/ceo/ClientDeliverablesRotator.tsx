@@ -121,9 +121,11 @@ function DeliverableCard({
       <div className={styles.delivCardFoot}>
         <span className={styles.delivCardCount} data-state={state}>
           {state === "overdue" && <BacklogFlag severity={backlogSeverity(c.done, c.total)} outstanding={c.outstanding} />}
-          {c.outstanding} {verb}
+          {state === "ontrack" && c.outstanding === 0 ? "Completed" : `${c.outstanding} ${verb}`}
         </span>
-        <span className={styles.delivCardDue}>{c.dueLabel}</span>
+        <span className={styles.delivCardDue} data-soon={state === "ontrack" && c.dueSoon ? "true" : undefined}>
+          {c.dueLabel}
+        </span>
       </div>
     </div>
   );

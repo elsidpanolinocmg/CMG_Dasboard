@@ -5,8 +5,9 @@ import Link from "next/link";
 import DashboardControls from "@/components/DashboardControls";
 import styles from "./ceo-dashboard.module.css";
 import { RefreshButton } from "./RefreshButton";
-import type { AwardInterviews } from "@/lib/ceo-video-interviews/interviews";
+import type { MagazineBrand } from "@/lib/ceo-magazine/materials";
 
+/** How many cards a category shows at once. */
 const PAGE_SIZE = 4;
 
 const ROTATION_OPTIONS = [
@@ -21,8 +22,16 @@ const DEFAULT_INTERVAL = 8_000;
 
 const CONTROL_BTN = "rounded-lg bg-black/40 px-5 py-3 text-lg text-white hover:bg-black/60 active:bg-black/70";
 
-/** Finished production states are greens; the rest run through a teal→blue family. */
-const DONE_COLORS: Record<string, string> = { published: "#0ca30c", approved: "#34c759" };
+/**
+ * The three finished states are greens (On page, Approved, Proceed by default);
+ * every other live status runs through one teal→blue family, assigned in legend
+ * order, so the bar flows from done through the pipeline rather than as a rainbow.
+ */
+const DONE_COLORS: Record<string, string> = {
+  "on page": "#0ca30c",
+  approved: "#34c759",
+  "proceed by default": "#6fcf6f",
+};
 const COOL_RAMP = ["#0d9488", "#0891b2", "#0284c7", "#2563eb", "#60a5fa", "#93c5fd"];
 const STATUS_FALLBACK = "#cbd5e1";
 
@@ -40,57 +49,60 @@ function colorOf(colors: Map<string, string>, status: string): string {
   return colors.get(status.toLowerCase()) ?? STATUS_FALLBACK;
 }
 
-/** Backlog severity — blend of how many drafts are still out and how many are late. */
+/**
+ * How alarming a brand's overdue backlog is — a blend of how much is still undone
+ * and how many materials are actually past deadline, so a nearly-finished brand
+ * isn't flagged red for a high raw count, yet a large overdue pile still escalates.
+ */
 type Backlog = "low" | "medium" | "high";
-function backlogSeverity(draftsSent: number, total: number, overdueCount: number): Backlog {
-  const pct = total ? (draftsSent / total) * 100 : 0;
-  if (pct < 60 && overdueCount >= 6) return "high";
-  if (pct < 85 || overdueCount >= 10) return "medium";
+function backlogSeverity(done: number, total: number, overdueCount: number): Backlog {
+  const pctDone = total ? (done / total) * 100 : 0;
+  if (pctDone < 60 && overdueCount >= 6) return "high";
+  if (pctDone < 85 || overdueCount >= 10) return "medium";
   return "low";
 }
 
+/** A little pennant flag, coloured by backlog severity (via CSS `data-severity`). */
 function BacklogFlag({ severity, count }: { severity: Backlog; count: number }) {
   return (
     <svg className={styles.delivLabelFlag} data-severity={severity} viewBox="0 0 24 24" role="img" aria-label={`${severity} backlog`}>
-      <title>{`${count} draft${count === 1 ? "" : "s"} overdue — ${severity} backlog`}</title>
+      <title>{`${count} past deadline — ${severity} backlog`}</title>
       <rect x="4" y="2" width="2.2" height="20" rx="1.1" fill="currentColor" />
       <rect x="6" y="3" width="13.5" height="8" rx="0.8" fill="currentColor" />
     </svg>
   );
 }
 
-/** One award as a card: name and % drafts sent up top, count and deadline at the foot. */
-function AwardCard({
-  a,
+/** One brand as a card: name and % at the top, count and deadline at the foot. */
+function BrandCard({
+  b,
   state,
   colors,
 }: {
-  a: AwardInterviews;
+  b: MagazineBrand;
   state: "overdue" | "ontrack";
   colors: Map<string, string>;
 }) {
-  const pct = a.total ? Math.round((a.draftsSent / a.total) * 100) : 0;
+  const pct = b.total ? Math.round((b.done / b.total) * 100) : 0;
+  const count = state === "overdue" ? b.overdueCount : b.outstanding;
+  // On track with nothing left reads "Completed" rather than "0 in progress".
   const countLabel =
-    state === "overdue"
-      ? `${a.overdueCount} overdue`
-      : a.pending === 0
-        ? "All sent"
-        : `${a.pending} pending`;
+    state === "ontrack" && b.outstanding === 0 ? "Completed" : `${count} ${state === "overdue" ? "overdue" : "in progress"}`;
   return (
     <div className={styles.delivCard} data-state={state}>
       <div className={styles.delivCardMain}>
-        <span className={styles.delivCardName}>{a.award}</span>
+        <span className={styles.delivCardName}>{b.brand}</span>
         <span className={styles.delivCardPct}>{pct}%</span>
         <div
           className={styles.delivStatusBar}
           role="img"
-          aria-label={`Status mix: ${a.statuses.map((s) => `${s.status} ${s.count}`).join(", ")}`}
+          aria-label={`Status mix: ${b.statuses.map((s) => `${s.status} ${s.count}`).join(", ")}`}
         >
-          {a.statuses.map((s) => (
+          {b.statuses.map((s) => (
             <span
               key={s.status}
               className={styles.delivStatusSeg}
-              style={{ width: `${(s.count / a.total) * 100}%`, background: colorOf(colors, s.status) }}
+              style={{ width: `${(s.count / b.total) * 100}%`, background: colorOf(colors, s.status) }}
               title={`${s.status}: ${s.count}`}
             />
           ))}
@@ -99,12 +111,12 @@ function AwardCard({
       <div className={styles.delivCardFoot}>
         <span className={styles.delivCardCount} data-state={state}>
           {state === "overdue" && (
-            <BacklogFlag severity={backlogSeverity(a.draftsSent, a.total, a.overdueCount)} count={a.overdueCount} />
+            <BacklogFlag severity={backlogSeverity(b.done, b.total, b.overdueCount)} count={b.overdueCount} />
           )}
           {countLabel}
         </span>
-        <span className={styles.delivCardDue} data-soon={state === "ontrack" && a.dueSoon ? "true" : undefined}>
-          {a.dueLabel}
+        <span className={styles.delivCardDue} data-soon={state === "ontrack" && b.dueSoon ? "true" : undefined}>
+          {b.dueLabel}
         </span>
       </div>
     </div>
@@ -112,7 +124,7 @@ function AwardCard({
 }
 
 interface RotatingCardsProps {
-  rows: AwardInterviews[];
+  rows: MagazineBrand[];
   state: "overdue" | "ontrack";
   empty: string;
   intervalMs: number;
@@ -160,8 +172,8 @@ function RotatingCards({ rows, state, empty, intervalMs, colors }: RotatingCards
           </button>
         )}
         <div className={styles.delivCardGrid} key={current}>
-          {shown.map((a) => (
-            <AwardCard key={`${a.domain}:${a.award}`} a={a} state={state} colors={colors} />
+          {shown.map((b) => (
+            <BrandCard key={b.brand} b={b} state={state} colors={colors} />
           ))}
         </div>
         {totalPages > 1 && (
@@ -187,13 +199,13 @@ function RotatingCards({ rows, state, empty, intervalMs, colors }: RotatingCards
   );
 }
 
-export interface VideoInterviewsBodyProps {
-  overdue: AwardInterviews[];
-  onTrack: AwardInterviews[];
+export interface MagazineMaterialsBodyProps {
+  overdue: MagazineBrand[];
+  onTrack: MagazineBrand[];
   statusLegend: string[];
 }
 
-export function VideoInterviewsBody({ overdue, onTrack, statusLegend }: VideoInterviewsBodyProps) {
+export function MagazineMaterialsBody({ overdue, onTrack, statusLegend }: MagazineMaterialsBodyProps) {
   const [intervalMs, setIntervalMs] = useState(DEFAULT_INTERVAL);
   const statusColors = buildStatusColors(statusLegend);
 
@@ -202,11 +214,11 @@ export function VideoInterviewsBody({ overdue, onTrack, statusLegend }: VideoInt
       <div className={styles.delivBody}>
         <div className={styles.delivColumns}>
           <div className={styles.delivColumn} data-state="overdue">
-            <div className={styles.deliverablesGroupLabel}>Draft overdue · past deadline</div>
+            <div className={styles.deliverablesGroupLabel}>Overdue · past deadline</div>
             <RotatingCards
               rows={overdue}
               state="overdue"
-              empty="Nothing overdue — every past-deadline draft is out."
+              empty="Nothing overdue — every past-deadline material is done."
               intervalMs={intervalMs}
               colors={statusColors}
             />
@@ -217,7 +229,7 @@ export function VideoInterviewsBody({ overdue, onTrack, statusLegend }: VideoInt
             <RotatingCards
               rows={onTrack}
               state="ontrack"
-              empty="No awards with drafts outstanding."
+              empty="No brands with materials outstanding."
               intervalMs={intervalMs}
               colors={statusColors}
             />

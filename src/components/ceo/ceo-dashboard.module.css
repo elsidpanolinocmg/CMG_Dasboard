@@ -1893,6 +1893,20 @@
   box-shadow: 0 12px 30px rgba(11, 11, 11, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   min-width: 0;
   min-height: 0;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+/* A gentle lift on hover, for a little life on desktop. */
+.delivCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px rgba(11, 11, 11, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+@media (prefers-reduced-motion: reduce) {
+  .delivCard {
+    transition: none;
+  }
+  .delivCard:hover {
+    transform: none;
+  }
 }
 .delivCardMain {
   display: flex;
@@ -2016,4 +2030,21 @@
   font-size: clamp(11px, 1.15vw, 18px);
   color: var(--text-muted);
   white-space: nowrap;
+}
+/* A near-term deadline (within a week) becomes a filled amber chip so it stands out
+   against the white card before it slips into the overdue column. */
+.delivCardDue[data-soon="true"] {
+  color: #1a1a1a;
+  font-weight: 700;
+  background: var(--warning);
+  padding: clamp(2px, 0.4vh, 5px) clamp(7px, 0.7vw, 13px);
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(250, 178, 25, 0.45);
+}
+/* A small monochrome clock glyph — inherits the chip's dark text colour so it
+   reads sharply against the amber instead of a multicolour emoji washing out. */
+.delivCardDue[data-soon="true"]::before {
+  content: "\26A0\FE0E"; /* ⚠ warning sign, text presentation so it stays monochrome */
+  margin-right: 0.35em;
+  font-weight: 900;
 }

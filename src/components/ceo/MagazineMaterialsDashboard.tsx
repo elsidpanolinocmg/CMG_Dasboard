@@ -1,16 +1,14 @@
 import { Oswald } from "next/font/google";
 import ViewportFit from "@/components/ViewportFit";
 import styles from "./ceo-dashboard.module.css";
-import { VideoInterviewsBody } from "./VideoInterviewsRotator";
+import { MagazineMaterialsBody } from "./MagazineMaterialsRotator";
 import { CeoStatTiles } from "./CeoStatTiles";
-import type { VideoInterviews } from "@/lib/ceo-video-interviews/interviews";
+import type { MagazineMaterials } from "@/lib/ceo-magazine/materials";
 
-// Oswald for the condensed title/KPI numbers. Body text is Inter, supplied as
-// --font-body by the CEO layout and applied through the panel's base font.
 const titleFont = Oswald({ subsets: ["latin"], weight: ["500", "700"], display: "swap", variable: "--font-title" });
 
-export interface VideoInterviewsDashboardProps {
-  data: VideoInterviews;
+export interface MagazineMaterialsDashboardProps {
+  data: MagazineMaterials;
   live: boolean;
 }
 
@@ -30,14 +28,13 @@ function formatUpdated(iso: string): string {
 }
 
 /**
- * Award-video-interview draft progress against deadlines: a summary tile row, then a
- * bar per award split into two groups — draft overdue (deadline passed, a first draft
- * still missing) and on track (deadline ahead). Shares the CEO white theme.
+ * 2026 magazine materials against their deadlines. A summary tile row, then a
+ * completion bar per magazine brand split into two groups — overdue (a past-deadline
+ * material still outstanding) and on track (deadline ahead). Shares the CEO theme.
  */
-export function VideoInterviewsDashboard({ data, live }: VideoInterviewsDashboardProps) {
-  const { overdue, onTrack, totalInterviews, totalDraftsSent, totalOverdue, totalAwards, statusLegend, updatedAt } =
-    data;
-  const pctSent = totalInterviews ? Math.round((totalDraftsSent / totalInterviews) * 100) : 0;
+export function MagazineMaterialsDashboard({ data, live }: MagazineMaterialsDashboardProps) {
+  const { overdue, onTrack, totalMaterials, totalDone, totalOverdue, totalBrands, statusLegend, updatedAt } = data;
+  const pctDone = totalMaterials ? Math.round((totalDone / totalMaterials) * 100) : 0;
 
   const subtitle = [
     "2026",
@@ -53,20 +50,20 @@ export function VideoInterviewsDashboard({ data, live }: VideoInterviewsDashboar
 
       <header className={`${styles.masthead} ${styles.delivHeaderCard}`}>
         <div className={styles.delivTitleBlock}>
-          <h1>Video Interview Progress Tracker</h1>
+          <h1>Magazine Materials Tracker</h1>
           <div className={styles.week}>{subtitle}</div>
         </div>
         <CeoStatTiles
           tiles={[
-            { value: totalInterviews, label: "Interviews" },
-            { value: pctSent, suffix: "%", label: `Drafts Sent · ${totalDraftsSent}/${totalInterviews}` },
-            { value: totalOverdue, label: "Draft Overdue", state: "overdue" },
-            { value: totalAwards, label: "Awards" },
+            { value: totalMaterials, label: "Materials" },
+            { value: pctDone, suffix: "%", label: `Done · ${totalDone}/${totalMaterials}` },
+            { value: totalOverdue, label: "Past Deadline", state: "overdue" },
+            { value: totalBrands, label: "Magazines" },
           ]}
         />
       </header>
 
-      <VideoInterviewsBody overdue={overdue} onTrack={onTrack} statusLegend={statusLegend} />
+      <MagazineMaterialsBody overdue={overdue} onTrack={onTrack} statusLegend={statusLegend} />
     </section>
   );
 }

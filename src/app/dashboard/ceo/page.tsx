@@ -28,27 +28,27 @@ const sections: { category?: string; items: DashboardLink[] }[] = [
     ],
   },
   {
-    category: "Sales/Commercial",
+    category: "Client Deliverables Overdue",
     items: [
       {
-        label: "Short Form Videos",
-        href: "/dashboard/ceo/short-form-videos",
-        description: "Short-form video output and performance.",
-      },
-    ],
-  },
-  {
-    category: "Deliverables",
-    items: [
-      {
-        label: "Client Deliverables Overdue",
-        href: "/dashboard/ceo/client-deliverables-overdue",
-        description: "Deliverables past their deadline and not yet done.",
+        label: "PRs & Interviews",
+        href: "/dashboard/ceo/prs-and-interviews",
+        description: "Deliverables past their deadline and not yet published.",
       },
       {
         label: "Video Interview Progress Tracker",
         href: "/dashboard/ceo/video-interview-progress-tracker",
         description: "Video interview production stages and completion progress.",
+      },
+      {
+        label: "Short Form Videos",
+        href: "/dashboard/ceo/short-form-videos",
+        description: "Short-form video output and performance.",
+      },
+      {
+        label: "Magazine Materials Tracker",
+        href: "/dashboard/ceo/magazine-materials-tracker",
+        description: "Magazine material deliverables and their progress.",
       },
     ],
   },
