@@ -12,8 +12,9 @@ const PURPOSE_LABELS: Record<string, string> = {
   ceo_invoice_register: "CEO · Invoice register",
   ceo_marketing: "CEO · Marketing sheet",
   ceo_short_form_videos: "CEO · Short Form Videos",
-  ceo_client_deliverables: "CEO · Client Deliverables Overdue",
+  ceo_client_deliverables: "CEO · PRs & Interviews",
   ceo_video_interviews: "CEO · Video Interview Progress Tracker",
+  ceo_magazine_materials: "CEO · Magazine Materials Tracker",
 };
 
 export type ClientBinding = {

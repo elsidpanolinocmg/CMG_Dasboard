@@ -2,6 +2,7 @@ import { Oswald } from "next/font/google";
 import ViewportFit from "@/components/ViewportFit";
 import styles from "./ceo-dashboard.module.css";
 import { DeliverablesBody } from "./ClientDeliverablesRotator";
+import { CeoStatTiles } from "./CeoStatTiles";
 import type { ClientDeliverables } from "@/lib/ceo-deliverables/deliverables";
 
 // Oswald for the condensed title/KPI numbers. Body text is Inter, supplied as
@@ -51,25 +52,16 @@ export function ClientDeliverablesDashboard({ data, live }: ClientDeliverablesDa
 
       <header className={`${styles.masthead} ${styles.delivHeaderCard}`}>
         <div className={styles.delivTitleBlock}>
-          <h1>Client Deliverables Overdue</h1>
+          <h1>PRs &amp; Interviews</h1>
           <div className={styles.week}>{subtitle}</div>
         </div>
-        <div className={styles.delivTiles}>
-          <div className={styles.delivTile} data-state="overdue">
-            <div className={styles.delivTileValue}>{totalOverdue}</div>
-            <div className={styles.delivTileLabel}>Overdue Deliverables</div>
-          </div>
-          <div className={styles.delivTile}>
-            <div className={styles.delivTileValue}>{pctDone}%</div>
-            <div className={styles.delivTileLabel}>
-              Published · {totalDone}/{totalDeliverables}
-            </div>
-          </div>
-          <div className={styles.delivTile}>
-            <div className={styles.delivTileValue}>{overdue.length}</div>
-            <div className={styles.delivTileLabel}>Campaigns Behind</div>
-          </div>
-        </div>
+        <CeoStatTiles
+          tiles={[
+            { value: totalOverdue, label: "Overdue Deliverables", state: "overdue" },
+            { value: pctDone, suffix: "%", label: `Published · ${totalDone}/${totalDeliverables}` },
+            { value: overdue.length, label: "Campaigns Behind" },
+          ]}
+        />
       </header>
 
       <DeliverablesBody overdue={overdue} onTrack={onTrack} statusLegend={statusLegend} />

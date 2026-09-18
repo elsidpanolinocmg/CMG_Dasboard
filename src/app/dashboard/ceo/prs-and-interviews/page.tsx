@@ -4,7 +4,7 @@ import { loadClientDeliverables, type ClientDeliverables } from "@/lib/ceo-deliv
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-export const metadata = { title: "Client Deliverables Overdue — CMG Dashboard" };
+export const metadata = { title: "PRs & Interviews — CMG Dashboard" };
 
 export default async function CeoClientDeliverablesPage() {
   // A failed read degrades to an empty board with a caveat rather than a crash.
