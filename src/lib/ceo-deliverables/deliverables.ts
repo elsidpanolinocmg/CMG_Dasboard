@@ -66,6 +66,8 @@ export interface CampaignDeliverables {
   outstanding: number;
   /** Human timing vs the deadline, e.g. "5 months overdue" / "due in 6 days". */
   dueLabel: string;
+  /** True for an on-track campaign whose deadline is within a week. */
+  dueSoon: boolean;
   /** The status breakdown for the stacked bar — Done first, then by count. */
   statuses: StatusSlice[];
 }
@@ -217,6 +219,7 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
       done,
       outstanding,
       dueLabel: humanizeDue(deadlineDay, todayDay),
+      dueSoon: !pastDeadline && deadlineDay !== null && deadlineDay - todayDay <= 7,
       statuses,
     };
 

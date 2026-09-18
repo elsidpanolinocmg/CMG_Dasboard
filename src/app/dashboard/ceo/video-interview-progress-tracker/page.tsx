@@ -9,12 +9,14 @@ export const metadata = { title: "Video Interview Progress Tracker — CMG Dashb
 export default async function CeoVideoInterviewsPage() {
   // A failed read degrades to an empty board with a caveat rather than a crash.
   let data: VideoInterviews = {
-    inProduction: [],
-    completed: [],
+    overdue: [],
+    onTrack: [],
     totalInterviews: 0,
-    totalDone: 0,
-    totalCampaigns: 0,
+    totalDraftsSent: 0,
+    totalOverdue: 0,
+    totalAwards: 0,
     statusLegend: [],
+    updatedAt: null,
     source: "none",
     warnings: [],
   };

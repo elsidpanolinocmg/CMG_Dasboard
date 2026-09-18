@@ -13,6 +13,7 @@ export type BindingPurpose =
   | "ceo_short_form_videos"
   | "ceo_client_deliverables"
   | "ceo_video_interviews"
+  | "ceo_magazine_materials"
   | "mailchimp_stats";
 
 export interface DataSourceBinding extends Timestamped {
