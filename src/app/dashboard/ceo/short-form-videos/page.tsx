@@ -1,5 +1,5 @@
 import { ShortFormVideosDashboard } from "@/components/ceo/ShortFormVideosDashboard";
-import { loadShortFormVideos, type ShortFormVideos } from "@/lib/ceo-sfv/sheet";
+import { EMPTY_SHORT_FORM_VIDEOS, loadShortFormVideos, type ShortFormVideos } from "@/lib/ceo-sfv/sheet";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -8,7 +8,7 @@ export const metadata = { title: "Short Form Videos — CMG Dashboard" };
 
 export default async function CeoShortFormVideosPage() {
   // A failed read degrades to an empty board with a caveat rather than a crash.
-  let data: ShortFormVideos = { statuses: [], total: 0, lastUpdated: null, source: "none", warnings: [] };
+  let data: ShortFormVideos = EMPTY_SHORT_FORM_VIDEOS;
   try {
     data = await loadShortFormVideos();
   } catch (err) {
