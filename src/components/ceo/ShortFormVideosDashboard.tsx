@@ -1,11 +1,12 @@
-import Link from "next/link";
 import { Oswald } from "next/font/google";
-import DashboardControls from "@/components/DashboardControls";
 import ViewportFit from "@/components/ViewportFit";
 import styles from "./ceo-dashboard.module.css";
-import { RefreshButton } from "./RefreshButton";
+import { CeoStatTiles } from "./CeoStatTiles";
+import { ShortFormVideosBody } from "./ShortFormVideosRotator";
 import type { ShortFormVideos } from "@/lib/ceo-sfv/sheet";
 
+// Oswald for the condensed title/KPI numbers. Body text is Inter, supplied as
+// --font-body by the CEO layout and applied through the panel's base font.
 const titleFont = Oswald({ subsets: ["latin"], weight: ["500", "700"], display: "swap", variable: "--font-title" });
 
 export interface ShortFormVideosDashboardProps {
@@ -13,65 +14,58 @@ export interface ShortFormVideosDashboardProps {
   live: boolean;
 }
 
+/** An ISO timestamp as a short Singapore-time label, e.g. "23 Sep 2026, 4:39 pm". */
+function formatUpdated(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Singapore",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(d);
+}
+
 /**
- * The short-form-video pipeline as a fit-to-screen wallboard: a big total, then a
- * horizontal bar per status (longest first), sharing the CEO white theme.
+ * Short-form-video progress by awards programme against the deadlines logged in the
+ * sheet: a summary tile row, then a card per award split into two groups — overdue (a
+ * video past its deadline and not yet sent) and on track. Mirrors the PRs board.
  */
 export function ShortFormVideosDashboard({ data, live }: ShortFormVideosDashboardProps) {
-  const { statuses, total, lastUpdated } = data;
-  const max = statuses.reduce((m, s) => Math.max(m, s.count), 0) || 1;
+  const { overdue, onTrack, totalVideos, totalDone, totalOverdue, statusLegend, updatedAt } = data;
+  const pctDone = totalVideos ? Math.round((totalDone / totalVideos) * 100) : 0;
 
   const subtitle = [
     "2026",
-    lastUpdated ? `Last updated ${lastUpdated}` : null,
+    updatedAt ? `Updated ${formatUpdated(updatedAt)}` : null,
     live ? null : "No sheet connected — no figures available.",
   ]
     .filter(Boolean)
     .join(" · ");
 
   return (
-    <section
-      className={`${styles.panel} ${titleFont.variable}`}
-      data-fullscreen="true"
-      data-sfv="true"
-    >
+    <section className={`${styles.panel} ${titleFont.variable}`} data-fullscreen="true" data-sfv="true">
       <ViewportFit />
 
-      <header className={styles.masthead}>
-        <div>
+      <header className={`${styles.masthead} ${styles.delivHeaderCard}`}>
+        <div className={styles.delivTitleBlock}>
           <h1>Short Form Videos</h1>
           <div className={styles.week}>{subtitle}</div>
         </div>
+        <CeoStatTiles
+          tiles={[
+            { value: totalOverdue, label: "Overdue Videos", state: "overdue" },
+            { value: pctDone, suffix: "%", label: `Sent · ${totalDone}/${totalVideos}` },
+            { value: totalVideos - totalDone, label: "In Production" },
+            { value: overdue.length, label: "Needs Attention" },
+          ]}
+        />
       </header>
 
-      <div className={styles.sfvBody}>
-        <div className={styles.sfvTotal}>
-          <div className={styles.sfvTotalValue}>{total}</div>
-          <div className={styles.sfvTotalLabel}>Total videos</div>
-        </div>
-
-        <div className={styles.sfvBars} role="img" aria-label={`Videos by status, ${total} in total`}>
-          {statuses.map((s) => (
-            <div key={s.status} className={styles.sfvBarRow}>
-              <span className={styles.sfvBarLabel}>{s.status}</span>
-              <div className={styles.sfvBarTrack}>
-                <div className={styles.sfvBarFill} style={{ width: `${(s.count / max) * 100}%` }} />
-              </div>
-              <span className={styles.sfvBarValue}>{s.count}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <DashboardControls>
-        <Link
-          href="/dashboard/ceo"
-          className="rounded-lg bg-black/40 px-5 py-3 text-lg text-white hover:bg-black/60 active:bg-black/70"
-        >
-          ← Back
-        </Link>
-        <RefreshButton className="rounded-lg bg-black/40 px-5 py-3 text-lg text-white hover:bg-black/60 active:bg-black/70 disabled:opacity-60" />
-      </DashboardControls>
+      <ShortFormVideosBody overdue={overdue} onTrack={onTrack} statusLegend={statusLegend} />
     </section>
   );
 }
