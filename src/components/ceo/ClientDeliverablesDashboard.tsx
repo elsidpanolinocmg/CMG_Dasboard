@@ -1,32 +1,12 @@
-import { Oswald } from "next/font/google";
-import ViewportFit from "@/components/ViewportFit";
-import styles from "./ceo-dashboard.module.css";
+import { CeoBoardShell } from "./CeoBoardShell";
 import { DeliverablesBody } from "./ClientDeliverablesRotator";
-import { CeoStatTiles } from "./CeoStatTiles";
 import type { ClientDeliverables } from "@/lib/ceo-deliverables/deliverables";
-
-// Oswald for the condensed title/KPI numbers. Body text is Inter, supplied as
-// --font-body by the CEO layout and applied through the panel's base font.
-const titleFont = Oswald({ subsets: ["latin"], weight: ["500", "700"], display: "swap", variable: "--font-title" });
 
 export interface ClientDeliverablesDashboardProps {
   data: ClientDeliverables;
   live: boolean;
-}
-
-/** An ISO timestamp as a short Singapore-time label, e.g. "7 Sep 2026, 3:42 PM". */
-function formatUpdated(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Singapore",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(d);
+  /** Set when the sheet couldn't be read and saved figures are shown. */
+  staleSince?: string | null;
 }
 
 /**
@@ -34,37 +14,25 @@ function formatUpdated(iso: string): string {
  * a completion bar per campaign split into two groups — overdue (past deadline)
  * and on track (deadline ahead). Shares the CEO white theme.
  */
-export function ClientDeliverablesDashboard({ data, live }: ClientDeliverablesDashboardProps) {
+export function ClientDeliverablesDashboard({ data, live, staleSince }: ClientDeliverablesDashboardProps) {
   const { overdue, onTrack, totalOverdue, totalDone, totalDeliverables, statusLegend, updatedAt } = data;
   const pctDone = totalDeliverables ? Math.round((totalDone / totalDeliverables) * 100) : 0;
 
-  const subtitle = [
-    "2026",
-    updatedAt ? `Updated ${formatUpdated(updatedAt)}` : null,
-    live ? null : "No sheet connected — no figures available.",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
   return (
-    <section className={`${styles.panel} ${titleFont.variable}`} data-fullscreen="true" data-sfv="true">
-      <ViewportFit />
-
-      <header className={`${styles.masthead} ${styles.delivHeaderCard}`}>
-        <div className={styles.delivTitleBlock}>
-          <h1>PRs &amp; Interviews</h1>
-          <div className={styles.week}>{subtitle}</div>
-        </div>
-        <CeoStatTiles
-          tiles={[
-            { value: totalOverdue, label: "Overdue Deliverables", state: "overdue" },
-            { value: pctDone, suffix: "%", label: `Published · ${totalDone}/${totalDeliverables}` },
-            { value: overdue.length, label: "Campaigns Behind" },
-          ]}
-        />
-      </header>
-
+    <CeoBoardShell
+      title="PRs & Interviews"
+      period="2026"
+      updatedAt={updatedAt}
+      staleSince={staleSince}
+      live={live}
+      notes={data.warnings}
+      tiles={[
+        { value: totalOverdue, label: "Overdue Deliverables", state: "overdue" },
+        { value: pctDone, suffix: "%", label: `Published · ${totalDone}/${totalDeliverables}` },
+        { value: overdue.length, label: "Campaigns Behind" },
+      ]}
+    >
       <DeliverablesBody overdue={overdue} onTrack={onTrack} statusLegend={statusLegend} />
-    </section>
+    </CeoBoardShell>
   );
 }

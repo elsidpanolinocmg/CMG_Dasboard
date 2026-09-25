@@ -4,7 +4,9 @@ import { Oswald } from "next/font/google";
 import DashboardControls from "@/components/DashboardControls";
 import styles from "./ceo-dashboard.module.css";
 import { DonutChart } from "./DonutChart";
+import { NoticeChip } from "./NoticeChip";
 import { RefreshButton } from "./RefreshButton";
+import { cachePrefixes } from "@/lib/cache/keys";
 import { StatTile } from "./StatTile";
 import { formatAttainment, formatSignedPercent } from "@/lib/ceo/format";
 import { BUSINESS_DAYS_PER_WEEK, formatWeekRange, fromEpochDay, toEpochDay, weekEnd, weekStart } from "@/lib/ceo/week";
@@ -100,32 +102,9 @@ export function MarketingDashboard({
         >
           ← Back
         </Link>
-        <RefreshButton className="rounded-lg bg-black/40 px-5 py-3 text-lg text-white hover:bg-black/60 active:bg-black/70 disabled:opacity-60" />
+        <RefreshButton className="rounded-lg bg-black/40 px-5 py-3 text-lg text-white hover:bg-black/60 active:bg-black/70 disabled:opacity-60" clearCache={[cachePrefixes.ceoMarketing]} />
       </DashboardControls>
     </section>
-  );
-}
-
-/** The data-caveats pill: a count that reveals the full notes list on hover/focus. */
-function NoticeChip({ notices }: { notices: string[] }) {
-  return (
-    <div
-      className={styles.noticeChip}
-      tabIndex={0}
-      role="button"
-      aria-label={`${notices.length} notice${notices.length === 1 ? "" : "s"} about this data`}
-    >
-      <span aria-hidden="true">▲</span>
-      <span className={styles.noticeCount}>{notices.length}</span>
-      <div className={styles.noticePopover} role="tooltip">
-        <div className={styles.noticePopoverTitle}>Notes on this data</div>
-        <ul>
-          {notices.map((n, i) => (
-            <li key={i}>{n}</li>
-          ))}
-        </ul>
-      </div>
-    </div>
   );
 }
 

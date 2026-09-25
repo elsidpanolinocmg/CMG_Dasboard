@@ -1,5 +1,7 @@
 import { MarketingDashboard } from "@/components/ceo/MarketingDashboard";
 import { cacheKeys, getCache, ttls } from "@/lib/cache";
+import { cachedSheetLoad } from "@/lib/ceo/cached-load";
+import { formatSgtTimestamp } from "@/lib/ceo/format";
 import { formatWeekRange, fromEpochDay, parseCivilDate, today, toEpochDay, weekEnd, weekStart } from "@/lib/ceo/week";
 import { CATEGORIES } from "@/lib/ceo-marketing/categories";
 import { loadWeeklyMarketing, type WeeklyMarketing } from "@/lib/ceo-marketing/marketing-sheet";
@@ -28,17 +30,34 @@ function explicitAsOf(raw: string | string[] | undefined): { asOf: string; pinne
   return { asOf, pinned: asOf !== now };
 }
 
-async function loadThroughCache(cacheDate: string, loader: () => Promise<WeeklyMarketing>): Promise<WeeklyMarketing> {
+/**
+ * The weekly figures through the shared cache. When the sheet can't be read, the
+ * last good copy is served with a warning (shown in the notes chip). Following the
+ * sheet, every day's copy is the same "latest week", so one saved copy serves
+ * across midnight; a pinned week keeps its own.
+ */
+async function loadThroughCache(
+  cacheDate: string,
+  pinned: boolean,
+  loader: () => Promise<WeeklyMarketing>,
+): Promise<WeeklyMarketing> {
   const key = cacheKeys.ceoMarketingLeads(cacheDate);
-  try {
-    return await getCache().getOrLoad<WeeklyMarketing>(key, loader, {
-      ttlMs: ttls.CEO_MONEY_LEDGER,
-      staleMs: ttls.CEO_MONEY_LEDGER_STALE,
-    });
-  } catch (err) {
-    console.error("[ceo-marketing] cache unavailable, reading through:", err);
-    return loader();
-  }
+  const { value, staleSince } = await cachedSheetLoad({
+    key,
+    lastGoodKey: cacheKeys.lastGood(pinned ? key : "ceo-marketing:leads:latest"),
+    loader,
+    ttlMs: ttls.CEO_MONEY_LEDGER,
+    staleMs: ttls.CEO_MONEY_LEDGER_STALE,
+    lastGoodTtlMs: ttls.CEO_LAST_GOOD,
+  });
+  if (!staleSince) return value;
+  return {
+    ...value,
+    warnings: [
+      ...value.warnings,
+      `Couldn't read the marketing sheet — showing figures saved ${formatSgtTimestamp(staleSince)}.`,
+    ],
+  };
 }
 
 export default async function CeoMarketingPage({
@@ -85,7 +104,7 @@ export default async function CeoMarketingPage({
     warnings: [],
   };
   try {
-    weekly = await loadThroughCache(cacheDate, () =>
+    weekly = await loadThroughCache(cacheDate, !!explicit, () =>
       explicit ? loadWeeklyMarketing(explicit.asOf) : loadWeeklyMarketing(now, { latest: true }),
     );
   } catch (err) {

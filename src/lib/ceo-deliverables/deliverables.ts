@@ -1,26 +1,10 @@
-import { google } from "googleapis";
+import { looksLikeDate, plural, rowList, someOf } from "@/lib/ceo/data-notes";
+import type { DetailItem } from "@/lib/ceo/detail-item";
+import { humanizeDue } from "@/lib/ceo/due";
 import { resolveCeoSheetId } from "@/lib/ceo/sheet-binding";
+import { readSheetModifiedTime } from "@/lib/ceo/sheet-modified";
 import { today, toEpochDay, type EpochDay } from "@/lib/ceo/week";
-import { getOAuth2Client, getSheetsClient } from "@/lib/sources/googleOAuth";
-
-/**
- * The workbook's last-edit time from Drive (any tab), as ISO 8601 — a truer "as of"
- * than our read time. Returns null when the token has no Drive scope or the call
- * fails, so the caller can fall back to the fetch time.
- */
-async function readSheetModifiedTime(spreadsheetId: string): Promise<string | null> {
-  try {
-    const drive = google.drive({ version: "v3", auth: getOAuth2Client() });
-    const res = await drive.files.get({
-      fileId: spreadsheetId,
-      fields: "modifiedTime",
-      supportsAllDrives: true,
-    });
-    return res.data.modifiedTime ?? null;
-  } catch {
-    return null;
-  }
-}
+import { getSheetsClient } from "@/lib/sources/googleOAuth";
 
 /**
  * Reads the client-deliverables workbook: one tab per awards campaign, each on
@@ -70,6 +54,8 @@ export interface CampaignDeliverables {
   dueSoon: boolean;
   /** The status breakdown for the stacked bar — Done first, then by count. */
   statuses: StatusSlice[];
+  /** Every deliverable behind the card, for its detail panel. */
+  items: DetailItem[];
 }
 
 export interface ClientDeliverables {
@@ -91,7 +77,7 @@ export interface ClientDeliverables {
   warnings: string[];
 }
 
-const EMPTY: ClientDeliverables = {
+export const EMPTY_CLIENT_DELIVERABLES: ClientDeliverables = {
   overdue: [],
   onTrack: [],
   totalOverdue: 0,
@@ -112,21 +98,6 @@ function byDoneThenCount(a: StatusSlice, b: StatusSlice): number {
   return b.count - a.count || a.status.localeCompare(b.status);
 }
 
-/** How far a deadline is from today, in words: "5 months overdue", "due in 6 days". */
-function humanizeDue(deadlineDay: EpochDay | null, todayDay: EpochDay): string {
-  if (deadlineDay === null) return "";
-  const diff = todayDay - deadlineDay; // positive = overdue
-  if (diff === 0) return "due today";
-  const mag = Math.abs(diff);
-  const span =
-    mag < 14
-      ? `${mag} day${mag === 1 ? "" : "s"}`
-      : mag < 60
-        ? `${Math.round(mag / 7)} weeks`
-        : `${Math.round(mag / 30)} months`;
-  return diff > 0 ? `${span} overdue` : `due in ${span}`;
-}
-
 /** `"March 27"` → the epoch day of 27 March 2026, or null if it doesn't parse. */
 function parseDeadline(raw: Cell): EpochDay | null {
   const m = /([A-Za-z]+)\s+(\d{1,2})/.exec(String(raw ?? "").trim());
@@ -143,7 +114,7 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
     "ceo_client_deliverables",
     process.env.CEO_CLIENT_DELIVERABLES_SHEET_ID,
   );
-  if (!spreadsheetId) return EMPTY;
+  if (!spreadsheetId) return EMPTY_CLIENT_DELIVERABLES;
 
   const sheets = getSheetsClient();
 
@@ -153,7 +124,7 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
     .map((s) => s.properties?.title ?? "")
     .filter((t) => /2026/.test(t));
 
-  if (tabs.length === 0) return { ...EMPTY, source: "sheet" };
+  if (tabs.length === 0) return { ...EMPTY_CLIENT_DELIVERABLES, source: "sheet" };
 
   // Two ranges per tab in a single round-trip: the deadline cell and the
   // status+client columns beneath the deliverables.
@@ -171,7 +142,8 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
 
   const todayDay = toEpochDay(today());
   const overdue: CampaignDeliverables[] = [];
-  const onTrack: Array<CampaignDeliverables & { deadlineDay: EpochDay }> = [];
+  // On-track campaigns paired with their deadline, so they can be sorted soonest first.
+  const onTrack: Array<{ row: CampaignDeliverables; deadlineDay: EpochDay }> = [];
   let totalOverdue = 0;
   let totalDone = 0;
   let totalDeliverables = 0;
@@ -179,6 +151,9 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
   // Union of statuses across all campaigns, for the shared legend. Keyed by
   // lower-case; the value keeps the first-seen spelling (so "GTG" stays "GTG").
   const legend = new Map<string, { display: string; count: number }>();
+
+  // Rows the board had to skip or couldn't fully read, for the notes chip.
+  const notes: string[] = [];
 
   tabs.forEach((campaign, i) => {
     const deadlineRaw = (valueRanges[2 * i]?.values?.[0]?.[0] ?? "") as Cell;
@@ -190,15 +165,22 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
     let total = 0;
     let done = 0;
     const perStatus = new Map<string, { display: string; count: number }>();
-    for (const row of rows) {
+    const items: DetailItem[] = [];
+    const noStatusRows: number[] = [];
+    const dateClients: Array<{ row: number; client: string }> = [];
+    for (const [r, row] of rows.entries()) {
       const raw = String(row[0] ?? "").trim();
       const key = raw.toLowerCase();
       const client = String(row[1] ?? "").trim();
+      const sheetRow = DELIVERABLES_FROM_ROW + r;
+      if (client && !raw) noStatusRows.push(sheetRow);
       // A real deliverable names a client and isn't cancelled. Divider rows in the
       // status column ("WBA", "Email Interview") carry no client — skip them.
       if (!client || !raw || key === "cancelled") continue;
+      if (looksLikeDate(client)) dateClients.push({ row: sheetRow, client });
       total++;
       if (key === "done") done++;
+      items.push({ name: client, status: raw, done: key === "done", late: pastDeadline && key !== "done" });
       const bump = (m: Map<string, { display: string; count: number }>) => {
         const e = m.get(key);
         if (e) e.count++;
@@ -209,6 +191,27 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
     }
 
     const outstanding = total - done;
+
+    if (noStatusRows.length) {
+      notes.push(
+        `${campaign}: ${plural(noStatusRows.length, "row")} with a client but no status in column A ${noStatusRows.length === 1 ? "was" : "were"} left out (${rowList(noStatusRows)}).`,
+      );
+    }
+    if (dateClients.length) {
+      notes.push(
+        `${campaign}: the client column holds a date on ${rowList(dateClients.map((d) => d.row))} (${someOf(dateClients.map((d) => d.client))}) — check ${dateClients.length === 1 ? "it's a real deliverable" : "they're real deliverables"}.`,
+      );
+    }
+    if (deadlineDay === null && outstanding > 0) {
+      const written = String(deadlineRaw ?? "").trim();
+      const missing = `its ${plural(outstanding, "outstanding deliverable")} ${outstanding === 1 ? "isn't" : "aren't"} on the board`;
+      notes.push(
+        written
+          ? `${campaign}: couldn't read the deadline in B17 ("${written}"), so ${missing}.`
+          : `${campaign}: B17 has no deadline, so ${missing}.`,
+      );
+    }
+
     const statuses: StatusSlice[] = [...perStatus.values()]
       .map((e) => ({ status: e.display, count: e.count }))
       .sort(byDoneThenCount);
@@ -218,9 +221,10 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
       total,
       done,
       outstanding,
-      dueLabel: humanizeDue(deadlineDay, todayDay),
+      dueLabel: deadlineDay === null ? "" : humanizeDue(deadlineDay, todayDay),
       dueSoon: !pastDeadline && deadlineDay !== null && deadlineDay - todayDay <= 7,
       statuses,
+      items,
     };
 
     totalDeliverables += total;
@@ -231,12 +235,12 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
       totalOverdue += outstanding;
       overdue.push(row);
     } else if (!pastDeadline && deadlineDay !== null && outstanding > 0) {
-      onTrack.push({ ...row, deadlineDay });
+      onTrack.push({ row, deadlineDay });
     }
   });
 
   overdue.sort((a, b) => b.outstanding - a.outstanding || b.total - a.total || a.campaign.localeCompare(b.campaign));
-  onTrack.sort((a, b) => a.deadlineDay - b.deadlineDay || a.campaign.localeCompare(b.campaign));
+  onTrack.sort((a, b) => a.deadlineDay - b.deadlineDay || a.row.campaign.localeCompare(b.row.campaign));
 
   const statusLegend = [...legend.values()]
     .map((e) => ({ status: e.display, count: e.count }))
@@ -248,7 +252,7 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
 
   return {
     overdue,
-    onTrack: onTrack.map(({ deadlineDay: _d, ...c }) => c),
+    onTrack: onTrack.map((o) => o.row),
     totalOverdue,
     totalDone,
     totalDeliverables,
@@ -256,6 +260,6 @@ export async function loadClientDeliverables(): Promise<ClientDeliverables> {
     statusLegend,
     updatedAt,
     source: "sheet",
-    warnings: [],
+    warnings: notes,
   };
 }

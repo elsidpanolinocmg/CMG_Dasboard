@@ -47,4 +47,13 @@ export const ttls = {
   // numbers current without hammering the Sheets API.
   CEO_MONEY_LEDGER: 15 * MINUTE,
   CEO_MONEY_LEDGER_STALE: 5 * MINUTE,
+  // The deliverable trackers (PRs, video interviews, magazine materials, short
+  // form videos) are edited through the day like the ledger, and share one Sheets
+  // read quota with it: fresh for five minutes, then served while a background
+  // re-read runs, up to fifteen.
+  CEO_TRACKER: 15 * MINUTE,
+  CEO_TRACKER_STALE: 5 * MINUTE,
+  // How long a board's last successful read is kept to fall back on when the
+  // sheet can't be read — long enough to ride out a weekend outage.
+  CEO_LAST_GOOD: 7 * DAY,
 } as const;
