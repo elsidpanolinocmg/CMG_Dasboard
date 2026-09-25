@@ -29,6 +29,18 @@ export const cacheKeys = {
   ceoMoneyLedger: (asOf: string) => `ceo-money:ledger:${asOf}`,
   ceoInvoiceRegister: (asOf: string, region: string) => `ceo-money:register:${region}:${asOf}`,
   ceoMarketingLeads: (asOf: string) => `ceo-marketing:leads:${asOf}`,
+  // The deliverable trackers word their deadlines relative to today ("due in 3
+  // days"), so each day gets its own entry and a cached read never outlives
+  // Singapore midnight. The version segment is bumped whenever the cached shape
+  // changes (v2: per-card item lists; v3: data notes), so an older copy is never served as new.
+  ceoDeliverables: (day: string) => `ceo-deliverables:v3:${day}`,
+  ceoVideoInterviews: (day: string) => `ceo-video-interviews:v3:${day}`,
+  ceoMagazineMaterials: (day: string) => `ceo-magazine:v3:${day}`,
+  ceoShortFormVideos: (day: string) => `ceo-sfv:v3:${day}`,
+  // The last successful read of a CEO board, kept long after its cache entry
+  // expires so a failed read can fall back to it. A separate "last-good:" prefix
+  // means clearing a board's cache (the Refresh button) never deletes it.
+  lastGood: (name: string) => `last-good:${name}`,
 } as const;
 
 export const cachePrefixes = {
@@ -40,4 +52,9 @@ export const cachePrefixes = {
   drupal: "drupal:",
   mailchimp: "mailchimp:",
   ceoMoney: "ceo-money:",
+  ceoMarketing: "ceo-marketing:",
+  ceoDeliverables: "ceo-deliverables:",
+  ceoVideoInterviews: "ceo-video-interviews:",
+  ceoMagazineMaterials: "ceo-magazine:",
+  ceoShortFormVideos: "ceo-sfv:",
 } as const;

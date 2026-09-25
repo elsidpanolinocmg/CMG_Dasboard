@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import { RegionalDashboard, type RegionView } from "@/components/ceo/RegionalDashboard";
-import { cacheKeys, getCache, ttls } from "@/lib/cache";
+import { cacheKeys, getCache } from "@/lib/cache";
 import { fromEpochDay, parseCivilDate, today, toEpochDay } from "@/lib/ceo/week";
 import { loadCeoMoneySettings } from "@/lib/ceo-money/settings";
-import { loadInvoiceRegister, type InvoiceRegister } from "@/lib/ceo-money/invoice-register";
+import { loadRegionRegister } from "@/lib/ceo-money/cached-register";
+import type { InvoiceRegister } from "@/lib/ceo-money/invoice-register";
 import { buildRegionDashboard } from "@/lib/ceo-money/metrics";
 import { formatBusinessWeek, reportingWeekFor } from "@/lib/ceo-money/reporting-week";
-import { getRegion, REGIONS, type Region } from "@/lib/ceo-money/regions";
+import { getRegion, REGIONS } from "@/lib/ceo-money/regions";
 
 // The reporting week rolls at Singapore midnight, so this page must never be
 // statically rendered — it would keep serving last week's numbers.
@@ -16,26 +17,6 @@ export const maxDuration = 60;
 export async function generateMetadata({ params }: { params: Promise<{ account: string }> }) {
   const region = getRegion((await params).account);
   return { title: region ? `${region.label} Money — CMG Dashboard` : "CEO Money — CMG Dashboard" };
-}
-
-/**
- * Reads one region's register through the tiered cache, falling back to a direct
- * sheet read if the cache backend is unreachable. A cache is an optimisation; it
- * must not be able to take the numbers off the wall.
- */
-async function loadRegionRegister(region: Region, asOf: string): Promise<InvoiceRegister> {
-  const key = cacheKeys.ceoInvoiceRegister(asOf, region.key);
-  const read = () => loadInvoiceRegister(asOf, { tab: region.tab, columns: region.columns });
-
-  try {
-    return await getCache().getOrLoad<InvoiceRegister>(key, read, {
-      ttlMs: ttls.CEO_MONEY_LEDGER,
-      staleMs: ttls.CEO_MONEY_LEDGER_STALE,
-    });
-  } catch (err) {
-    console.error(`[ceo-money] cache unavailable for ${region.tab}, reading through:`, err);
-    return read();
-  }
 }
 
 /**

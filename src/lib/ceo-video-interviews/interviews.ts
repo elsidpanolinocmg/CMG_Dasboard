@@ -1,7 +1,10 @@
-import { google } from "googleapis";
+import { plural, rowList, someOf } from "@/lib/ceo/data-notes";
+import type { DetailItem } from "@/lib/ceo/detail-item";
+import { humanizeDue } from "@/lib/ceo/due";
 import { resolveCeoSheetId } from "@/lib/ceo/sheet-binding";
+import { readSheetModifiedTime } from "@/lib/ceo/sheet-modified";
 import { today, toEpochDay, type EpochDay } from "@/lib/ceo/week";
-import { getOAuth2Client, getSheetsClient } from "@/lib/sources/googleOAuth";
+import { getSheetsClient } from "@/lib/sources/googleOAuth";
 
 /**
  * Reads the award-video-interview workbook: one tab per DOMAIN (e.g. HKB, SBR),
@@ -119,6 +122,8 @@ export interface AwardInterviews {
   dueLabel: string;
   /** True when on track and the deadline is within a week. */
   dueSoon: boolean;
+  /** Every interview behind the card, for its detail panel ("done" = first draft sent). */
+  items: DetailItem[];
 }
 
 export interface VideoInterviews {
@@ -138,7 +143,7 @@ export interface VideoInterviews {
   warnings: string[];
 }
 
-const EMPTY: VideoInterviews = {
+export const EMPTY_VIDEO_INTERVIEWS: VideoInterviews = {
   overdue: [],
   onTrack: [],
   totalInterviews: 0,
@@ -168,32 +173,6 @@ function parseDeadline(raw: string): EpochDay | null {
   return toEpochDay(`${YEAR}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
 }
 
-/** How far a deadline is from today, in words. */
-function humanizeDue(deadlineDay: EpochDay | null, todayDay: EpochDay): string {
-  if (deadlineDay === null) return "no deadline set";
-  const diff = todayDay - deadlineDay;
-  if (diff === 0) return "due today";
-  const mag = Math.abs(diff);
-  const span =
-    mag < 14
-      ? `${mag} day${mag === 1 ? "" : "s"}`
-      : mag < 60
-        ? `${Math.round(mag / 7)} wk`
-        : `${Math.round(mag / 30)} mo`;
-  return diff > 0 ? `${span} overdue` : `due in ${span}`;
-}
-
-/** The sheet's last-edit time from Drive (best-effort); null when unavailable. */
-async function readSheetModifiedTime(spreadsheetId: string): Promise<string | null> {
-  try {
-    const drive = google.drive({ version: "v3", auth: getOAuth2Client() });
-    const res = await drive.files.get({ fileId: spreadsheetId, fields: "modifiedTime", supportsAllDrives: true });
-    return res.data.modifiedTime ?? null;
-  } catch {
-    return null;
-  }
-}
-
 interface Group {
   award: string;
   domain: string;
@@ -201,6 +180,8 @@ interface Group {
   total: number;
   draftsSent: number;
   perStatus: Map<string, { display: string; count: number }>;
+  /** Lateness is set once the award's deadline is known. */
+  items: DetailItem[];
 }
 
 export async function loadVideoInterviews(): Promise<VideoInterviews> {
@@ -208,7 +189,7 @@ export async function loadVideoInterviews(): Promise<VideoInterviews> {
     "ceo_video_interviews",
     process.env.CEO_VIDEO_INTERVIEWS_SHEET_ID,
   );
-  if (!spreadsheetId) return EMPTY;
+  if (!spreadsheetId) return EMPTY_VIDEO_INTERVIEWS;
 
   const sheets = getSheetsClient();
 
@@ -217,7 +198,7 @@ export async function loadVideoInterviews(): Promise<VideoInterviews> {
     .map((s) => s.properties?.title ?? "")
     .filter((t) => t && !NON_CAMPAIGN.has(t));
 
-  if (domains.length === 0) return { ...EMPTY, source: "sheet" };
+  if (domains.length === 0) return { ...EMPTY_VIDEO_INTERVIEWS, source: "sheet" };
 
   // Timeline award → draft deadline, plus status/event/client/1st-draft per domain.
   const ranges = ["'Timeline'!A1:C60", ...domains.map((t) => `'${t}'!A${INTERVIEWS_FROM_ROW}:P400`)];
@@ -242,23 +223,38 @@ export async function loadVideoInterviews(): Promise<VideoInterviews> {
   const groups = new Map<string, Group>();
   const legend = new Map<string, { display: string; count: number }>();
 
+  // Rows the board had to skip or couldn't fully read, for the notes chip.
+  const notes: string[] = [];
+
   domains.forEach((domain, i) => {
     const rows = (vr[i + 1]?.values ?? []) as Cell[][];
-    for (const row of rows) {
+    const unmatched: Array<{ row: number; label: string }> = [];
+    const noStatusRows: number[] = [];
+    let unmappedInterviews = 0;
+    for (const [r, row] of rows.entries()) {
       const status = String(row[COL.status] ?? "").trim();
       const client = String(row[COL.client] ?? "").trim();
       const key = status.toLowerCase();
       if (!client || DROP_STATUSES.has(key)) continue;
 
-      const { display, award } = resolveAward(domain, String(row[COL.event] ?? "").trim());
+      const sheetRow = INTERVIEWS_FROM_ROW + r;
+      if (!status) noStatusRows.push(sheetRow);
+      const label = String(row[COL.event] ?? "").trim();
+      const { display, award } = resolveAward(domain, label);
+      if (!award) {
+        if (BY_LABEL[domain]) unmatched.push({ row: sheetRow, label: label || "(blank)" });
+        else unmappedInterviews++;
+      }
       const gkey = `${domain}||${display}`;
       let g = groups.get(gkey);
       if (!g) {
-        g = { award: display, domain, timelineAward: award, total: 0, draftsSent: 0, perStatus: new Map() };
+        g = { award: display, domain, timelineAward: award, total: 0, draftsSent: 0, perStatus: new Map(), items: [] };
         groups.set(gkey, g);
       }
       g.total++;
-      if (draftSent(row[COL.firstDraft])) g.draftsSent++;
+      const sent = draftSent(row[COL.firstDraft]);
+      if (sent) g.draftsSent++;
+      g.items.push({ name: client, status: status || "No status", done: sent, late: false, extra: sent ? "Sent" : "Not sent" });
 
       const dStatus = status || "No status";
       const sKey = status ? key : "no status";
@@ -269,7 +265,25 @@ export async function loadVideoInterviews(): Promise<VideoInterviews> {
       if (bumpL) bumpL.count++;
       else legend.set(sKey, { display: dStatus, count: 1 });
     }
+
+    const have = (n: number) => (n === 1 ? "has" : "have");
+    if (unmappedInterviews) {
+      notes.push(
+        `${domain}: this tab isn't matched to an award yet, so its ${plural(unmappedInterviews, "interview")} ${have(unmappedInterviews)} no draft deadline.`,
+      );
+    }
+    if (unmatched.length) {
+      notes.push(
+        `${domain}: the Event label ${someOf(unmatched.map((u) => u.label))} on ${rowList(unmatched.map((u) => u.row))} doesn't match an award, so ${unmatched.length === 1 ? "that interview has" : "those interviews have"} no draft deadline.`,
+      );
+    }
+    if (noStatusRows.length) {
+      notes.push(`${domain}: ${plural(noStatusRows.length, "interview")} ${have(noStatusRows.length)} no status in column A (${rowList(noStatusRows)}).`);
+    }
   });
+
+  // Awards whose Timeline deadline is missing or unreadable — reported once per award.
+  const timelineNoted = new Set<string>();
 
   const overdue: AwardInterviews[] = [];
   const onTrack: AwardInterviews[] = [];
@@ -288,6 +302,17 @@ export async function loadVideoInterviews(): Promise<VideoInterviews> {
       .map((e) => ({ status: e.display, count: e.count }))
       .sort((a, b) => b.count - a.count || a.status.localeCompare(b.status));
 
+    if (g.timelineAward && deadlineDay === null && pending > 0 && !timelineNoted.has(g.timelineAward)) {
+      timelineNoted.add(g.timelineAward);
+      notes.push(
+        !deadline
+          ? `Timeline: there's no "${g.timelineAward}" row, so its interviews have no draft deadline.`
+          : deadline.raw
+            ? `Timeline: couldn't read the draft deadline for "${g.timelineAward}" ("${deadline.raw}").`
+            : `Timeline: "${g.timelineAward}" has no draft deadline in column C.`,
+      );
+    }
+
     const entry: AwardInterviews = {
       award: g.award,
       domain: g.domain,
@@ -297,8 +322,9 @@ export async function loadVideoInterviews(): Promise<VideoInterviews> {
       pending,
       overdueCount,
       statuses,
-      dueLabel: humanizeDue(deadlineDay, todayDay),
+      dueLabel: deadlineDay === null ? "no deadline set" : humanizeDue(deadlineDay, todayDay, { short: true }),
       dueSoon: !pastDeadline && deadlineDay !== null && deadlineDay - todayDay <= 7,
+      items: g.items.map((item) => ({ ...item, late: pastDeadline && !item.done })),
     };
 
     totalInterviews += g.total;
@@ -327,6 +353,6 @@ export async function loadVideoInterviews(): Promise<VideoInterviews> {
     statusLegend,
     updatedAt,
     source: "sheet",
-    warnings: [],
+    warnings: notes,
   };
 }

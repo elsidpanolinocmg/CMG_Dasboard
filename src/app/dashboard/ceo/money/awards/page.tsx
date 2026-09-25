@@ -1,10 +1,11 @@
 import { AwardsDashboard } from "@/components/ceo/AwardsDashboard";
-import { cacheKeys, getCache, ttls } from "@/lib/cache";
+import { cacheKeys, getCache } from "@/lib/cache";
 import { fromEpochDay, parseCivilDate, today, toEpochDay } from "@/lib/ceo/week";
 import { buildAwardsTable } from "@/lib/ceo-money/awards";
-import { loadInvoiceRegister, type InvoiceRegister, type RegisterRow } from "@/lib/ceo-money/invoice-register";
+import { loadRegionRegister } from "@/lib/ceo-money/cached-register";
+import type { InvoiceRegister, RegisterRow } from "@/lib/ceo-money/invoice-register";
 import { formatBusinessWeek, reportingWeekFor } from "@/lib/ceo-money/reporting-week";
-import { REGIONS, type Region } from "@/lib/ceo-money/regions";
+import { REGIONS } from "@/lib/ceo-money/regions";
 
 // The reporting week rolls at Singapore midnight, so this page must never be
 // statically rendered.
@@ -24,20 +25,6 @@ function explicitAsOf(raw: string | string[] | undefined): { asOf: string; pinne
 
   const asOf = toEpochDay(requested) > toEpochDay(now) ? now : requested;
   return { asOf, pinned: asOf !== now };
-}
-
-async function loadRegionRegister(region: Region, cacheDate: string): Promise<InvoiceRegister> {
-  const key = cacheKeys.ceoInvoiceRegister(cacheDate, region.key);
-  const read = () => loadInvoiceRegister(cacheDate, { tab: region.tab, columns: region.columns });
-  try {
-    return await getCache().getOrLoad<InvoiceRegister>(key, read, {
-      ttlMs: ttls.CEO_MONEY_LEDGER,
-      staleMs: ttls.CEO_MONEY_LEDGER_STALE,
-    });
-  } catch (err) {
-    console.error(`[ceo-awards] cache unavailable for ${region.tab}, reading through:`, err);
-    return read();
-  }
 }
 
 export default async function CeoAwardsPage({

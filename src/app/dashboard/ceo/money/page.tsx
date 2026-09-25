@@ -1,8 +1,9 @@
 import { RegionalDashboard, type RegionView } from "@/components/ceo/RegionalDashboard";
-import { cacheKeys, getCache, ttls } from "@/lib/cache";
+import { cacheKeys, getCache } from "@/lib/cache";
 import { fromEpochDay, parseCivilDate, today, toEpochDay } from "@/lib/ceo/week";
 import { loadCeoMoneySettings } from "@/lib/ceo-money/settings";
-import { loadInvoiceRegister, type InvoiceRegister } from "@/lib/ceo-money/invoice-register";
+import { loadRegionRegister } from "@/lib/ceo-money/cached-register";
+import type { InvoiceRegister } from "@/lib/ceo-money/invoice-register";
 import { buildRegionDashboard } from "@/lib/ceo-money/metrics";
 import { formatBusinessWeek, reportingWeekFor } from "@/lib/ceo-money/reporting-week";
 import { REGIONS, type Region } from "@/lib/ceo-money/regions";
@@ -13,23 +14,6 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export const metadata = { title: "All Regions Money — CMG Dashboard" };
-
-/** Reads one region's register through the tiered cache, falling back to a
- *  direct sheet read if the cache backend is unreachable. */
-async function loadRegionRegister(region: Region, asOf: string): Promise<InvoiceRegister> {
-  const key = cacheKeys.ceoInvoiceRegister(asOf, region.key);
-  const read = () => loadInvoiceRegister(asOf, { tab: region.tab, columns: region.columns });
-
-  try {
-    return await getCache().getOrLoad<InvoiceRegister>(key, read, {
-      ttlMs: ttls.CEO_MONEY_LEDGER,
-      staleMs: ttls.CEO_MONEY_LEDGER_STALE,
-    });
-  } catch (err) {
-    console.error(`[ceo-money] cache unavailable for ${region.tab}, reading through:`, err);
-    return read();
-  }
-}
 
 /** An explicitly requested week (URL ?asOf= or CEO_MONEY_AS_OF), clamped to today. */
 function explicitAsOf(raw: string | string[] | undefined): { asOf: string; pinned: boolean } | null {

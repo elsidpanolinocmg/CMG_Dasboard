@@ -32,3 +32,18 @@ export function formatSignedPercent(fraction: number, digits = 0): string {
   const sign = fraction > 0 ? "+" : "";
   return `${sign}${(fraction * 100).toFixed(digits)}%`;
 }
+
+/** An ISO timestamp as a short Singapore-time label, e.g. "23 Sept 2026, 4:39 pm". */
+export function formatSgtTimestamp(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Singapore",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(d);
+}

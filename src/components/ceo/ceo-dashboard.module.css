@@ -1606,6 +1606,26 @@
   border: 1px solid rgba(11, 11, 11, 0.09);
   box-shadow: 0 12px 30px rgba(11, 11, 11, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   padding: clamp(12px, 1.8vh, 24px) clamp(16px, 1.8vw, 32px);
+  /* Its backdrop blur makes it a stacking context of its own, so lift it above the
+     board — otherwise the notes popover would be drawn under the cards. */
+  position: relative;
+  z-index: 5;
+}
+/* A board admitting its figures aren't current — saved figures after a failed
+   read. Deep amber rather than the --warning yellow, which washes out on white. */
+.delivNotice[data-kind="warning"] {
+  color: #b45309;
+  font-weight: 600;
+}
+/* The notes chip beside a card board's subtitle. It sits at the left of the
+   screen, so its list opens rightward rather than off the left edge. */
+.delivNoticeChip {
+  margin-left: 10px;
+  vertical-align: middle;
+}
+.delivNoticeChip .noticePopover {
+  left: 0;
+  right: auto;
 }
 /* Only as wide as the title needs; the rule sits just after it. */
 .delivTitleBlock {
@@ -1816,6 +1836,140 @@
   min-width: 0;
   min-height: 0;
   transition: transform 180ms ease, box-shadow 180ms ease;
+}
+/* A card that opens its detail panel: it's a button, so it reads as one. */
+.delivCard[data-openable="true"] {
+  cursor: pointer;
+}
+.delivCard[data-openable="true"]:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+
+/* ---- Detail panel: the items behind a card, over the board. ---- */
+.delivDetailBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60; /* above the dashboard controls (50) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(12px, 4vh, 48px) clamp(12px, 4vw, 64px);
+  background: rgba(11, 11, 11, 0.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: delivFade 200ms ease;
+}
+.delivDetailPanel {
+  width: min(1100px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(11, 11, 11, 0.3);
+  overflow: hidden;
+  color: var(--text-primary);
+}
+.delivDetailHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: clamp(14px, 2.2vh, 26px) clamp(16px, 2vw, 30px);
+  border-bottom: 1px solid var(--border);
+}
+.delivDetailTitle {
+  margin: 0;
+  font-family: var(--font-title), "Oswald", sans-serif;
+  font-weight: 700;
+  font-size: clamp(20px, 2.2vw, 36px);
+  line-height: 1.1;
+}
+.delivDetailSummary {
+  margin-top: 4px;
+  font-size: clamp(13px, 1.1vw, 18px);
+  color: var(--text-secondary);
+}
+.delivDetailCounts {
+  margin-top: 2px;
+  font-size: clamp(12px, 1vw, 16px);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.delivDetailClose {
+  flex: none;
+  width: clamp(34px, 3vw, 48px);
+  height: clamp(34px, 3vw, 48px);
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: clamp(20px, 1.8vw, 28px);
+  line-height: 1;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.delivDetailClose:hover {
+  background: rgba(11, 11, 11, 0.06);
+  color: var(--text-primary);
+}
+.delivDetailScroll {
+  overflow: auto;
+}
+.delivDetailTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: clamp(13px, 1.1vw, 19px);
+}
+.delivDetailTable th {
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  padding: 10px clamp(10px, 1vw, 18px);
+  border-bottom: 1px solid var(--border);
+}
+.delivDetailTable td {
+  padding: clamp(6px, 0.9vh, 12px) clamp(10px, 1vw, 18px);
+  border-bottom: 1px solid rgba(11, 11, 11, 0.06);
+  vertical-align: top;
+}
+.delivDetailTable td:first-child,
+.delivDetailTable th:first-child {
+  width: 1%;
+  padding-right: 0;
+}
+.delivDetailTable tr[data-tone="late"] td:nth-child(2) {
+  font-weight: 600;
+}
+.delivDetailTable tr[data-tone="done"] td {
+  color: var(--text-muted);
+}
+.delivDetailDot {
+  display: inline-block;
+  width: 0.65em;
+  height: 0.65em;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+.delivDetailDot[data-tone="late"] {
+  background: var(--critical);
+}
+.delivDetailDot[data-tone="open"] {
+  background: #0284c7;
+}
+.delivDetailDot[data-tone="done"] {
+  background: var(--good);
+}
+@media (prefers-reduced-motion: reduce) {
+  .delivDetailBackdrop {
+    animation: none;
+  }
 }
 /* A gentle lift on hover, for a little life on desktop. */
 .delivCard:hover {

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Inter } from "next/font/google";
+import { AutoRefresh } from "@/components/ceo/AutoRefresh";
 
 /**
  * Inter — designed for dense dashboard UI — is the shared body font for every CEO
@@ -9,12 +10,16 @@ import { Inter } from "next/font/google";
  *
  * The wrapper is `display: contents` so it adds no box — it only carries the font
  * variable down to the panels the pages render.
+ *
+ * Every CEO board is a wallboard, so the layout also keeps them current on a timer
+ * (see AutoRefresh).
  */
 const bodyFont = Inter({ subsets: ["latin"], display: "swap", variable: "--font-body" });
 
 export default function CeoLayout({ children }: { children: ReactNode }) {
   return (
     <div className={bodyFont.variable} style={{ display: "contents" }}>
+      <AutoRefresh />
       {children}
     </div>
   );

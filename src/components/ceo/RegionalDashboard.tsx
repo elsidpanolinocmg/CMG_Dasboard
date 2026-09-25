@@ -3,7 +3,9 @@ import { Oswald } from "next/font/google";
 import DashboardControls from "@/components/DashboardControls";
 import styles from "./ceo-dashboard.module.css";
 import { OverdueChart } from "./OverdueChart";
+import { NoticeChip } from "./NoticeChip";
 import { RefreshButton } from "./RefreshButton";
+import { cachePrefixes } from "@/lib/cache/keys";
 import { StatTile } from "./StatTile";
 import { buildTargetBullet } from "@/lib/ceo-money/bullet";
 import { formatBusinessWeek } from "@/lib/ceo-money/reporting-week";
@@ -105,25 +107,7 @@ export function RegionalDashboard({
           )}
         </div>
         <div className={styles.mastheadTools}>
-          {hasNotice && (
-            <div
-              className={styles.noticeChip}
-              tabIndex={0}
-              role="button"
-              aria-label={`${notices.length} notice${notices.length === 1 ? "" : "s"} about this data`}
-            >
-              <span aria-hidden="true">▲</span>
-              <span className={styles.noticeCount}>{notices.length}</span>
-              <div className={styles.noticePopover} role="tooltip">
-                <div className={styles.noticePopoverTitle}>Notes on this data</div>
-                <ul>
-                  {notices.map((n, i) => (
-                    <li key={i}>{n}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
+          {hasNotice && <NoticeChip notices={notices} />}
         </div>
       </header>
 
@@ -199,7 +183,7 @@ export function RegionalDashboard({
             })}
           </nav>
         )}
-        <RefreshButton className="rounded-lg bg-black/40 px-5 py-3 text-lg text-white hover:bg-black/60 active:bg-black/70 disabled:opacity-60" />
+        <RefreshButton className="rounded-lg bg-black/40 px-5 py-3 text-lg text-white hover:bg-black/60 active:bg-black/70 disabled:opacity-60" clearCache={[cachePrefixes.ceoMoney]} />
       </DashboardControls>
     </section>
   );

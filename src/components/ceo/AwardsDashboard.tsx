@@ -7,6 +7,7 @@ import ViewportFit from "@/components/ViewportFit";
 import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
 import styles from "./ceo-dashboard.module.css";
 import { RefreshButton } from "./RefreshButton";
+import { cachePrefixes } from "@/lib/cache/keys";
 import { formatCompactUSD } from "@/lib/ceo-money/money";
 import type { AwardRow } from "@/lib/ceo-money/awards";
 
@@ -50,23 +51,23 @@ export function AwardsDashboard({ awards, accounts }: AwardsDashboardProps) {
   const [rotationInterval, setRotationInterval] = useState(60_000);
 
   const totalPages = Math.max(1, Math.ceil(awards.length / pageSize));
-  const displayed = awards.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+  // Clamped here rather than corrected in an effect: if the list shrinks (say after
+  // a refresh) the stored page can point past the end, and this keeps the board on
+  // its last real page instead of flashing an empty one first.
+  const page = Math.min(pageIndex, totalPages - 1);
+  const displayed = awards.slice(page * pageSize, (page + 1) * pageSize);
   const rows: (AwardRow | null)[] = [...displayed];
   while (rows.length < pageSize) rows.push(null);
 
   useEffect(() => {
-    setPageIndex((i) => Math.min(i, Math.max(0, Math.ceil(awards.length / pageSize) - 1)));
-  }, [pageSize, awards.length]);
-
-  useEffect(() => {
     if (rotationInterval <= 0 || totalPages <= 1) return;
-    const t = setInterval(() => setPageIndex((i) => (i + 1) % totalPages), rotationInterval);
+    const t = setInterval(() => setPageIndex((i) => (Math.min(i, totalPages - 1) + 1) % totalPages), rotationInterval);
     return () => clearInterval(t);
   }, [rotationInterval, totalPages]);
 
   const swipe = useSwipeNav({
-    onNext: () => setPageIndex((i) => Math.min(totalPages - 1, i + 1)),
-    onPrev: () => setPageIndex((i) => Math.max(0, i - 1)),
+    onNext: () => setPageIndex(Math.min(totalPages - 1, page + 1)),
+    onPrev: () => setPageIndex(Math.max(0, page - 1)),
     enabled: totalPages > 1,
   });
 
@@ -124,18 +125,18 @@ export function AwardsDashboard({ awards, accounts }: AwardsDashboardProps) {
           ← Back
         </Link>
         <button
-          onClick={() => setPageIndex((i) => Math.max(0, i - 1))}
-          disabled={pageIndex === 0}
+          onClick={() => setPageIndex(Math.max(0, page - 1))}
+          disabled={page === 0}
           className={`${CONTROL_BTN} disabled:opacity-30 disabled:cursor-not-allowed`}
         >
           ◀ Prev
         </button>
         <span className="text-sm text-white/80">
-          {pageIndex + 1} / {totalPages}
+          {page + 1} / {totalPages}
         </span>
         <button
-          onClick={() => setPageIndex((i) => Math.min(totalPages - 1, i + 1))}
-          disabled={pageIndex >= totalPages - 1}
+          onClick={() => setPageIndex(Math.min(totalPages - 1, page + 1))}
+          disabled={page >= totalPages - 1}
           className={`${CONTROL_BTN} disabled:opacity-30 disabled:cursor-not-allowed`}
         >
           Next ▶
@@ -173,7 +174,7 @@ export function AwardsDashboard({ awards, accounts }: AwardsDashboardProps) {
               {a.label}
             </Link>
           ))}
-        <RefreshButton className={`${CONTROL_BTN} disabled:opacity-60`} />
+        <RefreshButton className={`${CONTROL_BTN} disabled:opacity-60`} clearCache={[cachePrefixes.ceoMoney]} />
       </DashboardControls>
     </section>
   );

@@ -1,7 +1,10 @@
-import { google } from "googleapis";
+import { plural, rowList, someOf } from "@/lib/ceo/data-notes";
+import type { DetailItem } from "@/lib/ceo/detail-item";
+import { humanizeDue } from "@/lib/ceo/due";
 import { resolveCeoSheetId } from "@/lib/ceo/sheet-binding";
+import { readSheetModifiedTime } from "@/lib/ceo/sheet-modified";
 import { today, toEpochDay, type EpochDay } from "@/lib/ceo/week";
-import { getOAuth2Client, getSheetsClient } from "@/lib/sources/googleOAuth";
+import { getSheetsClient } from "@/lib/sources/googleOAuth";
 
 /**
  * Reads the magazine-materials workbook: one tab per magazine brand, each on the
@@ -58,6 +61,8 @@ export interface MagazineBrand {
   dueLabel: string;
   /** True for an on-track brand whose soonest deadline is within a week. */
   dueSoon: boolean;
+  /** Every 2026 material behind the card, for its detail panel. */
+  items: DetailItem[];
 }
 
 export interface MagazineMaterials {
@@ -78,7 +83,7 @@ export interface MagazineMaterials {
   warnings: string[];
 }
 
-const EMPTY: MagazineMaterials = {
+export const EMPTY_MAGAZINE_MATERIALS: MagazineMaterials = {
   overdue: [],
   onTrack: [],
   totalMaterials: 0,
@@ -97,21 +102,6 @@ function byDoneThenCount(a: StatusSlice, b: StatusSlice): number {
   const bd = DONE_STATUSES.has(b.status.toLowerCase());
   if (ad !== bd) return ad ? -1 : 1;
   return b.count - a.count || a.status.localeCompare(b.status);
-}
-
-/** How far a deadline is from today, in words: "5 months overdue", "due in 6 days". */
-function humanizeDue(deadlineDay: EpochDay | null, todayDay: EpochDay): string {
-  if (deadlineDay === null) return "";
-  const diff = todayDay - deadlineDay; // positive = overdue
-  if (diff === 0) return "due today";
-  const mag = Math.abs(diff);
-  const span =
-    mag < 14
-      ? `${mag} day${mag === 1 ? "" : "s"}`
-      : mag < 60
-        ? `${Math.round(mag / 7)} weeks`
-        : `${Math.round(mag / 30)} months`;
-  return diff > 0 ? `${span} overdue` : `due in ${span}`;
 }
 
 /** A free-text deadline ("9 February", "Jan 24", "24 April") → epoch day in 2026. */
@@ -138,23 +128,12 @@ function parseDeadline(raw: Cell): EpochDay | null {
   return toEpochDay(iso);
 }
 
-/** The sheet's last-edit time from Drive (best-effort); null when unavailable. */
-async function readSheetModifiedTime(spreadsheetId: string): Promise<string | null> {
-  try {
-    const drive = google.drive({ version: "v3", auth: getOAuth2Client() });
-    const res = await drive.files.get({ fileId: spreadsheetId, fields: "modifiedTime", supportsAllDrives: true });
-    return res.data.modifiedTime ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export async function loadMagazineMaterials(): Promise<MagazineMaterials> {
   const spreadsheetId = await resolveCeoSheetId(
     "ceo_magazine_materials",
     process.env.CEO_MAGAZINE_MATERIALS_SHEET_ID,
   );
-  if (!spreadsheetId) return EMPTY;
+  if (!spreadsheetId) return EMPTY_MAGAZINE_MATERIALS;
 
   const sheets = getSheetsClient();
 
@@ -163,7 +142,7 @@ export async function loadMagazineMaterials(): Promise<MagazineMaterials> {
     .map((s) => s.properties?.title ?? "")
     .filter((t) => t && !NON_BRAND.has(t));
 
-  if (tabs.length === 0) return { ...EMPTY, source: "sheet" };
+  if (tabs.length === 0) return { ...EMPTY_MAGAZINE_MATERIALS, source: "sheet" };
 
   // Columns C (year), G (company), J (status), M (deadline) beneath the header.
   const ranges = tabs.map((t) => `'${t}'!A${MATERIALS_FROM_ROW}:M6000`);
@@ -184,6 +163,9 @@ export async function loadMagazineMaterials(): Promise<MagazineMaterials> {
   let totalBrands = 0;
   const legend = new Map<string, { display: string; count: number }>();
 
+  // Rows the board had to skip or couldn't fully read, for the notes chip.
+  const notes: string[] = [];
+
   tabs.forEach((brand, i) => {
     const rows = (valueRanges[i]?.values ?? []) as Cell[][];
 
@@ -193,8 +175,12 @@ export async function loadMagazineMaterials(): Promise<MagazineMaterials> {
     let worstOverdue: EpochDay | null = null; // smallest (oldest) past deadline
     let soonestUpcoming: EpochDay | null = null; // smallest future deadline
     const perStatus = new Map<string, { display: string; count: number }>();
+    const items: DetailItem[] = [];
+    const noStatusRows: number[] = [];
+    const noDeadlineRows: number[] = [];
+    const badDeadlines: Array<{ row: number; text: string }> = [];
 
-    for (const row of rows) {
+    for (const [r, row] of rows.entries()) {
       const year = String(row[2] ?? "").trim(); // C
       const company = String(row[6] ?? "").trim(); // G
       const rawStatus = String(row[9] ?? "").trim(); // J
@@ -203,6 +189,8 @@ export async function loadMagazineMaterials(): Promise<MagazineMaterials> {
       if (year !== YEAR || !company || DROP_STATUSES.has(key)) continue;
 
       total++;
+      const sheetRow = MATERIALS_FROM_ROW + r;
+      if (!rawStatus) noStatusRows.push(sheetRow);
       const display = rawStatus || "No status";
       const legendKey = rawStatus ? key : "no status";
       const isDone = DONE_STATUSES.has(key);
@@ -217,6 +205,19 @@ export async function loadMagazineMaterials(): Promise<MagazineMaterials> {
       bump(legend, legendKey);
 
       const deadlineDay = parseDeadline(row[12]); // M
+      if (!isDone && deadlineDay === null) {
+        const written = String(row[12] ?? "").trim();
+        if (written) badDeadlines.push({ row: sheetRow, text: written });
+        else noDeadlineRows.push(sheetRow);
+      }
+      items.push({
+        name: company,
+        status: display,
+        done: isDone,
+        late: !isDone && deadlineDay !== null && deadlineDay < todayDay,
+        deadline: String(row[12] ?? "").trim() || undefined, // as written in the sheet
+        extra: String(row[1] ?? "").trim() || undefined, // B: the issue
+      });
       if (!isDone && deadlineDay !== null) {
         if (deadlineDay < todayDay) {
           overdueCount++;
@@ -229,21 +230,37 @@ export async function loadMagazineMaterials(): Promise<MagazineMaterials> {
 
     if (total === 0) return; // no 2026 materials on this brand
 
+    const have = (n: number) => (n === 1 ? "has" : "have");
+    if (noDeadlineRows.length) {
+      notes.push(
+        `${brand}: ${plural(noDeadlineRows.length, "outstanding material")} ${have(noDeadlineRows.length)} no deadline in column M (${rowList(noDeadlineRows)}).`,
+      );
+    }
+    if (badDeadlines.length) {
+      notes.push(
+        `${brand}: couldn't read the deadline in column M on ${rowList(badDeadlines.map((b) => b.row))} (${someOf(badDeadlines.map((b) => b.text))}).`,
+      );
+    }
+    if (noStatusRows.length) {
+      notes.push(`${brand}: ${plural(noStatusRows.length, "material")} ${have(noStatusRows.length)} no status in column J (${rowList(noStatusRows)}).`);
+    }
+
     const outstanding = total - done;
     const statuses: StatusSlice[] = [...perStatus.values()]
       .map((e) => ({ status: e.display, count: e.count }))
       .sort(byDoneThenCount);
     const isOverdue = overdueCount > 0;
-    const dueLabel = isOverdue
-      ? humanizeDue(worstOverdue, todayDay)
-      : soonestUpcoming !== null
-        ? humanizeDue(soonestUpcoming, todayDay)
-        : outstanding > 0
-          ? "no deadline set"
-          : "all done";
+    const dueLabel =
+      worstOverdue !== null
+        ? humanizeDue(worstOverdue, todayDay)
+        : soonestUpcoming !== null
+          ? humanizeDue(soonestUpcoming, todayDay)
+          : outstanding > 0
+            ? "no deadline set"
+            : "all done";
     const dueSoon = !isOverdue && soonestUpcoming !== null && soonestUpcoming - todayDay <= 7;
 
-    const entry: MagazineBrand = { brand, total, done, outstanding, overdueCount, statuses, dueLabel, dueSoon };
+    const entry: MagazineBrand = { brand, total, done, outstanding, overdueCount, statuses, dueLabel, dueSoon, items };
 
     totalMaterials += total;
     totalDone += done;
@@ -273,6 +290,6 @@ export async function loadMagazineMaterials(): Promise<MagazineMaterials> {
     statusLegend,
     updatedAt,
     source: "sheet",
-    warnings: [],
+    warnings: notes,
   };
 }

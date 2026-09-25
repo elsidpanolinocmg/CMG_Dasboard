@@ -1,189 +1,48 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import Link from "next/link";
-import DashboardControls from "@/components/DashboardControls";
-import styles from "./ceo-dashboard.module.css";
-import { RefreshButton } from "./RefreshButton";
+import { cachePrefixes } from "@/lib/cache/keys";
+import { BoardCard, backlogSeverity, buildStatusColors, CardBoard, type CardState } from "./CeoCardBoard";
 import type { AwardInterviews } from "@/lib/ceo-video-interviews/interviews";
 
-const PAGE_SIZE = 4;
-
-const ROTATION_OPTIONS = [
-  { label: "Pause", value: 0 },
-  { label: "5 seconds", value: 5_000 },
-  { label: "8 seconds", value: 8_000 },
-  { label: "15 seconds", value: 15_000 },
-  { label: "30 seconds", value: 30_000 },
-  { label: "1 minute", value: 60_000 },
-];
-const DEFAULT_INTERVAL = 8_000;
-
-const CONTROL_BTN = "rounded-lg bg-black/40 px-5 py-3 text-lg text-white hover:bg-black/60 active:bg-black/70";
-
-/** Finished production states are greens; the rest run through a teal→blue family. */
+/** The finished production states: Published the deeper green, Approved the lighter. */
 const DONE_COLORS: Record<string, string> = { published: "#0ca30c", approved: "#34c759" };
-const COOL_RAMP = ["#0d9488", "#0891b2", "#0284c7", "#2563eb", "#60a5fa", "#93c5fd"];
-const STATUS_FALLBACK = "#cbd5e1";
 
-function buildStatusColors(legend: string[]): Map<string, string> {
-  const colors = new Map<string, string>();
-  let cool = 0;
-  for (const s of legend) {
-    const key = s.toLowerCase();
-    if (DONE_COLORS[key]) colors.set(key, DONE_COLORS[key]);
-    else colors.set(key, COOL_RAMP[Math.min(cool++, COOL_RAMP.length - 1)]);
-  }
-  return colors;
-}
-function colorOf(colors: Map<string, string>, status: string): string {
-  return colors.get(status.toLowerCase()) ?? STATUS_FALLBACK;
-}
-
-/** Backlog severity — blend of how many drafts are still out and how many are late. */
-type Backlog = "low" | "medium" | "high";
-function backlogSeverity(draftsSent: number, total: number, overdueCount: number): Backlog {
-  const pct = total ? (draftsSent / total) * 100 : 0;
-  if (pct < 60 && overdueCount >= 6) return "high";
-  if (pct < 85 || overdueCount >= 10) return "medium";
-  return "low";
-}
-
-function BacklogFlag({ severity, count }: { severity: Backlog; count: number }) {
-  return (
-    <svg className={styles.delivLabelFlag} data-severity={severity} viewBox="0 0 24 24" role="img" aria-label={`${severity} backlog`}>
-      <title>{`${count} draft${count === 1 ? "" : "s"} overdue — ${severity} backlog`}</title>
-      <rect x="4" y="2" width="2.2" height="20" rx="1.1" fill="currentColor" />
-      <rect x="6" y="3" width="13.5" height="8" rx="0.8" fill="currentColor" />
-    </svg>
-  );
-}
-
-/** One award as a card: name and % drafts sent up top, count and deadline at the foot. */
+/** One award as a card: its % of first drafts sent, status mix, what's pending and the deadline. */
 function AwardCard({
   a,
   state,
   colors,
+  onOpen,
 }: {
   a: AwardInterviews;
-  state: "overdue" | "ontrack";
+  state: CardState;
   colors: Map<string, string>;
+  onOpen?: () => void;
 }) {
-  const pct = a.total ? Math.round((a.draftsSent / a.total) * 100) : 0;
+  const severity = backlogSeverity(a.draftsSent, a.total, a.overdueCount);
   const countLabel =
-    state === "overdue"
-      ? `${a.overdueCount} overdue`
-      : a.pending === 0
-        ? "All sent"
-        : `${a.pending} pending`;
+    state === "overdue" ? `${a.overdueCount} overdue` : a.pending === 0 ? "All sent" : `${a.pending} pending`;
   return (
-    <div className={styles.delivCard} data-state={state}>
-      <div className={styles.delivCardMain}>
-        <span className={styles.delivCardName}>{a.award}</span>
-        <span className={styles.delivCardPct}>{pct}%</span>
-        <div
-          className={styles.delivStatusBar}
-          role="img"
-          aria-label={`Status mix: ${a.statuses.map((s) => `${s.status} ${s.count}`).join(", ")}`}
-        >
-          {a.statuses.map((s) => (
-            <span
-              key={s.status}
-              className={styles.delivStatusSeg}
-              style={{ width: `${(s.count / a.total) * 100}%`, background: colorOf(colors, s.status) }}
-              title={`${s.status}: ${s.count}`}
-            />
-          ))}
-        </div>
-      </div>
-      <div className={styles.delivCardFoot}>
-        <span className={styles.delivCardCount} data-state={state}>
-          {state === "overdue" && (
-            <BacklogFlag severity={backlogSeverity(a.draftsSent, a.total, a.overdueCount)} count={a.overdueCount} />
-          )}
-          {countLabel}
-        </span>
-        <span className={styles.delivCardDue} data-soon={state === "ontrack" && a.dueSoon ? "true" : undefined}>
-          {a.dueLabel}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-interface RotatingCardsProps {
-  rows: AwardInterviews[];
-  state: "overdue" | "ontrack";
-  empty: string;
-  intervalMs: number;
-  colors: Map<string, string>;
-}
-
-function RotatingCards({ rows, state, empty, intervalMs, colors }: RotatingCardsProps) {
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const [page, setPage] = useState(0);
-  const heldAt = useRef(0);
-
-  const goTo = (i: number) => {
-    setPage(((i % totalPages) + totalPages) % totalPages);
-    heldAt.current = Date.now();
-  };
-
-  useEffect(() => {
-    setPage(0);
-  }, [rows.length]);
-
-  useEffect(() => {
-    if (totalPages <= 1 || intervalMs <= 0) return;
-    const hold = Math.max(intervalMs, 15_000);
-    const t = setInterval(() => {
-      if (Date.now() - heldAt.current < hold) return;
-      setPage((p) => (p + 1) % totalPages);
-    }, intervalMs);
-    return () => clearInterval(t);
-  }, [totalPages, intervalMs]);
-
-  if (rows.length === 0) {
-    return <div className={styles.delivEmpty}>{empty}</div>;
-  }
-
-  const current = page % totalPages;
-  const shown = rows.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
-  const stopBubble = (e: ReactPointerEvent) => e.stopPropagation();
-
-  return (
-    <>
-      <div className={styles.delivCardStage}>
-        {totalPages > 1 && (
-          <button type="button" className={styles.delivStageArrow} data-side="left" onPointerDown={stopBubble} onClick={() => goTo(current - 1)} aria-label="Previous page">
-            ‹
-          </button>
-        )}
-        <div className={styles.delivCardGrid} key={current}>
-          {shown.map((a) => (
-            <AwardCard key={`${a.domain}:${a.award}`} a={a} state={state} colors={colors} />
-          ))}
-        </div>
-        {totalPages > 1 && (
-          <button type="button" className={styles.delivStageArrow} data-side="right" onPointerDown={stopBubble} onClick={() => goTo(current + 1)} aria-label="Next page">
-            ›
-          </button>
-        )}
-      </div>
-      <div className={styles.delivPager} role="group" aria-label={`Page ${current + 1} of ${totalPages}`} onPointerDown={stopBubble}>
-        {Array.from({ length: totalPages }, (_, i) => (
-          <button
-            key={i}
-            type="button"
-            className={styles.delivPagerDot}
-            data-active={i === current}
-            onClick={() => goTo(i)}
-            aria-label={`Page ${i + 1}`}
-            aria-current={i === current ? "true" : undefined}
-          />
-        ))}
-      </div>
-    </>
+    <BoardCard
+      name={a.award}
+      pct={a.total ? Math.round((a.draftsSent / a.total) * 100) : 0}
+      statuses={a.statuses}
+      total={a.total}
+      colors={colors}
+      state={state}
+      flag={
+        state === "overdue"
+          ? {
+              severity,
+              title: `${a.overdueCount} draft${a.overdueCount === 1 ? "" : "s"} overdue — ${severity} backlog`,
+            }
+          : null
+      }
+      countLabel={countLabel}
+      dueLabel={a.dueLabel}
+      dueSoon={state === "ontrack" && a.dueSoon}
+      onOpen={onOpen}
+    />
   );
 }
 
@@ -193,70 +52,44 @@ export interface VideoInterviewsBodyProps {
   statusLegend: string[];
 }
 
+/** The Video Interview board: awards past their first-draft deadline beside the rest. */
 export function VideoInterviewsBody({ overdue, onTrack, statusLegend }: VideoInterviewsBodyProps) {
-  const [intervalMs, setIntervalMs] = useState(DEFAULT_INTERVAL);
-  const statusColors = buildStatusColors(statusLegend);
-
+  const colors = buildStatusColors(statusLegend, DONE_COLORS);
+  const key = (a: AwardInterviews) => `${a.domain}:${a.award}`;
   return (
-    <>
-      <div className={styles.delivBody}>
-        <div className={styles.delivColumns}>
-          <div className={styles.delivColumn} data-state="overdue">
-            <div className={styles.deliverablesGroupLabel}>Draft overdue · past deadline</div>
-            <RotatingCards
-              rows={overdue}
-              state="overdue"
-              empty="Nothing overdue — every past-deadline draft is out."
-              intervalMs={intervalMs}
-              colors={statusColors}
-            />
-          </div>
-
-          <div className={styles.delivColumn} data-state="ontrack">
-            <div className={styles.deliverablesGroupLabel} data-track="true">On track · deadline ahead</div>
-            <RotatingCards
-              rows={onTrack}
-              state="ontrack"
-              empty="No awards with drafts outstanding."
-              intervalMs={intervalMs}
-              colors={statusColors}
-            />
-          </div>
-        </div>
-
-        {statusLegend.length > 0 && (
-          <div className={styles.delivLegend}>
-            {statusLegend.map((s) => (
-              <span key={s} className={styles.delivLegendItem}>
-                <span className={styles.delivLegendDot} style={{ background: colorOf(statusColors, s) }} aria-hidden="true" />
-                {s}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <DashboardControls>
-        <Link href="/dashboard/ceo" className={CONTROL_BTN}>
-          ← Back
-        </Link>
-        <label className="flex items-center gap-2 text-white/80">
-          <span className="text-sm">Rotate</span>
-          <select
-            value={intervalMs}
-            onChange={(e) => setIntervalMs(Number(e.target.value))}
-            className={`${CONTROL_BTN} [&>option]:bg-gray-800 [&>option]:text-white`}
-            aria-label="Card rotation speed"
-          >
-            {ROTATION_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <RefreshButton className={`${CONTROL_BTN} disabled:opacity-60`} />
-      </DashboardControls>
-    </>
+    <CardBoard
+      statusLegend={statusLegend}
+      colors={colors}
+      refreshCache={[cachePrefixes.ceoVideoInterviews]}
+      details={(a) => ({
+        title: a.award,
+        summary:
+          (a.pending === 0
+            ? `All ${a.total} first drafts sent`
+            : `${a.pending} of ${a.total} first drafts not yet sent`) +
+          (a.deadline ? ` · draft deadline ${a.deadline} (${a.dueLabel})` : ` · ${a.dueLabel}`),
+        items: a.items,
+        extraLabel: "1st draft",
+        doneLabel: "draft sent",
+      })}
+      columns={[
+        {
+          label: "Draft overdue · past deadline",
+          state: "overdue",
+          rows: overdue,
+          empty: "Nothing overdue — every past-deadline draft is out.",
+          getKey: key,
+          renderCard: (a, open) => <AwardCard a={a} state="overdue" colors={colors} onOpen={open} />,
+        },
+        {
+          label: "On track · deadline ahead",
+          state: "ontrack",
+          rows: onTrack,
+          empty: "No awards with drafts outstanding.",
+          getKey: key,
+          renderCard: (a, open) => <AwardCard a={a} state="ontrack" colors={colors} onOpen={open} />,
+        },
+      ]}
+    />
   );
 }
