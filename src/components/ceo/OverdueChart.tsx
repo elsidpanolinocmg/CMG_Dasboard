@@ -118,7 +118,14 @@ export function OverdueChart({ series }: OverdueChartProps) {
       <div className={styles.overdueAxis}>
         {series.thisYear.map((p, i) => (
           <span key={i} className={styles.overdueAxisCell}>
-            <span className={styles.overdueAxisMonth}>{MONTHS[p.month - 1]}</span>
+            {/* Full month name, with a three-letter one that takes over where a
+                column is too narrow for "September" (see the stylesheet). */}
+            <span className={styles.overdueAxisMonth}>
+              <span className={styles.monthLong}>{MONTHS[p.month - 1]}</span>
+              <span className={styles.monthShort} aria-hidden="true">
+                {MONTHS[p.month - 1].slice(0, 3)}
+              </span>
+            </span>
             <span className={styles.overdueAxisValue}>{formatCompactUSD(p.value)}</span>
           </span>
         ))}

@@ -6,6 +6,7 @@ import styles from "./ceo-dashboard.module.css";
 import { DonutChart } from "./DonutChart";
 import { NoticeChip } from "./NoticeChip";
 import { RefreshButton } from "./RefreshButton";
+import { RegionTabs } from "./RegionTabs";
 import { cachePrefixes } from "@/lib/cache/keys";
 import { StatTile } from "./StatTile";
 import { formatAttainment, formatSignedPercent } from "@/lib/ceo/format";
@@ -83,7 +84,15 @@ export function MarketingDashboard({
       data-regional="true"
       data-marketing="true"
     >
-      <div className={styles.regionList}>
+      {/* A tab per section — ad spend first, then each category — which a phone
+          uses to show one at a time. The spend card also carries the title, which
+          stays on every tab; only its figures follow the Ad Spent tab. */}
+      <RegionTabs
+        labels={[...categories.map((c) => c.label), "Ad Spent"]}
+        tabOrder={[categories.length, ...categories.map((_, i) => i)]}
+        defaultIndex={categories.length}
+        tabsInside
+      >
         {categories.map((category) => (
           <CategoryRow key={category.key} category={category} asOfDay={asOfDay} />
         ))}
@@ -93,9 +102,9 @@ export function MarketingDashboard({
           categories={categories}
           notices={hasNotice ? notices : []}
         />
-      </div>
+      </RegionTabs>
 
-      <DashboardControls>
+      <DashboardControls className="ceo-controls">
         <Link
           href="/dashboard/ceo"
           className="rounded-lg bg-black/40 px-5 py-3 text-lg text-white hover:bg-black/60 active:bg-black/70"

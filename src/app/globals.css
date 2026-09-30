@@ -707,3 +707,82 @@ select option {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* CEO dashboards on a phone (portrait, or landscape on a short screen): the
+   controls panel becomes a sheet docked to the bottom edge with its buttons in an
+   even grid — the free-wrapping row of mixed-size buttons ran off both sides in
+   portrait and wrapped raggedly sideways. Account links (Money, Awards) get a
+   full-width row of their own at the top. Scoped by .ceo-controls so the other
+   dashboards' controls are untouched. Flex-wrap rather than a grid, so a short
+   last row stretches across instead of leaving a lone button and a gap. */
+@media (max-width: 700px), (orientation: landscape) and (max-height: 500px) {
+  .dash-controls.ceo-controls {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+    max-width: none !important;
+    /* Undo the centring (-translate-x-1/2): the sheet spans the width instead. */
+    --tw-translate-x: 0 !important;
+    translate: 0 0 !important;
+    transform: none !important;
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 8px !important;
+    padding: 10px !important;
+    border-radius: 18px !important;
+    background: rgba(31, 41, 55, 0.72) !important;
+  }
+  .dash-controls.ceo-controls > a,
+  .dash-controls.ceo-controls > button,
+  .dash-controls.ceo-controls > select,
+  .dash-controls.ceo-controls nav > a,
+  .dash-controls.ceo-controls label select {
+    display: flex;
+    flex: 1 1 96px;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 10px !important;
+    font-size: 15px !important;
+    line-height: 1.2 !important;
+    border-radius: 10px !important;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dash-controls.ceo-controls > select,
+  .dash-controls.ceo-controls label select {
+    text-align-last: center;
+  }
+  /* The account links: a full-width row, above the actions. */
+  .dash-controls.ceo-controls nav {
+    flex: 1 1 100%;
+    order: -1;
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+  /* "Rotate [8 seconds]" takes two cells, label beside its select. */
+  .dash-controls.ceo-controls label {
+    flex: 2 1 200px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .dash-controls.ceo-controls label select {
+    flex: 1 1 auto;
+  }
+  /* Page counter (Awards) centred in its cell; divider lines have no place in a grid. */
+  .dash-controls.ceo-controls > span {
+    flex: 0 1 auto;
+    align-self: center;
+    padding: 0 4px;
+    text-align: center;
+  }
+  .dash-controls.ceo-controls > span[aria-hidden="true"] {
+    display: none !important;
+  }
+}

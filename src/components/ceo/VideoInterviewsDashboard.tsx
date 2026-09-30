@@ -21,7 +21,7 @@ export function VideoInterviewsDashboard({ data, live, staleSince }: VideoInterv
 
   return (
     <CeoBoardShell
-      title="Video Interview Progress Tracker"
+      title="Video Interview Progress"
       period="2026"
       updatedAt={updatedAt}
       staleSince={staleSince}

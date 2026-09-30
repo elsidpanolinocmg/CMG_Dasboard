@@ -120,7 +120,7 @@ export function AwardsDashboard({ awards, accounts }: AwardsDashboardProps) {
         </table>
       </div>
 
-      <DashboardControls>
+      <DashboardControls className="ceo-controls">
         <Link href="/dashboard/ceo" className={CONTROL_BTN}>
           ← Back
         </Link>
@@ -167,13 +167,15 @@ export function AwardsDashboard({ awards, accounts }: AwardsDashboardProps) {
           ))}
         </select>
         <span className="hidden h-8 w-px bg-white/30 sm:block" aria-hidden="true" />
-        {accounts
-          .filter((a) => a.key !== "awards")
-          .map((a) => (
-            <Link key={a.key} href={a.href} className={CONTROL_BTN}>
-              {a.label}
-            </Link>
-          ))}
+        <nav className="flex items-center gap-2" aria-label="Account">
+          {accounts
+            .filter((a) => a.key !== "awards")
+            .map((a) => (
+              <Link key={a.key} href={a.href} className={CONTROL_BTN}>
+                {a.label}
+              </Link>
+            ))}
+        </nav>
         <RefreshButton className={`${CONTROL_BTN} disabled:opacity-60`} clearCache={[cachePrefixes.ceoMoney]} />
       </DashboardControls>
     </section>

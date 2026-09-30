@@ -5,6 +5,7 @@ import styles from "./ceo-dashboard.module.css";
 import { OverdueChart } from "./OverdueChart";
 import { NoticeChip } from "./NoticeChip";
 import { RefreshButton } from "./RefreshButton";
+import { RegionTabs } from "./RegionTabs";
 import { cachePrefixes } from "@/lib/cache/keys";
 import { StatTile } from "./StatTile";
 import { buildTargetBullet } from "@/lib/ceo-money/bullet";
@@ -87,6 +88,48 @@ export function RegionalDashboard({
   // A plain "live, current week, nothing wrong" state needs no indicator at all.
   const hasNotice = pinned || !!weekNote || !live || warnings.length > 0;
 
+  const regionCards = regions.map(({ label, data }) => (
+    <section key={label} className={styles.region}>
+      <h2 className={styles.regionLabel}>{label}</h2>
+      <div className={styles.regionGrid}>
+        <div className={styles.regionTopRow}>
+          <StatTile
+            compact
+            label="Cash Collected This Week"
+            value={formatFullUSD(data.cash.actual)}
+            rag={data.cash.rag}
+            note={data.cash.note}
+            subLines={[
+              data.cash.attainment !== null
+                ? `${formatAttainment(data.cash.attainment)} of Invoiced`
+                : "Nothing invoiced this week",
+              `${formatCount(data.paidCount)} Payment${data.paidCount === 1 ? "" : "s"}`,
+              data.bankFees > 0 ? `${formatCentsUSD(data.bankFees)} in Fees` : "No Fees",
+            ]}
+            bullet={buildTargetBullet(data.cash, config)}
+            format={formatFullUSD}
+          />
+          <StatTile
+            compact
+            label="Revenue Invoiced This Week"
+            value={formatFullUSD(data.revenue.actual)}
+            rag={data.revenue.rag}
+            note={data.revenue.note}
+            subLines={[
+              data.revenue.attainment !== null
+                ? `${formatAttainment(data.revenue.attainment)} of pace`
+                : "Awaiting target",
+              data.revenue.fullTarget !== null ? `Week Target ${formatFullUSD(data.revenue.fullTarget)}` : "",
+            ].filter(Boolean)}
+            bullet={buildTargetBullet(data.revenue, config)}
+            format={formatFullUSD}
+          />
+        </div>
+        <OverdueCard series={data.overdueSeries} />
+      </div>
+    </section>
+  ));
+
   return (
     <section
       className={`${styles.panel} ${titleFont.variable}`}
@@ -111,51 +154,14 @@ export function RegionalDashboard({
         </div>
       </header>
 
-      <div className={styles.regionList}>
-        {regions.map(({ label, data }) => (
-          <section key={label} className={styles.region}>
-            <h2 className={styles.regionLabel}>{label}</h2>
-            <div className={styles.regionGrid}>
-              <div className={styles.regionTopRow}>
-                <StatTile
-                  compact
-                  label="Cash Collected This Week"
-                value={formatFullUSD(data.cash.actual)}
-                rag={data.cash.rag}
-                note={data.cash.note}
-                subLines={[
-                  data.cash.attainment !== null
-                    ? `${formatAttainment(data.cash.attainment)} of Invoiced`
-                    : "Nothing invoiced this week",
-                  `${formatCount(data.paidCount)} Payment${data.paidCount === 1 ? "" : "s"}`,
-                  data.bankFees > 0 ? `${formatCentsUSD(data.bankFees)} in Fees` : "No Fees",
-                ]}
-                bullet={buildTargetBullet(data.cash, config)}
-                format={formatFullUSD}
-              />
-              <StatTile
-                compact
-                label="Revenue Invoiced This Week"
-                value={formatFullUSD(data.revenue.actual)}
-                rag={data.revenue.rag}
-                note={data.revenue.note}
-                subLines={[
-                  data.revenue.attainment !== null
-                    ? `${formatAttainment(data.revenue.attainment)} of pace`
-                    : "Awaiting target",
-                  data.revenue.fullTarget !== null ? `Week Target ${formatFullUSD(data.revenue.fullTarget)}` : "",
-                ].filter(Boolean)}
-                bullet={buildTargetBullet(data.revenue, config)}
-                format={formatFullUSD}
-                />
-              </div>
-              <OverdueCard series={data.overdueSeries} />
-            </div>
-          </section>
-        ))}
-      </div>
+      {/* Several regions get a tab each, which a phone uses to show one at a time. */}
+      {regions.length > 1 ? (
+        <RegionTabs labels={regions.map((r) => r.label)}>{regionCards}</RegionTabs>
+      ) : (
+        <div className={styles.regionList}>{regionCards}</div>
+      )}
 
-      <DashboardControls>
+      <DashboardControls className="ceo-controls">
         <Link
           href="/dashboard/ceo"
           className="rounded-lg bg-black/40 px-5 py-3 text-lg text-white hover:bg-black/60 active:bg-black/70"
@@ -170,6 +176,7 @@ export function RegionalDashboard({
                 <Link
                   key={a.key}
                   href={a.href}
+                  data-account={a.key}
                   aria-current={active ? "page" : undefined}
                   className={
                     active

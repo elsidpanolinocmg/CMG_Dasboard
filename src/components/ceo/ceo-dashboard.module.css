@@ -116,6 +116,16 @@
   min-height: 0;
 }
 
+/* The money overview wraps each region in a tab pane (RegionTabs). On a wallboard
+   the panes dissolve, so the regions stay direct cells of the list grid, and the
+   tabs are hidden; the phone rules at the end of the file switch both on. */
+.regionPane {
+  display: contents;
+}
+.regionTabs {
+  display: none;
+}
+
 /* Cash and revenue share the top row; the overdue chart spans full width beneath
    them and takes the larger share of the height, since a line chart reads better
    with room. */
@@ -798,6 +808,11 @@
   white-space: nowrap;
 }
 
+/* The short month name only shows on narrow screens (phone landscape). */
+.monthShort {
+  display: none;
+}
+
 .overdueAxisValue {
   font-size: clamp(9px, 1.05vw, 13px);
   font-weight: 600;
@@ -1220,10 +1235,10 @@
 
 /* ------------------------------------------ marketing: responsive stack */
 
-/* Below this width the four-column wallboard can't stay legible, so marketing
-   stops being fixed-height: everything stacks into one column and the page
-   scrolls instead of clipping. */
-@media (max-width: 900px) {
+/* Below this width — or on a phone held sideways, too short for it — the
+   four-column wallboard can't stay legible, so marketing stops being fixed-height:
+   everything stacks into one column and the page scrolls instead of clipping. */
+@media (max-width: 900px), (orientation: landscape) and (max-height: 500px) {
   .panel[data-marketing="true"] {
     height: auto;
     min-height: 100dvh;
@@ -1243,6 +1258,11 @@
   .panel[data-marketing="true"] .spendBar {
     grid-column: auto;
     grid-row: auto;
+  }
+  /* The title-and-spend card comes after the categories in the markup (it's placed
+     by grid on the wallboard); stacked, it has to lead or the page has no title. */
+  .panel[data-marketing="true"] .spendBar {
+    order: -1;
   }
 
   /* Cards flow at their own height rather than filling fixed rows. */
@@ -2123,4 +2143,415 @@
   content: "\26A0\FE0E"; /* ⚠ warning sign, text presentation so it stays monochrome */
   margin-right: 0.35em;
   font-weight: 900;
+}
+
+/* ======================================================== phone, landscape */
+
+/* A phone held sideways: plenty of width, very little height (~360–430px). The
+   wallboard layouts assume a tall screen, so here they're reshaped rather than
+   squeezed. Tablets and desktops (well over 500px tall) never match. Kept in step
+   with PHONE_LANDSCAPE in CeoCardBoard.tsx. */
+@media (orientation: landscape) and (max-height: 500px) {
+  /* Card boards fit the visible screen, but scroll rather than clip if a board runs
+     longer — the document itself is scroll-locked by ViewportFit. */
+  .panel[data-cardboard="true"] {
+    height: var(--vvh, 100dvh);
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* The notes list would hang off the right edge from the chip; hang it from the
+     header card instead (the chip stops being its positioning box), spanning the
+     card's width just below it. */
+  .panel[data-cardboard="true"] .delivNoticeChip {
+    position: static;
+  }
+  .panel[data-cardboard="true"] .delivNoticeChip .noticePopover {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: 60vh;
+  }
+  /* Cards are narrower two-up, and have height to spare: let a long name take two
+     lines rather than being cut to "Asian Experience …". */
+  .panel[data-cardboard="true"] .delivCardName {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.2;
+  }
+  /* The board pages two cards at a time here: one row, not a 2×2. */
+  .panel[data-cardboard="true"] .delivCardGrid {
+    grid-template-rows: minmax(min-content, 1fr);
+  }
+  /* A long legend stays on one line and swipes sideways instead of wrapping into
+     rows the cards need. The auto margins centre it when it fits (where
+     justify-content: center would cut off its start once it overflows). */
+  .panel[data-cardboard="true"] .delivBody,
+  .panel[data-cardboard="true"] .delivLegend {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .panel[data-cardboard="true"] .delivLegend {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .panel[data-cardboard="true"] .delivLegend::-webkit-scrollbar {
+    display: none;
+  }
+  .panel[data-cardboard="true"] .delivLegendItem:first-child {
+    margin-left: auto;
+  }
+  .panel[data-cardboard="true"] .delivLegendItem:last-child {
+    margin-right: auto;
+  }
+
+  /* Marketing (stacked by the rule above): the width is there, so each category's
+     cards sit side by side — Awards.info's four as a 2×2 — rather than one tall
+     full-width column. */
+  .panel[data-marketing="true"] .regionTopRow,
+  .panel[data-marketing="true"] .regionTopRow[data-cards="4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Awards: the column headings may wrap rather than run off the right edge, and
+     the names drop a size so a long one ("ABF Wholesale Banking Awards 2026") fits
+     its row. */
+  .awardsTable thead th {
+    white-space: normal;
+    line-height: 1.2;
+  }
+  .awardsTable .awNameText {
+    font-size: 0.8em;
+  }
+
+  /* Money: slimmer padding so three region columns fit a small phone, card titles
+     that wrap rather than clip ("Overdue receivables, 30+ days"), and short month
+     names on the overdue chart. */
+  .panel[data-money="true"] {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .panel[data-money="true"] .tile {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .panel[data-money="true"] .tile .tileLabel {
+    white-space: normal;
+  }
+  .panel[data-money="true"] .monthLong {
+    display: none;
+  }
+  .panel[data-money="true"] .monthShort {
+    display: inline;
+  }
+
+  /* Card-board header: a title that scales with the width, and tighter tile labels,
+     so four KPI labels ("In production", "Needs attention") don't run together. */
+  .panel[data-cardboard="true"] .masthead h1 {
+    font-size: clamp(18px, 3.2vw, 28px);
+  }
+  .panel[data-cardboard="true"] .delivTiles {
+    gap: 8px;
+    padding-left: 12px;
+  }
+  .panel[data-cardboard="true"] .delivTitleBlock {
+    padding-right: 12px;
+  }
+  .panel[data-cardboard="true"] .delivTileLabel {
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+}
+
+/* ------------------------------------------ money: one region at a time */
+
+/* On a phone the three regions don't fit side by side, so the overview shows
+   one at a time, picked from a row of tabs (RegionTabs). The page grows with its
+   content and scrolls. */
+@media (max-width: 700px), (orientation: landscape) and (max-height: 500px) {
+  .panel[data-money="true"][data-regions="3"] {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    /* Masthead, tabs, then the region taking the rest of the screen. */
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
+  .panel[data-money="true"] .regionTabs,
+  .panel[data-marketing="true"] .regionTabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 14px rgba(11, 11, 11, 0.06);
+  }
+  .panel[data-money="true"] .regionTab,
+  .panel[data-marketing="true"] .regionTab {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 40px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    transition: background 150ms ease, color 150ms ease;
+  }
+  .panel[data-money="true"] .regionTab[aria-selected="true"],
+  .panel[data-marketing="true"] .regionTab[aria-selected="true"] {
+    background: linear-gradient(115deg, #ea580c, #f2711c);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
+  }
+  .panel[data-money="true"] .regionTab:focus-visible,
+  .panel[data-marketing="true"] .regionTab:focus-visible {
+    outline: 2px solid #ea580c;
+    outline-offset: 2px;
+  }
+
+  .panel[data-money="true"] .regionPane[data-active="false"] {
+    display: none;
+  }
+  .panel[data-money="true"][data-regions="3"] .regionList {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  /* Roomier cards: one region has the whole screen, so they needn't be packed. */
+  .panel[data-money="true"][data-regions="3"] .tile[data-compact="true"] {
+    padding: 16px 18px;
+    gap: 8px;
+  }
+  /* The per-region pages aren't offered in the controls on a phone — the region
+     tabs already show one region at a time — leaving All Regions and Awards. */
+  .panel[data-money="true"] :global(.ceo-controls) nav > a[data-account]:not([data-account="all"]):not([data-account="awards"]) {
+    display: none !important;
+  }
+  /* The selected tab already names the region. */
+  .panel[data-money="true"][data-regions="3"] .regionLabel {
+    display: none;
+  }
+  /* ...and with the label gone the cards are the region's only row, which fills it. */
+  .panel[data-money="true"][data-regions="3"] .region {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  /* Portrait: the region's three cards stack down the screen at their own height. */
+  .panel[data-money="true"][data-regions="3"] .regionGrid {
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+    gap: 14px;
+  }
+  .panel[data-money="true"][data-regions="3"] .regionGrid .tile[data-compact="true"] {
+    min-height: 220px;
+  }
+}
+
+/* Sideways there's the width for the region's three cards in one row; the
+   overdue chart gets the widest share. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .panel[data-money="true"][data-regions="3"] .regionGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 10px;
+  }
+  /* The row fills the screen below the tabs, so no floor is needed here. */
+  .panel[data-money="true"][data-regions="3"] .regionGrid .tile[data-compact="true"] {
+    min-height: 0;
+  }
+  /* A third of a small phone is narrow: let the status line wrap, or its nowrap
+     text stretches the card's content past the card and clips the title too. */
+  .panel[data-money="true"][data-regions="3"] .badge {
+    white-space: normal;
+  }
+}
+
+/* ------------------------------------------ PRs & Interviews: phones only */
+
+/* The notes chip sits in the header card's top-right corner instead of trailing
+   the subtitle; the summary figures keep clear of it, and its list opens down and
+   leftward from the corner, inside the screen. */
+@media (max-width: 700px), (orientation: landscape) and (max-height: 500px) {
+  .panel[data-board="prs"] .delivNoticeChip {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    margin: 0;
+    z-index: 6;
+  }
+  .panel[data-board="prs"] .delivNoticeChip .noticePopover {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: auto;
+    right: 0;
+    width: min(420px, calc(100vw - 40px));
+    max-height: 60vh;
+  }
+  .panel[data-board="prs"] .delivTiles {
+    padding-right: 52px;
+  }
+}
+
+/* ------------------------------------------ marketing: phones only */
+
+/* On a phone the title has the stacked card's full width: drop the wallboard's
+   line break and size it from the screen width so it reads as one line (~23em
+   wide in uppercase Oswald), up to 28px. */
+@media (max-width: 700px), (orientation: landscape) and (max-height: 500px) {
+  .panel[data-marketing="true"] .spendBarHeading {
+    white-space: nowrap;
+    /* Room kept on the right for the notes chip in the corner. */
+    padding-right: 60px;
+    font-size: min(28px, calc((100vw - 76px) / 23));
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* A tab per section, as on Money: the title, the tabs under it, then only the
+     chosen section. The wallboard's title card also holds the ad spend figures, so
+     here it dissolves: the title and notes chip sit on the page like Money's
+     header, and the figures become their own card under the tabs — which keeps
+     the tab row in the same place whichever tab is open. */
+  .panel[data-marketing="true"] .spendBar {
+    display: contents;
+  }
+  .panel[data-marketing="true"] .spendBarTitle {
+    order: -4;
+  }
+  /* The notes chip sits in the top-right corner, level with the title. */
+  .panel[data-marketing="true"] {
+    position: relative;
+  }
+  .panel[data-marketing="true"] .spendNotice {
+    top: 8px;
+    right: 8px;
+  }
+  .panel[data-marketing="true"] .spendGroup {
+    order: -1;
+    border: 1px solid rgba(11, 11, 11, 0.09);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.4));
+    backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    box-shadow: 0 12px 30px rgba(11, 11, 11, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+  .panel[data-marketing="true"] .regionTabs {
+    order: -2;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .panel[data-marketing="true"] .regionTabs::-webkit-scrollbar {
+    display: none;
+  }
+  /* Five tabs share the row: each sized to its label rather than an equal fifth. */
+  .panel[data-marketing="true"] .regionTabs {
+    gap: 2px;
+  }
+  .panel[data-marketing="true"] .regionTab {
+    flex: 1 0 auto;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  /* Rows take their content's height from the top, rather than sharing out the
+     screen (which ballooned the title card and the tab row). */
+  .panel[data-marketing="true"] .regionList {
+    grid-auto-rows: auto;
+    align-content: start;
+  }
+  /* Ad spend: two figures a row on a portrait phone (all five side by side when
+     turned), at a size that fits the column instead of running into the next. */
+  .panel[data-marketing="true"] .spendCols {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 14px 16px;
+  }
+  .panel[data-marketing="true"] .spendItemValue {
+    font-size: min(26px, 7vw);
+  }
+  .panel[data-marketing="true"] .regionPane[data-active="false"] > .region,
+  .panel[data-marketing="true"] .regionPane[data-active="false"] .spendGroup {
+    display: none;
+  }
+  /* The selected tab already names the category, so its heading (and the rule
+     under it) goes. */
+  .panel[data-marketing="true"] .regionHead {
+    display: none;
+  }
+
+  /* Awards.info carries four cards; with tighter spacing and smaller donuts (sized
+     to the text beside them rather than driving each card's height) they fit one
+     screen without scrolling: stacked in portrait, a 2×2 when turned. */
+  .panel[data-marketing="true"] .regionList {
+    row-gap: 12px;
+  }
+  /* The list is the page's only in-flow row (the controls' tap bar is fixed), so
+     the page grid's gap only added empty space under the cards. */
+  .panel[data-marketing="true"] {
+    row-gap: 0;
+  }
+  .panel[data-marketing="true"] .regionTopRow[data-cards="4"] {
+    gap: 8px;
+  }
+  .panel[data-marketing="true"] .regionTopRow[data-cards="4"] .donut {
+    height: 96px;
+    max-height: none;
+  }
+  /* The cost cards' donut: centred in a wider right-hand column instead of hugging
+     the edge, and running down beside the status line too, which gives it room to
+     be larger without making the card taller. The reading keeps its place on the
+     left. */
+  .panel[data-marketing="true"] .regionTopRow[data-cards="4"] .tile[data-haschart="true"] {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    grid-template-areas:
+      "label label"
+      "value chart"
+      "sub   chart"
+      "foot  chart";
+  }
+  /* ...and spanning every row, so it sits at the card's vertical centre (the label
+     across the top is short of its reach). */
+  .panel[data-marketing="true"] .regionTopRow[data-cards="4"] .tile[data-haschart="true"] .tileBullet {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Sideways the height is scarce: tighter spacing and a slimmer tab row. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .panel[data-marketing="true"] {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .panel[data-marketing="true"] .regionList {
+    row-gap: 8px;
+  }
+  /* Awards.info's 2×2: donuts no taller than the reading beside them. */
+  .panel[data-marketing="true"] .regionTopRow[data-cards="4"] .donut {
+    height: 76px;
+  }
+  .panel[data-marketing="true"] .regionTab {
+    min-height: 32px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
 }

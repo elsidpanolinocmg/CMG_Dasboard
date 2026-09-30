@@ -11,6 +11,8 @@ import { formatSgtTimestamp } from "@/lib/ceo/format";
 const titleFont = Oswald({ subsets: ["latin"], weight: ["500", "700"], display: "swap", variable: "--font-title" });
 
 export interface CeoBoardShellProps {
+  /** Which board this is, for board-specific styling (e.g. "prs"). */
+  board?: string;
   title: string;
   /** The period the board covers, e.g. "2026". */
   period: string;
@@ -37,6 +39,7 @@ export interface CeoBoardShellProps {
  * failed read, or no figures at all — so all four say it the same way.
  */
 export function CeoBoardShell({
+  board,
   title,
   period,
   updatedAt,
@@ -54,7 +57,13 @@ export function CeoBoardShell({
   else if (!live) notice = notes.length ? "⚠ Couldn't read the sheet — retrying automatically" : "No sheet connected — no figures available.";
 
   return (
-    <section className={`${styles.panel} ${titleFont.variable}`} data-fullscreen="true" data-sfv="true">
+    <section
+      className={`${styles.panel} ${titleFont.variable}`}
+      data-fullscreen="true"
+      data-sfv="true"
+      data-cardboard="true"
+      data-board={board}
+    >
       <ViewportFit />
 
       <header className={`${styles.masthead} ${styles.delivHeaderCard}`}>

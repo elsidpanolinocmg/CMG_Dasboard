@@ -20,6 +20,7 @@ export function ClientDeliverablesDashboard({ data, live, staleSince }: ClientDe
 
   return (
     <CeoBoardShell
+      board="prs"
       title="PRs & Interviews"
       period="2026"
       updatedAt={updatedAt}

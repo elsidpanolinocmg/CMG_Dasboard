@@ -7,6 +7,7 @@ import {
   useId,
   useRef,
   useState,
+  useSyncExternalStore,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
@@ -23,8 +24,28 @@ import { RefreshButton } from "./RefreshButton";
  * Each board supplies its rows and how one row becomes a `BoardCard`.
  */
 
-/** How many cards a column shows at once. */
+/** How many cards a column shows at once: a 2×2 on a normal screen... */
 const PAGE_SIZE = 4;
+/**
+ * ...and one row of two on a phone held sideways, where a 2×2 would crush each card
+ * into a sliver of the ~390px height. Kept in step with the same media query in the
+ * stylesheet, which lays the grid out as a single row.
+ */
+const PHONE_LANDSCAPE = "(orientation: landscape) and (max-height: 500px)";
+const PHONE_LANDSCAPE_PAGE_SIZE = 2;
+
+/** Whether a media query matches, following changes (e.g. rotating the phone). */
+function useMediaQuery(query: string): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(query);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(query).matches,
+    () => false, // server render: assume a full-size screen
+  );
+}
 
 /** The rotation-speed choices offered in the dashboard controls. */
 const ROTATION_OPTIONS = [
@@ -221,14 +242,16 @@ export interface BoardColumn<T> {
 function RotatingCards<T>({
   column,
   intervalMs,
+  pageSize,
   onOpen,
 }: {
   column: BoardColumn<T>;
   intervalMs: number;
+  pageSize: number;
   onOpen?: (row: T) => void;
 }) {
   const { rows, empty, getKey, renderCard } = column;
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const [page, setPage] = useState(0);
   // Timestamp of the viewer's last manual page change; auto-advance holds off for
   // a beat after it so a manual browse isn't yanked to the next page mid-read.
@@ -263,7 +286,7 @@ function RotatingCards<T>({
   }
 
   const current = page % totalPages;
-  const shown = rows.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
+  const shown = rows.slice(current * pageSize, current * pageSize + pageSize);
 
   // Keep pager clicks from reaching the window's bottom-zone handler that opens the
   // DashboardControls overlay — the pager sits inside that zone.
@@ -476,6 +499,7 @@ export interface CardBoardProps<T> {
 export function CardBoard<T>({ columns, statusLegend, colors, refreshCache, details }: CardBoardProps<T>) {
   const [intervalMs, setIntervalMs] = useState(DEFAULT_INTERVAL);
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const pageSize = useMediaQuery(PHONE_LANDSCAPE) ? PHONE_LANDSCAPE_PAGE_SIZE : PAGE_SIZE;
   const closeDetails = useCallback(() => setOpenKey(null), []);
 
   // The open card is looked up afresh each render, so a refresh shows its new
@@ -505,6 +529,7 @@ export function CardBoard<T>({ columns, statusLegend, colors, refreshCache, deta
                 column={column}
                 // Rotation pauses while a card's panel is open.
                 intervalMs={openRow !== undefined ? 0 : intervalMs}
+                pageSize={pageSize}
                 onOpen={details ? (row) => setOpenKey(column.getKey(row)) : undefined}
               />
             </div>
@@ -523,7 +548,7 @@ export function CardBoard<T>({ columns, statusLegend, colors, refreshCache, deta
         )}
       </div>
 
-      <DashboardControls>
+      <DashboardControls className="ceo-controls">
         <Link href="/dashboard/ceo" className={CONTROL_BTN}>
           ← Back
         </Link>

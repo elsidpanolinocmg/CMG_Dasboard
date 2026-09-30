@@ -11,7 +11,7 @@ import {
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-export const metadata = { title: "Video Interview Progress Tracker — CMG Dashboard" };
+export const metadata = { title: "Video Interview Progress — CMG Dashboard" };
 
 export default async function CeoVideoInterviewsPage() {
   // Read through the cache; a failed read falls back to the last good figures, and
