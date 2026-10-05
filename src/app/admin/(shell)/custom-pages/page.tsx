@@ -21,6 +21,11 @@ export default async function CustomPagesAdmin() {
     includeInNext: !!p.includeInNext,
     showTitle: !!p.showTitle,
     finishVideo: !!p.finishVideo,
+    youtubeMode: p.youtubeMode,
+    youtubeDays: p.youtubeDays,
+    youtubeChannelName: p.youtubeChannelName,
+    slideSeconds: p.slideSeconds,
+    subtitles: !!p.subtitles,
   }));
 
   return (

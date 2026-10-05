@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import DashboardControls from "@/components/DashboardControls";
-import BirthdaySlide, { type BirthdaySlideEntry } from "@/components/BirthdaySlide";
+import BirthdaySlide, {
+  slideHoldsScreen,
+  splitRecurring,
+  type BirthdaySlideEntry,
+} from "@/components/BirthdaySlide";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 const BrandDashboard = dynamic(() => import("@/components/BrandDashboard"), { ssr: false });
@@ -37,7 +41,38 @@ const ROTATION_OPTIONS = [
   { label: "5 minutes", value: 300_000 },
 ];
 
-function buildSlides(brands: BrandEntry[], birthdays: BirthdaySlideEntry[]): Slide[] {
+function buildSlides(brands: BrandEntry[], entries: BirthdaySlideEntry[]): Slide[] {
+  const { once, recurring } = splitRecurring(entries);
+  return withRecurring(spreadBirthdays(brands, once), recurring);
+}
+
+/**
+ * Drops each recurring slide in after every `everyPages` brand pages. When the
+ * cycle has fewer brands than that, it still comes up once per cycle.
+ */
+function withRecurring(slides: Slide[], recurring: BirthdaySlideEntry[]): Slide[] {
+  if (recurring.length === 0 || slides.length === 0) return slides;
+  const out: Slide[] = [];
+  let pages = 0;
+  const placed = new Set<string>();
+  for (const s of slides) {
+    out.push(s);
+    if (s.kind !== "brand") continue;
+    pages++;
+    for (const r of recurring) {
+      if (pages % (r.everyPages ?? 1) === 0) {
+        out.push({ kind: "birthday", entry: r });
+        placed.add(r.id);
+      }
+    }
+  }
+  for (const r of recurring) {
+    if (!placed.has(r.id)) out.push({ kind: "birthday", entry: r });
+  }
+  return out;
+}
+
+function spreadBirthdays(brands: BrandEntry[], birthdays: BirthdaySlideEntry[]): Slide[] {
   if (brands.length === 0) return [];
   if (birthdays.length === 0) {
     return brands.map((b) => ({ kind: "brand", brand: b }));
@@ -72,8 +107,17 @@ export default function BrandRotationClient({ brands, birthdays: birthdaysProp =
 
   const slides = useMemo(() => buildSlides(brands, birthdays), [brands, birthdays]);
 
+  // A slide that sets its own length (a YouTube page, a "finish video" clip)
+  // pauses the timer and moves on through onVideoEnded instead.
+  const onSlide = slides.length ? slides[currentIndex % slides.length] : null;
+  const holding = onSlide?.kind === "birthday" && slideHoldsScreen(onSlide.entry);
+  const advance = useCallback(
+    () => setCurrentIndex((i) => (i + 1) % Math.max(1, slides.length)),
+    [slides.length],
+  );
+
   useEffect(() => {
-    if (!slides.length || rotationInterval <= 0) return;
+    if (!slides.length || rotationInterval <= 0 || holding) return;
     rotationTimer.current = setInterval(
       () => setCurrentIndex((i) => (i + 1) % slides.length),
       rotationInterval,
@@ -81,7 +125,7 @@ export default function BrandRotationClient({ brands, birthdays: birthdaysProp =
     return () => {
       if (rotationTimer.current) clearInterval(rotationTimer.current);
     };
-  }, [slides, rotationInterval]);
+  }, [slides, rotationInterval, holding]);
 
   if (!brands.length) {
     return (
@@ -120,7 +164,11 @@ export default function BrandRotationClient({ brands, birthdays: birthdaysProp =
           siteConfig={current.brand.siteConfig}
         />
       ) : (
-        <BirthdaySlide key={`b-${current.entry.id}-${safeIndex}`} entry={current.entry} />
+        <BirthdaySlide
+          key={`b-${current.entry.id}-${safeIndex}`}
+          entry={current.entry}
+          onVideoEnded={advance}
+        />
       )}
       <DashboardControls>
         <button
@@ -158,6 +206,12 @@ export default function BrandRotationClient({ brands, birthdays: birthdaysProp =
             className="px-4 py-1 rounded bg-black/40 text-white hover:bg-black/60 text-center text-sm"
           >
             Videos
+          </Link>
+          <Link
+            href="/dashboard/editorial/live"
+            className="px-4 py-1 rounded bg-black/40 text-white hover:bg-black/60 text-center text-sm"
+          >
+            Live
           </Link>
           <Link
             href="/dashboard/editorial/leaderboard"

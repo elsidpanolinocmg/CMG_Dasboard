@@ -2,12 +2,17 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import DashboardControls from "@/components/DashboardControls";
+import YouTubeSlidePlayer from "@/components/YouTubeSlidePlayer";
 
 interface Props {
   title: string;
-  mediaKind: "image" | "video";
+  mediaKind: "image" | "video" | "youtube" | "youtube-channel";
   mediaPath: string;
+  /** YouTube kinds: the videos to play, in order. */
+  youtubeIds: string[];
   showTitle: boolean;
+  /** YouTube kinds: force YouTube's subtitles on. */
+  subtitles: boolean;
 }
 
 const IDLE_MS = 3000;
@@ -20,10 +25,18 @@ function fullscreenEnabled(): boolean {
 
 /**
  * Full-screen image or video. Fullscreen lives in the bottom control panel
- * (with Home); double-clicking anywhere also toggles it. Videos get a sound
+ * (with Home); double-clicking anywhere also toggles it. Videos (uploaded or
+ * YouTube) get a sound
  * toggle in the corner that fades out when the pointer is idle.
  */
-export default function CustomPageView({ title, mediaKind, mediaPath, showTitle }: Props) {
+export default function CustomPageView({
+  title,
+  mediaKind,
+  mediaPath,
+  youtubeIds,
+  showTitle,
+  subtitles,
+}: Props) {
   // iPhone Safari has no Fullscreen API, so the button is hidden there.
   const supported = useSyncExternalStore(subscribeNothing, fullscreenEnabled, () => false);
   const [idle, setIdle] = useState(false);
@@ -65,7 +78,22 @@ export default function CustomPageView({ title, mediaKind, mediaPath, showTitle 
       }`}
       onDoubleClick={supported ? toggleFullscreen : undefined}
     >
-      {mediaKind === "image" ? (
+      {mediaKind === "youtube" || mediaKind === "youtube-channel" ? (
+        youtubeIds.length === 0 ? (
+          <p className="text-white/70 text-lg px-6 text-center">
+            {mediaKind === "youtube-channel"
+              ? "This channel has no recent videos that can be played here."
+              : "This video can't be played here."}
+          </p>
+        ) : (
+        <YouTubeSlidePlayer
+          slideId={`page-${mediaPath}`}
+          ids={youtubeIds}
+          subtitles={subtitles}
+          muted={muted}
+        />
+        )
+      ) : mediaKind === "image" ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -112,7 +140,7 @@ export default function CustomPageView({ title, mediaKind, mediaPath, showTitle 
           idle ? "opacity-0 pointer-events-none" : "opacity-100"
         } transition-opacity duration-500`}
       >
-        {mediaKind === "video" && (
+        {(mediaKind === "video" || youtubeIds.length > 0) && (
           <button type="button" onClick={() => setMuted((m) => !m)} className={cornerButton}>
             {muted ? "🔇 Sound off" : "🔊 Sound on"}
           </button>

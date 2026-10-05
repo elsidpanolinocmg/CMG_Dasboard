@@ -30,6 +30,7 @@ export default async function Home() {
           subPages={[
             { label: "Editorial Videos", href: "/dashboard/editorial/videos" },
             { label: "Editorial Shorts", href: "/dashboard/editorial/shorts" },
+            { label: "Editorial Live", href: "/dashboard/editorial/live" },
             { label: "Leaderboard", href: "/dashboard/editorial/leaderboard" },
           ]}
         />

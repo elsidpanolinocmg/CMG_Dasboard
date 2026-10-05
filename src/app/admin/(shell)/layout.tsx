@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import LogoutButton from "../_components/LogoutButton";
+import RefreshScreensButton from "../_components/RefreshScreensButton";
 
 type NavGroup = {
   label?: string;
@@ -20,6 +21,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/birthdays", label: "Birthdays" },
       { href: "/admin/custom-pages", label: "Custom pages" },
+      { href: "/admin/youtube-channel", label: "YouTube channel" },
       { href: "/admin/holidays", label: "Holidays" },
     ],
   },
@@ -74,6 +76,7 @@ export default async function AdminShellLayout({
           </div>
         ))}
         <div className="mt-auto pt-5 border-t border-black/10 dark:border-white/10 flex flex-col gap-3">
+          <RefreshScreensButton />
           <Link
             href="/"
             className="text-sm opacity-75 hover:opacity-100 px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors"

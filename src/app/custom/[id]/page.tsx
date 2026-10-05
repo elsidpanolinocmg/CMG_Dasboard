@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import * as customPagesRepo from "@/lib/repos/customPages";
+import { youTubeVideosFor } from "@/lib/rotation/slides";
 import CustomPageView from "./CustomPageView";
 
 export const dynamic = "force-dynamic";
@@ -28,13 +29,16 @@ export default async function CustomPageRoute({
 }) {
   const page = await load((await params).id);
   if (!page) notFound();
+  const youtubeIds = (await youTubeVideosFor(page).catch(() => [])).map((v) => v.id);
 
   return (
     <CustomPageView
       title={page.title}
       mediaKind={page.mediaKind}
       mediaPath={page.mediaPath}
+      youtubeIds={youtubeIds}
       showTitle={!!page.showTitle}
+      subtitles={!!page.subtitles}
     />
   );
 }
