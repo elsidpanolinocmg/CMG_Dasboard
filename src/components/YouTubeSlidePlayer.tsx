@@ -115,6 +115,10 @@ function writeProgress(key: string, p: Progress) {
  * it got. The next time the slide comes up it carries on from that spot, and
  * when a video ends it moves to the next one. A video that drops out of the
  * list (too old) is replaced by the newest.
+ *
+ * With `liveChannel` it instead plays whatever that channel is streaming now.
+ * YouTube resolves the stream in the viewer's browser, which is reliable where
+ * a server lookup isn't (YouTube serves data centres a different page).
  */
 export default function YouTubeSlidePlayer({
   slideId,
@@ -122,6 +126,8 @@ export default function YouTubeSlidePlayer({
   subtitles,
   muted = true,
   resume = true,
+  liveChannel,
+  onPlayingChange,
 }: {
   slideId: string;
   ids: string[];
@@ -134,11 +140,19 @@ export default function YouTubeSlidePlayer({
   muted?: boolean;
   /** Carry on where this screen stopped last time. Off for live streams. */
   resume?: boolean;
+  /** Play this channel's current live stream; `ids` is then ignored. */
+  liveChannel?: string;
+  /** Told when playback starts (true) and when it ends or can't play (false). */
+  onPlayingChange?: (playing: boolean) => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const idsKey = ids.join(",");
   const playerRef = useRef<YTPlayer | null>(null);
   const mutedRef = useRef(muted);
+  const playingRef = useRef(onPlayingChange);
+  useEffect(() => {
+    playingRef.current = onPlayingChange;
+  }, [onPlayingChange]);
 
   useEffect(() => {
     mutedRef.current = muted;
@@ -151,10 +165,13 @@ export default function YouTubeSlidePlayer({
   }, [muted]);
 
   useEffect(() => {
-    const list = idsKey.split(",").filter(Boolean);
+    // "live_stream" + the channel player var is YouTube's own "current live
+    // stream of this channel" embed.
+    const list = liveChannel ? ["live_stream"] : idsKey.split(",").filter(Boolean);
     if (list.length === 0) return;
+    const keep = resume && !liveChannel;
     const key = `yt-progress:${slideId}`;
-    const saved = resume ? readProgress(key) : null;
+    const saved = keep ? readProgress(key) : null;
     let idx = saved ? list.indexOf(saved.id) : -1;
     const start = idx >= 0 ? saved!.t : 0;
     if (idx < 0) idx = 0;
@@ -167,14 +184,14 @@ export default function YouTubeSlidePlayer({
     const savePosition = () => {
       try {
         const t = player?.getCurrentTime();
-        if (resume && typeof t === "number" && t > 0) writeProgress(key, { id: list[idx], t });
+        if (keep && typeof t === "number" && t > 0) writeProgress(key, { id: list[idx], t });
       } catch {
         /* player not ready */
       }
     };
     const playNext = (target: YTPlayer) => {
       idx = (idx + 1) % list.length;
-      if (resume) writeProgress(key, { id: list[idx], t: 0 });
+      if (keep) writeProgress(key, { id: list[idx], t: 0 });
       target.loadVideoById({ videoId: list[idx], startSeconds: 0 });
     };
 
@@ -195,6 +212,7 @@ export default function YouTubeSlidePlayer({
           start: Math.floor(start),
           cc_load_policy: subtitles ? 1 : 0,
           cc_lang_pref: "en",
+          ...(liveChannel ? { channel: liveChannel } : {}),
         },
         events: {
           onReady: (e) => {
@@ -204,8 +222,12 @@ export default function YouTubeSlidePlayer({
             e.target.playVideo();
           },
           onStateChange: (e) => {
-            if (e.data === YT.PlayerState.ENDED) playNext(e.target);
-            else failures = 0;
+            if (e.data === YT.PlayerState.ENDED) {
+              // A finished stream has nothing to move on to.
+              if (liveChannel) playingRef.current?.(false);
+              else playNext(e.target);
+            } else failures = 0;
+            if (e.data === YT.PlayerState.PLAYING) playingRef.current?.(true);
             // Each newly loaded video starts with the default, so keep it in
             // line with the setting.
             if (e.data === YT.PlayerState.PLAYING) applySubtitles(e.target, subtitles);
@@ -216,6 +238,7 @@ export default function YouTubeSlidePlayer({
           // Skip a video that won't play, but stop once every one has failed.
           onError: (e) => {
             if (++failures < list.length) playNext(e.target);
+            else playingRef.current?.(false);
           },
         },
       });
@@ -229,7 +252,7 @@ export default function YouTubeSlidePlayer({
       player?.destroy();
       playerRef.current = null;
     };
-  }, [slideId, idsKey, subtitles, resume]);
+  }, [slideId, idsKey, subtitles, resume, liveChannel]);
 
   return (
     <div

@@ -10,7 +10,12 @@ export async function GET() {
     const setting = await getYouTubeChannelSetting();
     const live = await getLiveStatus(setting.channelId);
     return NextResponse.json(
-      { ...live, channelName: setting.channelName, subtitles: setting.subtitles },
+      {
+        ...live,
+        channelId: setting.channelId,
+        channelName: setting.channelName,
+        subtitles: setting.subtitles,
+      },
       // Every Live screen polls this; a minute at the edge spares YouTube.
       { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=60" } },
     );
