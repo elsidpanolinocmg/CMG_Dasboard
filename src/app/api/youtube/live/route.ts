@@ -1,26 +1,29 @@
 import { NextResponse } from "next/server";
-import { getLiveStatus } from "@/lib/youtubeChannel";
-import { getYouTubeChannelSetting } from "@/lib/rotation/youtubeChannelSetting";
+import { getLiveSetting, resolveLiveSource } from "@/lib/rotation/liveSetting";
 
 export const dynamic = "force-dynamic";
 
-/** Live status of the channel set in Admin → YouTube channel, for the Live page. */
+/**
+ * What the Editorial Live page should play, from Admin → YouTube channel →
+ * Live page. Whether a channel is live is worked out in the viewer's browser
+ * (YouTube hides live streams from data-centre servers), so this only names
+ * the source.
+ */
 export async function GET() {
   try {
-    const setting = await getYouTubeChannelSetting();
-    const live = await getLiveStatus(setting.channelId);
+    const setting = await getLiveSetting();
+    const source = await resolveLiveSource(setting);
     return NextResponse.json(
       {
-        ...live,
-        channelId: setting.channelId,
-        channelName: setting.channelName,
+        ...source,
         subtitles: setting.subtitles,
+        whenOffline: setting.whenOffline,
+        offlineMessage: setting.offlineMessage,
       },
-      // Every Live screen polls this; a minute at the edge spares YouTube.
       { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=60" } },
     );
   } catch (err) {
     console.error("youtube/live: failed", err);
-    return NextResponse.json({ status: "offline" }, { status: 503 });
+    return NextResponse.json({ error: "unavailable" }, { status: 503 });
   }
 }

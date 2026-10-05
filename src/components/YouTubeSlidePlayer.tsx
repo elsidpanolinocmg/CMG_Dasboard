@@ -19,7 +19,7 @@ interface YTNamespace {
   Player: new (
     el: HTMLElement,
     opts: {
-      videoId: string;
+      videoId?: string;
       width?: string;
       height?: string;
       playerVars?: Record<string, number | string>;
@@ -116,7 +116,8 @@ function writeProgress(key: string, p: Progress) {
  * when a video ends it moves to the next one. A video that drops out of the
  * list (too old) is replaced by the newest.
  *
- * With `liveChannel` it instead plays whatever that channel is streaming now.
+ * With `liveChannel` it instead plays whatever that channel is streaming now,
+ * and with `uploadsOf` the channel's uploads, newest first, on a loop.
  * YouTube resolves the stream in the viewer's browser, which is reliable where
  * a server lookup isn't (YouTube serves data centres a different page).
  */
@@ -127,6 +128,7 @@ export default function YouTubeSlidePlayer({
   muted = true,
   resume = true,
   liveChannel,
+  uploadsOf,
   onPlayingChange,
 }: {
   slideId: string;
@@ -142,6 +144,8 @@ export default function YouTubeSlidePlayer({
   resume?: boolean;
   /** Play this channel's current live stream; `ids` is then ignored. */
   liveChannel?: string;
+  /** Play this channel's uploads (YouTube's own list); `ids` is then ignored. */
+  uploadsOf?: string;
   /** Told when playback starts (true) and when it ends or can't play (false). */
   onPlayingChange?: (playing: boolean) => void;
 }) {
@@ -167,9 +171,15 @@ export default function YouTubeSlidePlayer({
   useEffect(() => {
     // "live_stream" + the channel player var is YouTube's own "current live
     // stream of this channel" embed.
-    const list = liveChannel ? ["live_stream"] : idsKey.split(",").filter(Boolean);
+    // A channel's uploads list is its id with UC swapped for UU.
+    const uploads = uploadsOf ? `UU${uploadsOf.slice(2)}` : null;
+    const list = liveChannel
+      ? ["live_stream"]
+      : uploads
+        ? [uploads]
+        : idsKey.split(",").filter(Boolean);
     if (list.length === 0) return;
-    const keep = resume && !liveChannel;
+    const keep = resume && !liveChannel && !uploads;
     const key = `yt-progress:${slideId}`;
     const saved = keep ? readProgress(key) : null;
     let idx = saved ? list.indexOf(saved.id) : -1;
@@ -200,7 +210,7 @@ export default function YouTubeSlidePlayer({
       const el = document.createElement("div");
       hostRef.current.appendChild(el);
       player = new YT.Player(el, {
-        videoId: list[idx],
+        ...(uploads ? {} : { videoId: list[idx] }),
         width: "100%",
         height: "100%",
         playerVars: {
@@ -213,6 +223,7 @@ export default function YouTubeSlidePlayer({
           cc_load_policy: subtitles ? 1 : 0,
           cc_lang_pref: "en",
           ...(liveChannel ? { channel: liveChannel } : {}),
+          ...(uploads ? { listType: "playlist", list: uploads, loop: 1 } : {}),
         },
         events: {
           onReady: (e) => {
@@ -225,7 +236,7 @@ export default function YouTubeSlidePlayer({
             if (e.data === YT.PlayerState.ENDED) {
               // A finished stream has nothing to move on to.
               if (liveChannel) playingRef.current?.(false);
-              else playNext(e.target);
+              else if (!uploads) playNext(e.target);
             } else failures = 0;
             if (e.data === YT.PlayerState.PLAYING) playingRef.current?.(true);
             // Each newly loaded video starts with the default, so keep it in
@@ -237,7 +248,7 @@ export default function YouTubeSlidePlayer({
           },
           // Skip a video that won't play, but stop once every one has failed.
           onError: (e) => {
-            if (++failures < list.length) playNext(e.target);
+            if (!uploads && ++failures < list.length) playNext(e.target);
             else playingRef.current?.(false);
           },
         },
@@ -252,7 +263,7 @@ export default function YouTubeSlidePlayer({
       player?.destroy();
       playerRef.current = null;
     };
-  }, [slideId, idsKey, subtitles, resume, liveChannel]);
+  }, [slideId, idsKey, subtitles, resume, liveChannel, uploadsOf]);
 
   return (
     <div

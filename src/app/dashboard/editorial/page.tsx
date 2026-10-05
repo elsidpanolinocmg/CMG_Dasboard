@@ -4,13 +4,17 @@ import LoadingPage from "@/components/LoadingPage";
 import BrandRotationClient, { type BrandEntry } from "./BrandRotationClient";
 import { getRotationSlides } from "@/lib/rotation/slides";
 import { brandSiteConfig } from "@/lib/util/brandSiteConfig";
+import { getLiveSetting } from "@/lib/rotation/liveSetting";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditorialPage() {
-  const [publications, birthdaySlides] = await Promise.all([
+  const [publications, birthdaySlides, showLiveLink] = await Promise.all([
     brands.findByDepartment("editorial"),
     getRotationSlides("dashboard/editorial"),
+    getLiveSetting()
+      .then((s) => s.showLink)
+      .catch(() => true),
   ]);
   const entries: BrandEntry[] = publications.map((b) => ({
     brand: b.slug,
@@ -18,7 +22,11 @@ export default async function EditorialPage() {
   }));
   return (
     <Suspense fallback={<LoadingPage loadingText="Loading Editorial…" />}>
-      <BrandRotationClient brands={entries} birthdays={birthdaySlides} />
+      <BrandRotationClient
+        brands={entries}
+        birthdays={birthdaySlides}
+        showLiveLink={showLiveLink}
+      />
     </Suspense>
   );
 }

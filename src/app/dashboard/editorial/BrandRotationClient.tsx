@@ -29,6 +29,8 @@ type Slide =
 interface Props {
   brands: BrandEntry[];
   birthdays?: BirthdaySlideEntry[];
+  /** Admin → YouTube channel → Live page can hide the Live link. */
+  showLiveLink?: boolean;
 }
 
 const ROTATION_OPTIONS = [
@@ -98,7 +100,11 @@ function spreadBirthdays(brands: BrandEntry[], birthdays: BirthdaySlideEntry[]):
   return out;
 }
 
-export default function BrandRotationClient({ brands, birthdays: birthdaysProp = [] }: Props) {
+export default function BrandRotationClient({
+  brands,
+  birthdays: birthdaysProp = [],
+  showLiveLink = true,
+}: Props) {
   const isMobile = useIsMobile();
   const birthdays = useMemo(() => (isMobile ? [] : birthdaysProp), [isMobile, birthdaysProp]);
   const [rotationInterval, setRotationInterval] = useState(60_000);
@@ -207,12 +213,14 @@ export default function BrandRotationClient({ brands, birthdays: birthdaysProp =
           >
             Videos
           </Link>
-          <Link
-            href="/dashboard/editorial/live"
-            className="px-4 py-1 rounded bg-black/40 text-white hover:bg-black/60 text-center text-sm"
-          >
-            Live
-          </Link>
+          {showLiveLink && (
+            <Link
+              href="/dashboard/editorial/live"
+              className="px-4 py-1 rounded bg-black/40 text-white hover:bg-black/60 text-center text-sm"
+            >
+              Live
+            </Link>
+          )}
           <Link
             href="/dashboard/editorial/leaderboard"
             className="px-4 py-1 rounded bg-black/40 text-white hover:bg-black/60 text-center text-sm"

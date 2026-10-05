@@ -2,6 +2,7 @@ import Link from "next/link";
 import * as brandsRepo from "@/lib/repos/brands";
 import * as quickLinksRepo from "@/lib/repos/quickLinks";
 import * as customPagesRepo from "@/lib/repos/customPages";
+import { getLiveSetting } from "@/lib/rotation/liveSetting";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +11,12 @@ export default async function Home() {
   const editorialBrands = allBrands.filter((b) => b.departments?.includes("editorial"));
   // A quick-links failure must not take the whole home page down — the links
   // are an extra, the dashboard index is the point of the page.
-  const [quickLinks, customPages] = await Promise.all([
+  const [quickLinks, customPages, showLiveLink] = await Promise.all([
     quickLinksRepo.listVisible().catch(() => []),
     customPagesRepo.listForHome().catch(() => []),
+    getLiveSetting()
+      .then((s) => s.showLink)
+      .catch(() => true),
   ]);
 
   return (
@@ -30,7 +34,7 @@ export default async function Home() {
           subPages={[
             { label: "Editorial Videos", href: "/dashboard/editorial/videos" },
             { label: "Editorial Shorts", href: "/dashboard/editorial/shorts" },
-            { label: "Editorial Live", href: "/dashboard/editorial/live" },
+            ...(showLiveLink ? [{ label: "Editorial Live", href: "/dashboard/editorial/live" }] : []),
             { label: "Leaderboard", href: "/dashboard/editorial/leaderboard" },
           ]}
         />

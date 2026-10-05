@@ -189,22 +189,6 @@ async function liveVideoId(channelId: string): Promise<string | null> {
   return html.match(/rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([A-Za-z0-9_-]{11})"/)?.[1] ?? null;
 }
 
-export type LiveStatus =
-  | { status: "live"; id: string; title: string }
-  | { status: "blocked"; id: string }
-  | { status: "offline" };
-
-/**
- * Whether the channel is streaming now, and whether the stream may be shown
- * here ("blocked" when the owner switched off embedding).
- */
-export async function getLiveStatus(channelId: string): Promise<LiveStatus> {
-  const id = await liveVideoId(channelId);
-  if (!id) return { status: "offline" };
-  const video = await embeddableVideo(id);
-  return video ? { status: "live", id, title: video.title } : { status: "blocked", id };
-}
-
 /**
  * The videos a channel page should play, skipping any that can't be embedded:
  * - newest: just the latest upload

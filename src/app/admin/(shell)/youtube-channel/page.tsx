@@ -3,13 +3,15 @@ import {
   getYouTubeChannelSetting,
   MAX_SLIDE_SECONDS,
 } from "@/lib/rotation/youtubeChannelSetting";
+import { getLiveSetting } from "@/lib/rotation/liveSetting";
 import YouTubeChannelForm from "./YouTubeChannelForm";
+import LiveSettingsForm from "./LiveSettingsForm";
 import Hint from "../_widgets/Hint";
 
 export const dynamic = "force-dynamic";
 
 export default async function YouTubeChannelAdmin() {
-  const setting = await getYouTubeChannelSetting();
+  const [setting, live] = await Promise.all([getYouTubeChannelSetting(), getLiveSetting()]);
   return (
     <div className="flex flex-col gap-8 max-w-4xl">
       <div>
@@ -27,6 +29,7 @@ export default async function YouTubeChannelAdmin() {
         pages={BIRTHDAY_PAGE_KEYS}
         maxMinutes={MAX_SLIDE_SECONDS / 60}
       />
+      <LiveSettingsForm initial={live} sharedChannelName={setting.channelName} />
     </div>
   );
 }

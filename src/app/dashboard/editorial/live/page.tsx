@@ -5,109 +5,128 @@ import { useEffect, useState } from "react";
 import DashboardControls from "@/components/DashboardControls";
 import YouTubeSlidePlayer from "@/components/YouTubeSlidePlayer";
 
-interface LiveInfo {
-  /** The server's own check; a hint only, since YouTube can hide streams from servers. */
-  status: "live" | "blocked" | "offline";
-  channelId?: string;
-  channelName?: string;
+type LiveInfo = {
   subtitles?: boolean;
-}
+  whenOffline?: "message" | "videos";
+  offlineMessage?: string;
+} & (
+  | { kind: "channel"; channelId: string; channelName?: string }
+  | { kind: "video"; videoId: string }
+);
 
-// While nothing is playing, check again this often.
+// While the channel isn't live, look again this often.
 const RETRY_MS = 2 * 60 * 1000;
 
+const BUTTON = "px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60";
+
 /**
- * The live stream of the channel set in Admin → YouTube channel, full screen
- * and nothing else. The browser asks YouTube for the channel's current stream
- * directly. When there is none it shows a waiting screen and tries again every
- * couple of minutes, so a stream that starts later comes up on its own.
+ * The Editorial Live page, set up in Admin → YouTube channel → Live page.
+ *
+ * A channel source asks YouTube, from this browser, for the channel's current
+ * stream. While there is none it shows the waiting screen or the channel's
+ * recent uploads, and looks again every couple of minutes in a hidden player,
+ * so a stream that starts later takes over by itself. A video source just
+ * plays that one video (a scheduled stream shows YouTube's own countdown).
  */
 export default function EditorialLivePage() {
   const [info, setInfo] = useState<LiveInfo | null>(null);
-  // null = still checking, true = stream playing, false = nothing to play.
-  const [playing, setPlaying] = useState<boolean | null>(null);
+  const [liveUp, setLiveUp] = useState(false);
+  // Sticks once a look finds nothing, so the fallback stays up between looks.
+  const [notLive, setNotLive] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [muted, setMuted] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/youtube/live", { cache: "no-store" })
-      .then((res) => res.json() as Promise<LiveInfo>)
+      .then((res) => (res.ok ? (res.json() as Promise<LiveInfo>) : null))
       .then((data) => {
-        if (!cancelled) setInfo(data);
+        if (!cancelled && data) setInfo(data);
       })
       .catch(() => {
-        /* keep the last answer; the retry below tries again */
+        /* keep the last answer */
       });
     return () => {
       cancelled = true;
     };
   }, [attempt]);
 
-  // Nothing playing: rebuild the player after a while to look again.
   useEffect(() => {
-    if (playing !== false) return;
-    const t = setTimeout(() => {
-      setPlaying(null);
-      setAttempt((n) => n + 1);
-    }, RETRY_MS);
-    return () => clearTimeout(t);
-  }, [playing]);
+    if (!notLive || liveUp) return;
+    const t = setInterval(() => setAttempt((n) => n + 1), RETRY_MS);
+    return () => clearInterval(t);
+  }, [notLive, liveUp]);
 
-  const channel = info?.channelName || "The channel";
-  const blocked = info?.status === "blocked" || (info?.status === "live" && playing === false);
+  const onLiveChange = (playing: boolean) => {
+    setLiveUp(playing);
+    setNotLive(!playing);
+  };
+
+  const channelName = info?.kind === "channel" ? info.channelName || "The channel" : "";
+  const showUploads =
+    info?.kind === "channel" && !liveUp && notLive && info.whenOffline === "videos";
+  const playingSomething = info?.kind === "video" || liveUp || showUploads;
 
   return (
     <div className="relative w-screen h-lvh bg-black overflow-hidden flex items-center justify-center text-white">
-      {info?.channelId && (
-        <div className={`absolute inset-0 ${playing ? "" : "opacity-0"}`}>
-          <YouTubeSlidePlayer
-            key={attempt}
-            slideId="editorial-live"
-            ids={[]}
-            liveChannel={info.channelId}
-            subtitles={!!info.subtitles}
-            muted={muted}
-            onPlayingChange={setPlaying}
-          />
-        </div>
+      {info?.kind === "video" && (
+        <YouTubeSlidePlayer
+          slideId="editorial-live-video"
+          ids={[info.videoId]}
+          subtitles={!!info.subtitles}
+          muted={muted}
+          resume={false}
+        />
       )}
 
-      {!playing && (
+      {info?.kind === "channel" && (
+        <>
+          {showUploads && (
+            <YouTubeSlidePlayer
+              slideId="editorial-live-uploads"
+              ids={[]}
+              uploadsOf={info.channelId}
+              subtitles={!!info.subtitles}
+              muted={muted}
+            />
+          )}
+          {/* Hidden until a stream is found; while hidden it only looks. */}
+          <div className={`absolute inset-0 ${liveUp ? "" : "opacity-0"}`}>
+            <YouTubeSlidePlayer
+              key={`${info.channelId}-${attempt}`}
+              slideId="editorial-live"
+              ids={[]}
+              liveChannel={info.channelId}
+              subtitles={!!info.subtitles}
+              muted={muted || !liveUp}
+              onPlayingChange={onLiveChange}
+            />
+          </div>
+        </>
+      )}
+
+      {!playingSomething && (
         <div className="relative max-w-xl px-6 text-center flex flex-col gap-3">
-          {playing === null ? (
+          {!notLive ? (
             <p className="text-lg opacity-60">Checking for a live stream…</p>
-          ) : blocked ? (
-            <>
-              <p className="text-2xl font-semibold">{channel} is live, but it can&apos;t be shown here</p>
-              <p className="opacity-70">
-                The stream&apos;s owner has switched off &ldquo;Allow embedding&rdquo; in
-                YouTube Studio. Once it&apos;s switched on, the stream appears here by itself.
-              </p>
-            </>
           ) : (
             <>
-              <p className="text-2xl font-semibold">{channel} isn&apos;t live right now</p>
-              <p className="opacity-70">The stream will start here by itself when it goes live.</p>
+              <p className="text-2xl font-semibold">{channelName} isn&apos;t live right now</p>
+              <p className="opacity-70 whitespace-pre-line">
+                {info?.offlineMessage || "The stream will start here by itself when it goes live."}
+              </p>
             </>
           )}
         </div>
       )}
 
       <DashboardControls>
-        {playing && (
-          <button
-            type="button"
-            onClick={() => setMuted((m) => !m)}
-            className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60"
-          >
+        {playingSomething && (
+          <button type="button" onClick={() => setMuted((m) => !m)} className={BUTTON}>
             {muted ? "🔇 Sound off" : "🔊 Sound on"}
           </button>
         )}
-        <Link
-          href="/dashboard/editorial"
-          className="px-4 py-2 rounded bg-black/40 text-white hover:bg-black/60"
-        >
+        <Link href="/dashboard/editorial" className={BUTTON}>
           ← Back
         </Link>
       </DashboardControls>
