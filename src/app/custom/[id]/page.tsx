@@ -37,6 +37,11 @@ export default async function CustomPageRoute({
       mediaKind={page.mediaKind}
       mediaPath={page.mediaPath}
       youtubeIds={youtubeIds}
+      liveChannel={
+        page.mediaKind === "youtube-channel" && page.youtubeMode === "live"
+          ? page.mediaPath
+          : undefined
+      }
       showTitle={!!page.showTitle}
       subtitles={!!page.subtitles}
     />

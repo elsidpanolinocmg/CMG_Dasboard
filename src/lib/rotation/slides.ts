@@ -40,6 +40,9 @@ export async function customPageToSlide(p: CustomPage): Promise<BirthdaySlideEnt
       youtubeIds: ids,
       holdMs: (p.slideSeconds ?? DEFAULT_SLIDE_SECONDS) * 1000,
       subtitles: !!p.subtitles,
+      ...(p.mediaKind === "youtube-channel" && p.youtubeMode === "live"
+        ? { liveChannel: p.mediaPath }
+        : {}),
       hideGreeting: true,
       inNext: !!p.includeInNext,
       showTitle: !!p.showTitle,
@@ -80,6 +83,9 @@ async function channelSlide(pageKey: string): Promise<BirthdaySlideEntry | null>
     hideGreeting: true,
     inNext: s.includeInNext,
     subtitles: s.subtitles,
+    // The server can't see live streams (YouTube hides them from data
+    // centres), so "live first" is settled in the browser; ids is the fallback.
+    ...(s.mode === "live" ? { liveChannel: s.channelId } : {}),
   };
 }
 

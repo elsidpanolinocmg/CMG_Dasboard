@@ -10,6 +10,8 @@ interface Props {
   mediaPath: string;
   /** YouTube kinds: the videos to play, in order. */
   youtubeIds: string[];
+  /** Channel in "live first" mode: try its live stream first, in the browser. */
+  liveChannel?: string;
   showTitle: boolean;
   /** YouTube kinds: force YouTube's subtitles on. */
   subtitles: boolean;
@@ -34,6 +36,7 @@ export default function CustomPageView({
   mediaKind,
   mediaPath,
   youtubeIds,
+  liveChannel,
   showTitle,
   subtitles,
 }: Props) {
@@ -41,6 +44,7 @@ export default function CustomPageView({
   const supported = useSyncExternalStore(subscribeNothing, fullscreenEnabled, () => false);
   const [idle, setIdle] = useState(false);
   const [muted, setMuted] = useState(true);
+  const [notLive, setNotLive] = useState(false);
 
   useEffect(() => {
     let timer = setTimeout(() => setIdle(true), IDLE_MS);
@@ -79,7 +83,18 @@ export default function CustomPageView({
       onDoubleClick={supported ? toggleFullscreen : undefined}
     >
       {mediaKind === "youtube" || mediaKind === "youtube-channel" ? (
-        youtubeIds.length === 0 ? (
+        liveChannel && !notLive ? (
+          <YouTubeSlidePlayer
+            slideId={`page-${mediaPath}-live`}
+            ids={[]}
+            liveChannel={liveChannel}
+            subtitles={subtitles}
+            muted={muted}
+            onPlayingChange={(playing) => {
+              if (!playing) setNotLive(true);
+            }}
+          />
+        ) : youtubeIds.length === 0 ? (
           <p className="text-white/70 text-lg px-6 text-center">
             {mediaKind === "youtube-channel"
               ? "This channel has no recent videos that can be played here."

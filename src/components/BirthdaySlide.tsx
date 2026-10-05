@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseYouTubeId } from "@/lib/youtube";
 import YouTubeSlidePlayer from "./YouTubeSlidePlayer";
 
@@ -22,6 +22,11 @@ export interface BirthdaySlideEntry {
   youtubeIds?: string[];
   /** YouTube only: force YouTube's subtitles on (otherwise off). */
   subtitles?: boolean;
+  /**
+   * YouTube channel in "live first" mode: try this channel's live stream in
+   * the browser, and play youtubeIds only when it isn't live.
+   */
+  liveChannel?: string;
   /** Hold the screen this long, then fire onVideoEnded (YouTube slides). */
   holdMs?: number;
   /**
@@ -66,6 +71,8 @@ interface Props {
 export default function BirthdaySlide({ entry, className, onVideoEnded }: Props) {
   const playOnce = entry.mediaKind === "video" && !!entry.finishVideo;
 
+  const [notLive, setNotLive] = useState(false);
+
   const endedRef = useRef(onVideoEnded);
   useEffect(() => {
     endedRef.current = onVideoEnded;
@@ -81,7 +88,17 @@ export default function BirthdaySlide({ entry, className, onVideoEnded }: Props)
     <div
       className={`relative w-full h-full min-h-screen flex items-center justify-center bg-black overflow-hidden ${className ?? ""}`}
     >
-      {entry.mediaKind === "youtube" ? (
+      {entry.mediaKind === "youtube" && entry.liveChannel && !notLive ? (
+        <YouTubeSlidePlayer
+          slideId={`${entry.id}-live`}
+          ids={[]}
+          liveChannel={entry.liveChannel}
+          subtitles={!!entry.subtitles}
+          onPlayingChange={(playing) => {
+            if (!playing) setNotLive(true);
+          }}
+        />
+      ) : entry.mediaKind === "youtube" ? (
         <YouTubeSlidePlayer
           slideId={entry.id}
           ids={entry.youtubeIds ?? [parseYouTubeId(entry.mediaPath) ?? ""]}
