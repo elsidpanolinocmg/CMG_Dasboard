@@ -4,11 +4,13 @@ import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import RemoveButton from "../_widgets/RemoveButton";
 import CustomPageEditor from "./CustomPageEditor";
+import { youTubeThumbnail } from "@/lib/youtube";
+import type { CustomPageMediaKind, YouTubeChannelMode } from "@/lib/entities/customPage";
 
 export type ClientCustomPage = {
   id: string;
   title: string;
-  mediaKind: "image" | "video";
+  mediaKind: CustomPageMediaKind;
   mediaPath: string;
   active: boolean;
   order: number;
@@ -19,6 +21,11 @@ export type ClientCustomPage = {
   includeInNext: boolean;
   showTitle: boolean;
   finishVideo: boolean;
+  youtubeMode?: YouTubeChannelMode;
+  youtubeDays?: number;
+  youtubeChannelName?: string;
+  slideSeconds?: number;
+  subtitles: boolean;
 };
 
 export type RotationPage = { key: string; label: string };
@@ -86,9 +93,21 @@ export default function CustomPagesManager({
               ) : (
                 <tr key={p.id} className="border-t border-black/10 dark:border-white/10 align-top">
                   <td className="px-3 py-2">
-                    {p.mediaKind === "image" ? (
+                    {p.mediaKind === "youtube-channel" ? (
+                      <div
+                        className="h-12 w-20 rounded bg-red-600 text-white text-[10px] leading-tight flex flex-col items-center justify-center text-center px-1"
+                        title={p.youtubeChannelName}
+                      >
+                        <span>▶ Channel</span>
+                        <span className="truncate w-full opacity-80">{p.youtubeChannelName}</span>
+                      </div>
+                    ) : p.mediaKind === "image" || p.mediaKind === "youtube" ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.mediaPath} alt={p.title} className="h-12 w-20 object-cover rounded" />
+                      <img
+                        src={p.mediaKind === "youtube" ? youTubeThumbnail(p.mediaPath) : p.mediaPath}
+                        alt={p.title}
+                        className="h-12 w-20 object-cover rounded"
+                      />
                     ) : (
                       <video src={p.mediaPath} className="h-12 w-20 object-cover rounded bg-black" muted />
                     )}

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import AppleSplash from "@/components/AppleSplash";
+import ScreenReloadWatcher from "@/components/ScreenReloadWatcher";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -52,6 +53,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AppleSplash />
+        <ScreenReloadWatcher />
         {children}
       </body>
     </html>

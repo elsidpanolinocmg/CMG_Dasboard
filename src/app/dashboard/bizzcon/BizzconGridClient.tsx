@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import DashboardControls from "@/components/DashboardControls";
 import ViewportFit from "@/components/ViewportFit";
-import BirthdaySlide, { type BirthdaySlideEntry } from "@/components/BirthdaySlide";
+import BirthdaySlide, {
+  slideHoldsScreen,
+  splitRecurring,
+  type BirthdaySlideEntry,
+} from "@/components/BirthdaySlide";
 import { useSwipeNav } from "@/lib/hooks/useSwipeNav";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { buildNavSteps } from "@/lib/rotation/navSteps";
@@ -61,7 +65,10 @@ const ROTATION_OPTIONS = [
 
 export default function BizzconGridClient({ events, birthdays: birthdaysProp = [] }: Props) {
   const isMobile = useIsMobile();
-  const birthdays = useMemo(() => (isMobile ? [] : birthdaysProp), [isMobile, birthdaysProp]);
+  const { once: birthdays, recurring } = useMemo(
+    () => splitRecurring(isMobile ? [] : birthdaysProp),
+    [isMobile, birthdaysProp],
+  );
   const tableRef = useRef<HTMLDivElement>(null);
   const [pageSize, setPageSize] = useState<number | "all">(5);
   const [pageIndex, setPageIndex] = useState(0);
@@ -70,6 +77,10 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
   const [birthdayShownIdx, setBirthdayShownIdx] = useState<number | null>(null);
   const birthdayCursor = useRef(0);
   const regularTicks = useRef(0);
+  // The recurring (YouTube channel) slide on screen, and table pages shown
+  // since it last came up.
+  const [recurringShown, setRecurringShown] = useState<BirthdaySlideEntry | null>(null);
+  const pagesSinceRecurring = useRef(0);
   // Short landscape phones show the cramped desktop table (12 rows won't fit);
   // mobile portrait shows the stacked table (8+ rows clip). Drop those options
   // and let "All" scroll, matching the awards dashboard.
@@ -176,10 +187,30 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
     setPageIndex(0);
   };
 
+  /** Close the birthday/custom/channel slide and move on to the next table page. */
+  const leaveExtra = useCallback(() => {
+    setBirthdayShownIdx(null);
+    setRecurringShown(null);
+    regularTicks.current = 0;
+    if (totalPages > 1) {
+      setPageIndex((i) => {
+        const nextIdx = (i + 1) % totalPages;
+        if (nextIdx === 0) birthdayCursor.current = 0;
+        return nextIdx;
+      });
+    }
+  }, [totalPages]);
+
+  // A slide that sets its own length (a YouTube page, a "finish video" clip)
+  // pauses the timer and calls leaveExtra through onVideoEnded instead.
+  const shownExtra =
+    recurringShown ?? (birthdayShownIdx !== null ? birthdays[birthdayShownIdx] : undefined);
+  const holding = !!shownExtra && slideHoldsScreen(shownExtra);
+
   useEffect(() => {
     if (rotationTimer.current) clearInterval(rotationTimer.current);
-    if (rotationInterval <= 0) return;
-    if (totalPages <= 1 && birthdays.length === 0) return;
+    if (rotationInterval <= 0 || holding) return;
+    if (totalPages <= 1 && birthdays.length === 0 && recurring.length === 0) return;
     // Space birthdays evenly across the page cycle so EVERY birthday surfaces
     // within one full pass through the pages. E.g. 4 pages + 2 birthdays →
     // page, page, bday, page, page, bday.
@@ -188,16 +219,17 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
         ? Math.max(1, Math.floor(totalPages / birthdays.length))
         : Math.max(1, totalPages);
     rotationTimer.current = setInterval(() => {
-      if (birthdayShownIdx !== null) {
-        setBirthdayShownIdx(null);
-        regularTicks.current = 0;
-        if (totalPages > 1) {
-          setPageIndex((i) => {
-            const nextIdx = (i + 1) % totalPages;
-            if (nextIdx === 0) birthdayCursor.current = 0;
-            return nextIdx;
-          });
-        }
+      if (birthdayShownIdx !== null || recurringShown) {
+        leaveExtra();
+        return;
+      }
+      // Every tick on a table page counts as a page shown, so a one-page
+      // table still brings the channel slide round every few ticks.
+      pagesSinceRecurring.current += 1;
+      const due = recurring.find((r) => pagesSinceRecurring.current >= (r.everyPages ?? 1));
+      if (due) {
+        pagesSinceRecurring.current = 0;
+        setRecurringShown(due);
         return;
       }
       regularTicks.current += 1;
@@ -223,43 +255,86 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
     return () => {
       if (rotationTimer.current) clearInterval(rotationTimer.current);
     };
-  }, [rotationInterval, totalPages, birthdays.length, birthdayShownIdx]);
+  }, [
+    rotationInterval,
+    totalPages,
+    birthdays.length,
+    birthdayShownIdx,
+    recurring,
+    recurringShown,
+    holding,
+    leaveExtra,
+  ]);
 
   const activeBirthday =
-    birthdayShownIdx !== null && birthdays[birthdayShownIdx]
+    recurringShown ??
+    (birthdayShownIdx !== null && birthdays[birthdayShownIdx]
       ? birthdays[birthdayShownIdx]
-      : null;
+      : null);
 
-  // Prev/Next walk the table pages plus any custom pages the admin allowed in
-  // Next. Birthdays and other custom pages still only appear on the timer.
+  // Prev/Next walk the table pages plus any custom pages (and the channel
+  // slide) the admin allowed in Next. Birthdays and the rest only appear on
+  // the timer.
   const navSteps = useMemo(
     () =>
       buildNavSteps(
         totalPages,
         birthdays.flatMap((b, i) => (b.kind === "custom" && b.inNext ? [i] : [])),
+        recurring.flatMap((r, i) => (r.inNext ? [{ index: i, everyPages: r.everyPages ?? 1 }] : [])),
       ),
-    [totalPages, birthdays],
+    [totalPages, birthdays, recurring],
   );
   const navPos = (() => {
+    const pageAt = Math.max(
+      0,
+      navSteps.findIndex((s) => s.type === "page" && s.index === pageIndex),
+    );
+    if (recurringShown) {
+      // The channel slide sits after the page that was showing before it.
+      const ri = recurring.indexOf(recurringShown);
+      const at = navSteps.findIndex(
+        (s, k) => k > pageAt && s.type === "recurring" && s.index === ri,
+      );
+      if (at >= 0) return at;
+    }
     if (birthdayShownIdx !== null) {
       const at = navSteps.findIndex((s) => s.type === "extra" && s.index === birthdayShownIdx);
       if (at >= 0) return at;
     }
-    return Math.max(0, navSteps.findIndex((s) => s.type === "page" && s.index === pageIndex));
+    return pageAt;
   })();
+  const showingExtra = recurringShown !== null || birthdayShownIdx !== null;
   const goNav = (dir: 1 | -1) => {
     const target = navSteps[navPos + dir];
+    // A slide that isn't one of the Next/Prev steps (or the last one) never
+    // traps the buttons: Next moves on past it, Prev closes it back to the page.
+    const onStep = showingExtra && navSteps[navPos]?.type !== "page";
+    if (showingExtra && (!onStep || !target)) {
+      if (dir === 1) {
+        leaveExtra();
+      } else {
+        setBirthdayShownIdx(null);
+        setRecurringShown(null);
+        regularTicks.current = 0;
+      }
+      return;
+    }
     if (!target) return;
     regularTicks.current = 0;
+    setRecurringShown(null);
     if (target.type === "page") {
       setBirthdayShownIdx(null);
       setPageIndex(target.index);
+    } else if (target.type === "recurring") {
+      setBirthdayShownIdx(null);
+      setRecurringShown(recurring[target.index] ?? null);
+      pagesSinceRecurring.current = 0;
     } else {
       setBirthdayShownIdx(target.index);
     }
   };
-  const canPrev = navPos > 0;
-  const canNext = navPos < navSteps.length - 1;
+  const canPrev = showingExtra || navPos > 0;
+  const canNext = showingExtra || navPos < navSteps.length - 1;
 
   const swipe = useSwipeNav({
     onNext: () => goNav(1),
@@ -535,7 +610,7 @@ export default function BizzconGridClient({ events, birthdays: birthdaysProp = [
 
       {activeBirthday && (
         <div className="absolute inset-0 z-30">
-          <BirthdaySlide entry={activeBirthday} />
+          <BirthdaySlide key={activeBirthday.id} entry={activeBirthday} onVideoEnded={leaveExtra} />
         </div>
       )}
     </div>
