@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import RemoveButton from "../_widgets/RemoveButton";
 import { PAGE_SCHEMAS, type FieldDef, type PageSchema } from "./schemas";
+import { Pencil } from "lucide-react";
+import IconButton from "../_widgets/IconButton";
 
 const ADVANCED_KEY = "advanced";
 
@@ -276,13 +278,7 @@ function Row({ row }: { row: ClientPageSetting }) {
             </>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={startEdit}
-                className="rounded border border-black/15 dark:border-white/15 px-2.5 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                Edit
-              </button>
+              <IconButton icon={Pencil} label="Edit" onClick={startEdit} />
               {row.saved && (
                 <RemoveButton
                   entity="page-settings"

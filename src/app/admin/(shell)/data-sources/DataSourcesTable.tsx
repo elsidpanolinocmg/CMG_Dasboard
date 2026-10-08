@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import RemoveButton from "../_widgets/RemoveButton";
+import { Pencil } from "lucide-react";
+import IconButton from "../_widgets/IconButton";
 
 export type ClientDataSource = {
   kind: string;
@@ -134,13 +136,7 @@ function Row({ row }: { row: ClientDataSource }) {
             </>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="rounded border border-black/15 dark:border-white/15 px-2.5 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                Edit
-              </button>
+              <IconButton icon={Pencil} label="Edit" onClick={() => setEditing(true)} />
               <RemoveButton entity="data-sources" payload={{ kind: row.kind }} />
             </>
           )}

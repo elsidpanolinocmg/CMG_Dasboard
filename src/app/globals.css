@@ -573,9 +573,9 @@ select option {
 .admin-shell {
   --admin-bg: var(--background);
   --admin-fg: var(--foreground);
-  --admin-radius: 0.625rem;
-  --admin-control-h: 2.5rem;
-  font-size: 15px;
+  --admin-radius: 0.5rem;
+  --admin-control-h: 2.375rem;
+  font-size: 14.5px;
 }
 
 /* Bigger, modern form controls inside the admin shell. */
@@ -620,21 +620,51 @@ select option {
 }
 
 .admin-shell h1 {
-  font-size: 1.875rem;
-  line-height: 1.15;
-  letter-spacing: -0.01em;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
 }
 
 .admin-shell h2 {
-  font-size: 1.125rem;
+  font-size: 1rem;
   letter-spacing: -0.005em;
 }
 
-/* Tables: slightly more breathing room. */
+/* Tables: quiet headers, hairline rows, room to breathe. */
 .admin-shell table th,
 .admin-shell table td {
-  padding-top: 0.7rem;
-  padding-bottom: 0.7rem;
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+}
+
+.admin-shell table thead {
+  background: transparent !important;
+}
+
+.admin-shell table th {
+  font-size: 0.72rem;
+  font-weight: 500 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.55;
+  border-bottom: 1px solid rgb(0 0 0 / 0.08);
+}
+
+.admin-shell table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+.admin-shell table tbody tr:hover {
+  background-color: rgb(0 0 0 / 0.018);
+}
+
+@media (prefers-color-scheme: dark) {
+  .admin-shell table th {
+    border-bottom-color: rgb(255 255 255 / 0.1);
+  }
+  .admin-shell table tbody tr:hover {
+    background-color: rgb(255 255 255 / 0.025);
+  }
 }
 
 /* Checkboxes: larger, transparent when unchecked, gray fill when checked. */
@@ -643,12 +673,12 @@ select option {
   appearance: none !important;
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
-  width: 1.35rem !important;
-  height: 1.35rem !important;
+  width: 1.15rem !important;
+  height: 1.15rem !important;
   min-height: 0 !important;
   padding: 0 !important;
   margin: 0;
-  border: 2.5px solid rgb(0 0 0 / 0.45) !important;
+  border: 1.5px solid rgb(0 0 0 / 0.35) !important;
   border-radius: 0.25rem !important;
   background-color: transparent !important;
   background-image: none !important;
@@ -666,7 +696,7 @@ select option {
 @media (prefers-color-scheme: dark) {
   .admin-shell input[type="checkbox"],
   .admin-shell input[type="checkbox"].cursor-pointer {
-    border-color: rgb(255 255 255 / 0.45) !important;
+    border-color: rgb(255 255 255 / 0.35) !important;
   }
 }
 
@@ -690,8 +720,8 @@ select option {
   position: absolute;
   left: 50%;
   top: 45%;
-  width: 0.34rem;
-  height: 0.66rem;
+  width: 0.3rem;
+  height: 0.58rem;
   border: solid white;
   border-width: 0 2px 2px 0;
   transform: translate(-50%, -55%) rotate(45deg);

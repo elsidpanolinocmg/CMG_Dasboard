@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { humanize } from "@/lib/util/format";
 import Hint from "../_widgets/Hint";
 import { useUnsavedWarning } from "../_widgets/useUnsavedWarning";
+import { Plus } from "lucide-react";
 
 const ROLES = [
   "managing_editor",
@@ -532,9 +533,10 @@ function DepartmentPropertiesEditor({
         <button
           type="button"
           onClick={() => setRows((prev) => [...prev, { k: "", v: "" }])}
-          className="rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 px-3 py-1.5 text-xs"
+          className="inline-flex items-center gap-1 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 px-3 py-1.5 text-xs"
         >
-          + Add property
+          <Plus size={14} strokeWidth={2.25} />
+          Add property
         </button>
         <button
           type="button"

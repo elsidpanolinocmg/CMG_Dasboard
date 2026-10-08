@@ -53,8 +53,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AppleSplash />
-        <ScreenReloadWatcher />
-        {children}
+        <ScreenReloadWatcher>{children}</ScreenReloadWatcher>
       </body>
     </html>
   );

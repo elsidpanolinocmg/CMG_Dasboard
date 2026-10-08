@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { humanize } from "@/lib/util/format";
 import { useUnsavedWarning } from "../_widgets/useUnsavedWarning";
+import { Plus } from "lucide-react";
 
 export type ClientBrand = {
   slug: string;
@@ -628,9 +629,10 @@ export default function BrandEditor({
                         },
                       ])
                     }
-                    className="self-start text-xs px-3 py-1.5 rounded border border-black/20 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/10"
+                    className="inline-flex items-center gap-1 self-start text-xs px-3 py-1.5 rounded border border-black/20 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/10"
                   >
-                    + Add event
+                    <Plus size={14} strokeWidth={2.25} />
+                    Add event
                   </button>
                 </div>
                 </>

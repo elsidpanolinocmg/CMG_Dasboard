@@ -1,47 +1,9 @@
 import Link from "next/link";
+import { ExternalLink, UserRound } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
+import AdminNav from "../_components/AdminNav";
 import LogoutButton from "../_components/LogoutButton";
 import RefreshScreensButton from "../_components/RefreshScreensButton";
-
-type NavGroup = {
-  label?: string;
-  items: { href: string; label: string }[];
-};
-
-const NAV_GROUPS: NavGroup[] = [
-  { items: [{ href: "/admin", label: "Overview" }] },
-  {
-    items: [
-      { href: "/admin/people", label: "People" },
-      { href: "/admin/brands", label: "Publications" },
-      { href: "/admin/departments", label: "Departments" },
-    ],
-  },
-  {
-    items: [
-      { href: "/admin/birthdays", label: "Birthdays" },
-      { href: "/admin/custom-pages", label: "Custom pages" },
-      { href: "/admin/youtube-channel", label: "YouTube channel" },
-      { href: "/admin/holidays", label: "Holidays" },
-    ],
-  },
-  {
-    items: [
-      { href: "/admin/bindings", label: "Data bindings" },
-      { href: "/admin/data-sources", label: "Data sources" },
-      { href: "/admin/dashboards", label: "Dashboards" },
-      { href: "/admin/page-settings", label: "Page settings" },
-      { href: "/admin/quick-links", label: "Quick links" },
-    ],
-  },
-  {
-    items: [
-      { href: "/admin/cache", label: "Cache" },
-      { href: "/admin/logs", label: "Activity logs" },
-      { href: "/admin/others", label: "Others" },
-    ],
-  },
-];
 
 export default async function AdminShellLayout({
   children,
@@ -52,47 +14,37 @@ export default async function AdminShellLayout({
 
   return (
     <div className="admin-shell min-h-screen flex bg-[var(--admin-bg)] text-[var(--admin-fg)]">
-      <aside className="w-72 shrink-0 border-r border-black/10 dark:border-white/10 p-6 flex flex-col gap-1 bg-black/[0.02] dark:bg-white/[0.02] sticky top-0 h-screen overflow-y-auto self-start">
-        <div className="mb-4 text-sm uppercase tracking-[0.18em] opacity-60 font-semibold">
-          CMG Admin
+      <aside className="w-60 shrink-0 border-r border-black/[0.07] dark:border-white/[0.08] px-3 py-5 flex flex-col gap-5 sticky top-0 h-screen self-start">
+        <Link href="/admin" className="flex items-center gap-2 px-2.5">
+          <span className="grid h-7 w-7 place-items-center rounded-md bg-foreground text-background text-[11px] font-bold tracking-tight">
+            CMG
+          </span>
+          <span className="text-sm font-semibold">Admin</span>
+        </Link>
+
+        {/* Only the menu scrolls, so the footer stays in view on short screens. */}
+        <div className="-mx-1 flex-1 min-h-0 overflow-y-auto px-1">
+          <AdminNav />
         </div>
-        {NAV_GROUPS.map((group, i) => (
-          <div key={i} className="flex flex-col gap-1">
-            {i > 0 && <div className="my-3 border-t border-black/10 dark:border-white/10" />}
-            {group.label && (
-              <div className="px-3 pt-1 pb-1 text-[11px] uppercase tracking-wider opacity-60 font-medium">
-                {group.label}
-              </div>
-            )}
-            {group.items.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="px-3 py-2.5 rounded-lg text-base hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        ))}
-        <div className="mt-auto pt-5 border-t border-black/10 dark:border-white/10 flex flex-col gap-3">
+
+        <div className="flex flex-col gap-1 border-t border-black/[0.07] dark:border-white/[0.08] pt-4">
           <RefreshScreensButton />
           <Link
             href="/"
-            className="text-sm opacity-75 hover:opacity-100 px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm opacity-70 hover:opacity-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
           >
-            ↗ Open dashboards
+            <ExternalLink size={16} strokeWidth={1.75} />
+            Open dashboards
           </Link>
-          <div className="flex items-center justify-between gap-2 px-1">
-            <span className="text-sm opacity-70 truncate">{session.username}</span>
+          <div className="mt-2 flex items-center gap-2.5 px-2.5">
+            <UserRound size={16} strokeWidth={1.75} className="shrink-0 opacity-50" />
+            <span className="flex-1 truncate text-sm opacity-70">{session.username}</span>
             <LogoutButton />
           </div>
         </div>
       </aside>
       <main className="flex-1 overflow-auto">
-        <div className="mx-auto w-full max-w-6xl px-8 py-12 md:px-12 md:py-14">
-          {children}
-        </div>
+        <div className="mx-auto w-full max-w-6xl px-8 py-10 md:px-12">{children}</div>
       </main>
     </div>
   );
