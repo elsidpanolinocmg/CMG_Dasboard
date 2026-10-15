@@ -65,6 +65,8 @@ const nf = new Intl.NumberFormat("en-US");
 // last) and leave in reverse; the period only switches once the exit is done.
 const EXIT_MS = 750;
 const EASE_OUT = "cubic-bezier(0.22, 1, 0.36, 1)";
+// Exits speed up as they leave; entrances (EASE_OUT) slow as they settle.
+const EASE_IN = "cubic-bezier(0.64, 0, 0.78, 0)";
 // The headline types out quickly once it has risen in; the body waits for it.
 const TITLE_START_MS = 650;
 const TITLE_TICK_MS = 16;
@@ -82,6 +84,13 @@ function stagger(
       : `${enter.name} ${enter.duration ?? 0.7}s ${EASE_OUT} ${enter.delay}s both`,
   };
 }
+
+// Period buttons in the controls.
+const PERIOD_BUTTONS: Record<string, string> = {
+  daily: "Day",
+  weekly: "Week",
+  monthly: "Month",
+};
 
 // Short wording for the "#1 ..." tag on the image.
 const PERIOD_TAGS: Record<string, string> = {
@@ -108,51 +117,303 @@ function fallBackToOriginalLogo(e: React.SyntheticEvent<HTMLImageElement>) {
   if (img.src.includes("/logo/trimmed/")) img.src = img.src.replace("/logo/trimmed/", "/logo/");
 }
 
+type Pos = { period: number; story: number };
+
+// Next story in the rotation: down the current period's ranking, then on to
+// the next period's #1.
+function advance(periods: PeriodStories[], { period, story }: Pos): Pos {
+  if (story + 1 < (periods[period]?.stories.length ?? 0)) return { period, story: story + 1 };
+  return { period: (period + 1) % Math.max(periods.length, 1), story: 0 };
+}
+
+// The period's top stories in rank order, all on screen. The cards stay put;
+// the playing story's card is highlighted.
+function RankingCarousel({
+  stories,
+  current,
+  label,
+  leaving,
+}: {
+  stories: Story[];
+  current: number;
+  label: string;
+  leaving: boolean;
+}) {
+  const n = stories.length;
+  if (n < 2) return null;
+  return (
+    <div style={stagger(leaving, { name: "riseIn", delay: 1.1 }, { name: "exitUp", delay: 0 })}>
+      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/50 md:text-sm">
+        Top {n} · {label}
+      </p>
+      <ol className="grid gap-3" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+        {stories.map((s, i) => (
+          <li key={s.url}>
+            <RankCardContent story={s} rank={i + 1} playing={i === current} />
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+// "Most read stories" list (list layout): one row per story with its logo,
+// rank, headline and views. The row on screen is highlighted.
+function MostReadList({
+  stories,
+  current,
+  label,
+  leaving,
+}: {
+  stories: Story[];
+  current: number;
+  label: string;
+  leaving: boolean;
+}) {
+  return (
+    <section
+      className="flex min-h-0 flex-col"
+      style={stagger(leaving, { name: "riseIn", delay: 0.2 }, { name: "exitUp", delay: 0 })}
+    >
+      <header className="border-b border-white/25 pb-4">
+        <h2 className="text-2xl font-bold uppercase tracking-[0.15em] md:text-3xl">Most read stories</h2>
+        <p className="mt-1 text-sm font-semibold uppercase tracking-[0.2em] md:text-base" style={{ color: BRAND_RED }}>
+          {label}
+        </p>
+      </header>
+      <ol className="flex min-h-0 flex-1 flex-col">
+        {stories.map((s, i) => {
+          const active = i === current;
+          return (
+            <li
+              key={s.url}
+              className={`flex min-h-0 flex-1 items-center gap-4 border-b border-white/15 px-3 transition-colors duration-700 md:gap-5 ${
+                active ? "bg-white/10 text-white" : "text-white/55"
+              }`}
+              style={{ boxShadow: active ? `inset 4px 0 0 ${BRAND_RED}` : undefined }}
+            >
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-sm bg-white p-1.5 md:h-20 md:w-20">
+                {s.brandLogo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={s.brandLogo} alt={s.brandName} onError={fallBackToOriginalLogo} className="max-h-full max-w-full object-contain" />
+                )}
+              </span>
+              <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-lg font-bold transition-colors duration-700 md:h-12 md:w-12 md:text-xl ${
+                  active ? "border-transparent text-white" : "border-white/40"
+                }`}
+                style={{ backgroundColor: active ? BRAND_RED : undefined }}
+              >
+                {i + 1}
+              </span>
+              <span className="line-clamp-2 min-w-0 flex-1 text-lg font-semibold leading-snug md:text-xl">{s.title}</span>
+              <ViewCount views={s.views} className="shrink-0 text-base tabular-nums md:text-lg" />
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+function RankCardContent({ story: s, rank, playing }: { story: Story; rank: number; playing: boolean }) {
+  return (
+    <div
+      className={`overflow-hidden rounded-sm bg-white/5 ring-1 transition duration-500 ${
+        playing ? "opacity-100" : "opacity-55 ring-white/10"
+      }`}
+      style={playing ? { boxShadow: `0 0 0 2px ${BRAND_RED}` } : undefined}
+    >
+      <div className="relative aspect-video bg-neutral-900">
+        {s.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={s.imageUrl} alt="" className="h-full w-full object-cover" />
+        )}
+        <span
+          className="absolute left-0 top-0 rounded-br-sm px-2 py-0.5 text-sm font-bold text-white"
+          style={{ backgroundColor: playing ? BRAND_RED : "rgba(0,0,0,0.7)" }}
+        >
+          #{rank}
+        </span>
+        {s.brandLogo && (
+          <span className="absolute bottom-1 left-1 flex h-6 w-14 items-center justify-center rounded-sm bg-white px-1 py-0.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={s.brandLogo} alt={s.brandName} onError={fallBackToOriginalLogo} className="max-h-full max-w-full object-contain" />
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col gap-1 p-2.5">
+        <p className="line-clamp-2 min-h-[2.5em] text-sm font-semibold leading-tight text-white">{s.title}</p>
+        <ViewCount views={s.views} className="text-xs text-white/60" />
+      </div>
+    </div>
+  );
+}
+
 function formatDate(iso: string | null): string | null {
   if (!iso) return null;
   // Month first, e.g. "Oct 14, 2026".
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export default function TopStoriesClient({ periods }: { periods: PeriodStories[] }) {
-  const [periodIdx, setPeriodIdx] = useState(0);
+export type TopStoriesLayout = "carousel" | "list";
+
+export default function TopStoriesClient({
+  periods,
+  layout: initialLayout = "list",
+}: {
+  periods: PeriodStories[];
+  layout?: TopStoriesLayout;
+}) {
+  const [layout, setLayout] = useState<TopStoriesLayout>(initialLayout);
+  // Switch layout in place, keeping ?layout= in the address so a reload keeps it.
+  const toggleLayout = () => {
+    const nextLayout = layout === "list" ? "carousel" : "list";
+    setLayout(nextLayout);
+    const url = new URL(window.location.href);
+    if (nextLayout === "carousel") url.searchParams.set("layout", "carousel");
+    else url.searchParams.delete("layout");
+    window.history.replaceState(null, "", url);
+  };
+  // Where the rotation is: which period, and which of its top stories.
+  const [pos, setPos] = useState<Pos>({ period: 0, story: 0 });
+  const periodIdx = pos.period;
   const [paused, setPaused] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  // True while leaving for a different period (the ranking list leaves too).
+  const [leavingPeriod, setLeavingPeriod] = useState(false);
   const [titleDone, setTitleDone] = useState(false);
   const markTitleDone = useCallback(() => setTitleDone(true), []);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const period = periods[periodIdx];
-  const top = period?.stories[0];
-  const upNextPeriod = periods.length > 1 ? periods[(periodIdx + 1) % periods.length] : undefined;
-  const upNext = upNextPeriod?.stories[0]
-    ? { label: PERIOD_TAGS[upNextPeriod.key] ?? upNextPeriod.label, story: upNextPeriod.stories[0] }
-    : null;
+  const top = period?.stories[pos.story];
+  const nextPos = advance(periods, pos);
+  const upNextPeriod = periods[nextPos.period];
+  const upNextStory = upNextPeriod?.stories[nextPos.story];
+  const upNext =
+    upNextStory && upNextStory !== top
+      ? { label: `#${nextPos.story + 1} ${PERIOD_TAGS[upNextPeriod.key] ?? upNextPeriod.label}`, story: upNextStory }
+      : null;
 
-  // Play the exit, then switch period (which plays the next entrance).
-  const goTo = useCallback((target: (i: number) => number) => {
+  // Play the exit, then switch story (which plays the next entrance).
+  const goTo = useCallback((target: Pos) => {
     if (leaveTimer.current) return;
     setLeaving(true);
+    setLeavingPeriod(target.period !== periodIdx);
     leaveTimer.current = setTimeout(() => {
       leaveTimer.current = null;
-      setPeriodIdx(target);
+      setPos(target);
       setTitleDone(false);
       setLeaving(false);
+      setLeavingPeriod(false);
     }, EXIT_MS);
-  }, []);
+  }, [periodIdx]);
   useEffect(() => () => {
     if (leaveTimer.current) clearTimeout(leaveTimer.current);
   }, []);
 
   const next = useCallback(() => {
-    goTo((i) => (i + 1) % Math.max(periods.length, 1));
-  }, [goTo, periods.length]);
+    goTo(advance(periods, pos));
+  }, [goTo, periods, pos]);
 
   useEffect(() => {
     if (top || paused) return;
     const t = setTimeout(next, EMPTY_HOLD_MS);
     return () => clearTimeout(t);
   }, [top, paused, next]);
+
+  // The headline card stays put while the body types out beside it.
+  const headline = top && (
+    <section key={top.url} className="flex min-h-0 flex-col gap-4">
+      <div
+        className={`relative aspect-video max-h-[22vh] w-full overflow-hidden rounded-sm bg-neutral-900 shadow-2xl ring-1 ring-white/10 ${
+          layout === "list" ? "sm:max-h-[46vh]" : "sm:max-h-none"
+        }`}
+        // The old image sinks away and the new one rises in: one
+        // continuous motion that carries on from "Up next" moving up.
+        style={{
+          animation: leaving
+            ? `imageSink 0.55s ${EASE_IN} 0.1s both`
+            : `imageRise 0.9s ${EASE_OUT} both`,
+        }}
+      >
+        {top.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={top.imageUrl} alt="" className="h-full w-full object-cover animate-[kenburns_30s_ease-in-out_infinite_alternate]" />
+        )}
+      </div>
+      {/* Square logo beside the headline. The square is the same size for
+          every publication; the logo is fitted inside it. */}
+      <div className="flex items-center gap-4">
+        {top.brandLogo && (
+          <div
+            className="flex h-20 w-20 shrink-0 items-center justify-center rounded-sm bg-white p-2 md:h-24 md:w-24"
+            style={stagger(leaving, { name: "popIn", delay: 0.35 }, { name: "exitUp", delay: 0.15 })}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={top.brandLogo} alt={top.brandName} onError={fallBackToOriginalLogo} className="max-h-full max-w-full object-contain" />
+          </div>
+        )}
+        <div className="min-w-0" style={stagger(leaving, { name: "riseIn", delay: 0.5 }, { name: "exitUp", delay: 0.1 })}>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/60 md:text-sm">
+            {top.brandName}
+          </p>
+          <h1 className="text-xl font-bold leading-tight md:text-2xl xl:text-3xl">
+            <TypedTitle key={top.url} text={top.title} paused={paused || leaving} onDone={markTitleDone} />
+          </h1>
+        </div>
+      </div>
+      <div
+        className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-base text-white/70 md:mt-4 md:gap-x-7 md:text-xl"
+        style={stagger(leaving, { name: "riseIn", delay: 0.7 }, { name: "exitUp", delay: 0.05 })}
+      >
+        {top.author && <span>By <span className="font-semibold text-white">{top.author}</span></span>}
+        {formatDate(top.publishedAt) && <span>{formatDate(top.publishedAt)}</span>}
+        <ViewCount views={top.views} className="font-semibold text-white" />
+        <span
+          className="ml-auto whitespace-nowrap rounded-sm px-3 py-1 text-sm font-bold uppercase tracking-wider text-white md:text-base"
+          style={{
+            backgroundColor: BRAND_RED,
+            ...stagger(leaving, { name: "slideInRight", delay: 0.9 }, { name: "exitUp", delay: 0 }),
+          }}
+        >
+          #{pos.story + 1} {PERIOD_TAGS[period.key] ?? period.label}
+        </span>
+      </div>
+    </section>
+  );
+  const carousel = top && (
+    <RankingCarousel
+      key={period.key}
+      stories={period.stories}
+      current={pos.story}
+      label={PERIOD_TAGS[period.key] ?? period.label}
+      leaving={leavingPeriod}
+    />
+  );
+  // The body and "Up next" drift up and away; the next story's panel rises in
+  // from below, continuing the same direction.
+  const body = top && (
+    <div
+      key={`${period.key}:${top.url}`}
+      className={`grid min-h-0 ${layout === "list" ? "flex-1" : ""}`}
+      style={{
+        animation: leaving
+          ? `panelUp 0.55s ${EASE_IN} both`
+          : `panelRise 0.9s ${EASE_OUT} 0.15s both`,
+      }}
+    >
+      <TypedCredits
+        key={`${period.key}:${top.url}`}
+        story={top}
+        // The list layout shows what is next in the list itself.
+        upNext={layout === "list" ? null : upNext}
+        paused={paused || leaving || !titleDone}
+        onDone={next}
+      />
+    </div>
+  );
 
   return (
     <div className="relative h-lvh w-full overflow-hidden bg-black text-white">
@@ -175,68 +436,31 @@ export default function TopStoriesClient({ periods }: { periods: PeriodStories[]
             No stories found for {period?.label.toLowerCase() ?? "this period"}.
           </div>
         ) : (
-          <main className="grid min-h-0 flex-1 grid-rows-[auto_1fr] gap-6 px-4 pt-6 pb-6 md:px-8 md:pt-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-1 lg:gap-10 lg:px-16 lg:pb-10 xl:gap-14 xl:px-24">
-            {/* The headline card stays put while the body types out beside it. */}
-            <section key={top.url} className="flex min-h-0 flex-col justify-center gap-4">
-              <div
-                className="relative aspect-video max-h-[22vh] w-full overflow-hidden rounded-sm bg-neutral-900 shadow-2xl ring-1 ring-white/10 sm:max-h-none"
-                style={stagger(leaving, { name: "imageReveal", delay: 0, duration: 1 }, { name: "imageOut", delay: 0.25 })}
-              >
-                {top.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={top.imageUrl} alt="" className="h-full w-full object-cover animate-[kenburns_30s_ease-in-out_infinite_alternate]" />
-                )}
+          layout === "list" ? (
+            // List layout: the article (image, headline, typed body) on the
+            // left; the period's most-read list on the right.
+            <main className="grid min-h-0 flex-1 grid-rows-[auto_1fr] gap-6 px-4 pt-6 pb-6 md:px-8 md:pt-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,5fr)] lg:grid-rows-1 lg:gap-10 lg:px-16 lg:pb-10 xl:gap-14 xl:px-24">
+              <div className="flex min-h-0 flex-col gap-8">
+                {headline}
+                {body}
               </div>
-              {/* Square logo beside the headline. The square is the same size for
-                  every publication; the logo is fitted inside it. */}
-              <div className="flex items-center gap-4">
-                {top.brandLogo && (
-                  <div
-                    className="flex h-20 w-20 shrink-0 items-center justify-center rounded-sm bg-white p-2 md:h-24 md:w-24"
-                    style={stagger(leaving, { name: "popIn", delay: 0.35 }, { name: "exitUp", delay: 0.15 })}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={top.brandLogo} alt={top.brandName} onError={fallBackToOriginalLogo} className="max-h-full max-w-full object-contain" />
-                  </div>
-                )}
-                <div className="min-w-0" style={stagger(leaving, { name: "riseIn", delay: 0.5 }, { name: "exitUp", delay: 0.1 })}>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/60 md:text-sm">
-                    {top.brandName}
-                  </p>
-                  <h1 className="text-xl font-bold leading-tight md:text-2xl xl:text-3xl">
-                    <TypedTitle key={top.url} text={top.title} paused={paused || leaving} onDone={markTitleDone} />
-                  </h1>
-                </div>
-              </div>
-              <div
-                className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-base text-white/70 md:mt-4 md:gap-x-7 md:text-xl"
-                style={stagger(leaving, { name: "riseIn", delay: 0.7 }, { name: "exitUp", delay: 0.05 })}
-              >
-                {top.author && <span>By <span className="font-semibold text-white">{top.author}</span></span>}
-                {formatDate(top.publishedAt) && <span>{formatDate(top.publishedAt)}</span>}
-                <ViewCount views={top.views} className="font-semibold text-white" />
-                <span
-                  className="ml-auto whitespace-nowrap rounded-sm px-3 py-1 text-sm font-bold uppercase tracking-wider text-white md:text-base"
-                  style={{
-                    backgroundColor: BRAND_RED,
-                    ...stagger(leaving, { name: "slideInRight", delay: 0.9 }, { name: "exitUp", delay: 0 }),
-                  }}
-                >
-                  #1 {PERIOD_TAGS[period.key] ?? period.label}
-                </span>
-              </div>
-            </section>
-
-            <div className={`grid min-h-0 transition-opacity duration-500 ${leaving ? "opacity-0" : "opacity-100"}`}>
-              <TypedCredits
-                key={`${period.key}:${top.url}`}
-                story={top}
-                upNext={upNext}
-                paused={paused || leaving || !titleDone}
-                onDone={next}
+              <MostReadList
+                key={period.key}
+                stories={period.stories}
+                current={pos.story}
+                label={PERIOD_TAGS[period.key] ?? period.label}
+                leaving={leavingPeriod}
               />
-            </div>
-          </main>
+            </main>
+          ) : (
+            <main className="grid min-h-0 flex-1 grid-rows-[auto_1fr] gap-6 px-4 pt-6 pb-6 md:px-8 md:pt-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-1 lg:gap-10 lg:px-16 lg:pb-10 xl:gap-14 xl:px-24">
+              <div className="flex min-h-0 flex-col justify-center gap-8">
+                {headline}
+                {carousel}
+              </div>
+              {body}
+            </main>
+          )
         )}
       </div>
 
@@ -244,14 +468,35 @@ export default function TopStoriesClient({ periods }: { periods: PeriodStories[]
         {periods.map((p, i) => (
           <button
             key={p.key}
-            onClick={() => i !== periodIdx && goTo(() => i)}
+            onClick={() => i !== periodIdx && goTo({ period: i, story: 0 })}
             className={`rounded-lg px-5 py-3 text-lg ${
               i === periodIdx ? "bg-white text-black" : "bg-black/40 text-white hover:bg-black/60"
             }`}
           >
-            {p.label}
+            {PERIOD_BUTTONS[p.key] ?? p.label}
           </button>
         ))}
+        {/* Layout switch: one button showing the layout it switches to. */}
+        <button
+          onClick={toggleLayout}
+          aria-label={layout === "list" ? "Switch to carousel layout" : "Switch to list layout"}
+          title={layout === "list" ? "Switch to carousel layout" : "Switch to list layout"}
+          className="rounded-lg bg-black/40 px-4 py-3 text-white hover:bg-black/60"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden>
+            {layout === "list" ? (
+              <>
+                <rect x="3" y="4" width="18" height="10" rx="1" />
+                <path d="M3 18h4M10 18h4M17 18h4" />
+              </>
+            ) : (
+              <>
+                <path d="M9 6h12M9 12h12M9 18h12" />
+                <path d="M4 6h.01M4 12h.01M4 18h.01" />
+              </>
+            )}
+          </svg>
+        </button>
         <button
           onClick={() => setPaused((v) => !v)}
           className="rounded-lg bg-black/40 px-5 py-3 text-lg text-white hover:bg-black/60"
@@ -265,8 +510,10 @@ export default function TopStoriesClient({ periods }: { periods: PeriodStories[]
         @keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.1); } }
         @keyframes caret { 50% { opacity: 0; } }
         @keyframes bgIn { from { opacity: 0; } to { opacity: 0.25; } }
-        @keyframes imageReveal { from { opacity: 0; clip-path: inset(0 0 100% 0); transform: scale(1.04); } to { opacity: 1; clip-path: inset(0); transform: none; } }
-        @keyframes imageOut { to { opacity: 0; transform: scale(0.96); } }
+        @keyframes imageSink { to { opacity: 0; transform: translateY(48px) scale(0.97); } }
+        @keyframes imageRise { from { opacity: 0; transform: translateY(64px) scale(0.97); } to { opacity: 1; transform: none; } }
+        @keyframes panelUp { to { opacity: 0; transform: translateY(-48px); } }
+        @keyframes panelRise { from { opacity: 0; transform: translateY(48px); } to { opacity: 1; transform: none; } }
         @keyframes popIn { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: none; } }
         @keyframes riseIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
         @keyframes slideInRight { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
@@ -434,7 +681,7 @@ function TypedCredits({
           )}
           <div className="min-w-0">
             <p className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/50">
-              Up next · #1 {upNext.label}
+              Up next · {upNext.label}
               {/* Same fixed box for every publication, so the logo never changes size. */}
               {upNext.story.brandLogo && (
                 <span className="flex h-7 w-20 shrink-0 items-center justify-center rounded-sm bg-white px-1.5 py-1">

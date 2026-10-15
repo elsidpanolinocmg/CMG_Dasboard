@@ -216,7 +216,7 @@ async function loadTopStories(): Promise<PeriodStories[]> {
 export default async function TopStoriesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cache?: string }>;
+  searchParams: Promise<{ cache?: string; layout?: string }>;
 }) {
   const params = await searchParams;
   const cache = getCache();
@@ -238,5 +238,7 @@ export default async function TopStoriesPage({
     );
   }
 
-  return <TopStoriesClient periods={periods} />;
+  // The "Most read stories" list layout is the default; ?layout=carousel
+  // shows the top 5 as cards under the headline instead.
+  return <TopStoriesClient periods={periods} layout={params.layout === "carousel" ? "carousel" : "list"} />;
 }
