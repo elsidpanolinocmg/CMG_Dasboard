@@ -18,6 +18,7 @@ export const cacheKeys = {
   editorialPageviews: (brand: string) => `ga4:editorial:pageviews:${brand}`,
   editorialLeaderboard: (range: string, section: string) =>
     `editorial:leaderboard:${range}:${section || "all"}`,
+  editorialTopStories: () => `editorial:top-stories`,
   drupalAuthors: (brand: string) => `drupal:authors:${brand}`,
   mailchimpSheet: () => `mailchimp:sheet`,
   mailchimpAudiences: () => `mailchimp:audiences`,

@@ -36,6 +36,7 @@ export default async function Home() {
             { label: "Editorial Shorts", href: "/dashboard/editorial/shorts" },
             ...(showLiveLink ? [{ label: "Editorial Live", href: "/dashboard/editorial/live" }] : []),
             { label: "Leaderboard", href: "/dashboard/editorial/leaderboard" },
+            { label: "Top Stories", href: "/dashboard/editorial/top-stories" },
           ]}
         />
 
