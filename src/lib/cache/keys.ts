@@ -18,7 +18,8 @@ export const cacheKeys = {
   editorialPageviews: (brand: string) => `ga4:editorial:pageviews:${brand}`,
   editorialLeaderboard: (range: string, section: string) =>
     `editorial:leaderboard:${range}:${section || "all"}`,
-  editorialTopStories: () => `editorial:top-stories`,
+  // "top10": entries saved before the Top 10 list only hold five stories.
+  editorialTopStories: () => `editorial:top-stories:top10`,
   drupalAuthors: (brand: string) => `drupal:authors:${brand}`,
   mailchimpSheet: () => `mailchimp:sheet`,
   mailchimpAudiences: () => `mailchimp:audiences`,

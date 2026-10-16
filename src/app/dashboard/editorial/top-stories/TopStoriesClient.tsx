@@ -99,7 +99,7 @@ const PERIOD_TAGS: Record<string, string> = {
   monthly: "This month",
 };
 
-function ViewCount({ views, className = "" }: { views: number; className?: string }) {
+export function ViewCount({ views, className = "" }: { views: number; className?: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 ${className}`} title={`${nf.format(views)} views`}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-[1.1em] w-[1.1em]" aria-label="views">
@@ -120,7 +120,7 @@ function fallBackToOriginalLogo(e: React.SyntheticEvent<HTMLImageElement>) {
 // Brand logos range from near-square (QSR) to very wide (REA, HCA), so
 // fitting them all to one box makes some look much bigger than others.
 // This sizes each one to the same area instead, within the box's limits.
-function EvenLogo({ src, alt, area, maxW, maxH }: { src: string; alt: string; area: number; maxW: number; maxH: number }) {
+export function EvenLogo({ src, alt, area, maxW, maxH }: { src: string; alt: string; area: number; maxW: number; maxH: number }) {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const measure = (img: HTMLImageElement) => {
     if (!img.naturalWidth || !img.naturalHeight) return;
