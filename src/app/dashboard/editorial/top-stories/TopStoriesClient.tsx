@@ -117,6 +117,37 @@ function fallBackToOriginalLogo(e: React.SyntheticEvent<HTMLImageElement>) {
   if (img.src.includes("/logo/trimmed/")) img.src = img.src.replace("/logo/trimmed/", "/logo/");
 }
 
+// Brand logos range from near-square (QSR) to very wide (REA, HCA), so
+// fitting them all to one box makes some look much bigger than others.
+// This sizes each one to the same area instead, within the box's limits.
+function EvenLogo({ src, alt, area, maxW, maxH }: { src: string; alt: string; area: number; maxW: number; maxH: number }) {
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  const measure = (img: HTMLImageElement) => {
+    if (!img.naturalWidth || !img.naturalHeight) return;
+    const ratio = img.naturalWidth / img.naturalHeight;
+    let w = Math.min(maxW, Math.sqrt(area * ratio));
+    let h = w / ratio;
+    if (h > maxH) {
+      h = maxH;
+      w = h * ratio;
+    }
+    setSize({ w, h });
+  };
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      ref={(img) => {
+        if (img?.complete && !size) measure(img);
+      }}
+      onLoad={(e) => measure(e.currentTarget)}
+      onError={fallBackToOriginalLogo}
+      style={size ? { width: size.w, height: size.h } : { visibility: "hidden", width: maxW, height: maxH }}
+    />
+  );
+}
+
 type Pos = { period: number; story: number };
 
 // Next story in the rotation: down the current period's ranking, then on to
@@ -133,23 +164,27 @@ function RankingCarousel({
   current,
   label,
   leaving,
+  onSelect,
 }: {
   stories: Story[];
   current: number;
   label: string;
   leaving: boolean;
+  onSelect: (i: number) => void;
 }) {
   const n = stories.length;
   if (n < 2) return null;
   return (
     <div style={stagger(leaving, { name: "riseIn", delay: 1.1 }, { name: "exitUp", delay: 0 })}>
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/50 md:text-sm">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/50 roomy:text-sm">
         Top {n} · {label}
       </p>
       <ol className="grid gap-3" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
         {stories.map((s, i) => (
           <li key={s.url}>
-            <RankCardContent story={s} rank={i + 1} playing={i === current} />
+            <button type="button" onClick={() => onSelect(i)} className="block w-full text-left">
+              <RankCardContent story={s} rank={i + 1} playing={i === current} />
+            </button>
           </li>
         ))}
       </ol>
@@ -164,50 +199,55 @@ function MostReadList({
   current,
   label,
   leaving,
+  onSelect,
+  tabs,
 }: {
   stories: Story[];
   current: number;
   label: string;
   leaving: boolean;
+  onSelect: (i: number) => void;
+  tabs: React.ReactNode;
 }) {
   return (
+    // On phones the list sits above the article; on wide screens it's beside it.
     <section
-      className="flex min-h-0 flex-col"
+      className="order-first flex min-h-0 flex-col wide:order-none"
       style={stagger(leaving, { name: "riseIn", delay: 0.2 }, { name: "exitUp", delay: 0 })}
     >
-      <header className="border-b border-white/25 pb-4">
-        <h2 className="text-2xl font-bold uppercase tracking-[0.15em] md:text-3xl">Most read stories</h2>
-        <p className="mt-1 text-sm font-semibold uppercase tracking-[0.2em] md:text-base" style={{ color: BRAND_RED }}>
-          {label}
-        </p>
-      </header>
+      <ListHeader label={label} tabs={tabs} />
       <ol className="flex min-h-0 flex-1 flex-col">
         {stories.map((s, i) => {
           const active = i === current;
           return (
+            // Tapping a row shows that story.
             <li
               key={s.url}
-              className={`flex min-h-0 flex-1 items-center gap-4 border-b border-white/15 px-3 transition-colors duration-700 md:gap-5 ${
-                active ? "bg-white/10 text-white" : "text-white/55"
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelect(i)}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelect(i)}
+              className={`flex min-h-0 flex-1 cursor-pointer items-center gap-2.5 border-b border-white/15 px-2 py-1.5 transition-colors duration-700 roomy:gap-5 roomy:px-3 roomy:py-0 ${
+                active ? "bg-white/10 text-white" : "text-white/55 active:bg-white/5"
               }`}
               style={{ boxShadow: active ? `inset 4px 0 0 ${BRAND_RED}` : undefined }}
             >
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-sm bg-white p-1.5 md:h-20 md:w-20">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-white p-1 roomy:h-20 roomy:w-20 roomy:p-1.5">
                 {s.brandLogo && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={s.brandLogo} alt={s.brandName} onError={fallBackToOriginalLogo} className="max-h-full max-w-full object-contain" />
                 )}
               </span>
               <span
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-lg font-bold transition-colors duration-700 md:h-12 md:w-12 md:text-xl ${
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors duration-700 roomy:h-12 roomy:w-12 roomy:text-xl ${
                   active ? "border-transparent text-white" : "border-white/40"
                 }`}
                 style={{ backgroundColor: active ? BRAND_RED : undefined }}
               >
                 {i + 1}
               </span>
-              <span className="line-clamp-2 min-w-0 flex-1 text-lg font-semibold leading-snug md:text-xl">{s.title}</span>
-              <ViewCount views={s.views} className="shrink-0 text-base tabular-nums md:text-lg" />
+              <span className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold leading-snug roomy:text-xl">{s.title}</span>
+              <ViewCount views={s.views} className="shrink-0 text-xs tabular-nums roomy:text-lg" />
             </li>
           );
         })}
@@ -216,6 +256,70 @@ function MostReadList({
   );
 }
 
+function ListHeader({ label, tabs }: { label: string; tabs: React.ReactNode }) {
+  return (
+    <header className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2 border-b border-white/25 pb-2 roomy:pb-4">
+      <div>
+        <h2 className="whitespace-nowrap text-base font-bold uppercase tracking-[0.08em] roomy:text-3xl roomy:tracking-[0.15em]">Most read stories</h2>
+        <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.2em] roomy:mt-1 roomy:text-base" style={{ color: BRAND_RED }}>
+          {label}
+        </p>
+      </div>
+      {tabs}
+    </header>
+  );
+}
+
+// Upright phones, list on its own: each story gets a small line with rank,
+// logo and views, then its full title across the whole width. Tapping a story
+// shows its preview.
+function PhoneStoryList({
+  stories,
+  label,
+  leaving,
+  onSelect,
+  tabs,
+}: {
+  stories: Story[];
+  label: string;
+  leaving: boolean;
+  onSelect: (i: number) => void;
+  tabs: React.ReactNode;
+}) {
+  return (
+    <section
+      className="flex min-h-0 flex-col"
+      style={stagger(leaving, { name: "riseIn", delay: 0.2 }, { name: "exitUp", delay: 0 })}
+    >
+      <ListHeader label={label} tabs={tabs} />
+      <ol className="flex min-h-0 flex-1 flex-col">
+        {stories.map((s, i) => (
+          <li
+            key={s.url}
+            role="button"
+            tabIndex={0}
+            onClick={() => onSelect(i)}
+            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelect(i)}
+            className="flex min-h-0 flex-1 cursor-pointer flex-col justify-center gap-2.5 border-b border-white/15 px-2 py-3 text-white active:bg-white/5"
+          >
+            <span className="flex items-center gap-3">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-white/40 text-sm font-bold">
+                {i + 1}
+              </span>
+              {s.brandLogo && (
+                <span className="flex h-7 w-20 shrink-0 items-center justify-center rounded-sm bg-white">
+                  <EvenLogo src={s.brandLogo} alt={s.brandName} area={720} maxW={70} maxH={22} />
+                </span>
+              )}
+              <ViewCount views={s.views} className="ml-auto text-xs tabular-nums text-white/70" />
+            </span>
+            <span className="text-lg font-semibold leading-snug">{s.title}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
 function RankCardContent({ story: s, rank, playing }: { story: Story; rank: number; playing: boolean }) {
   return (
     <div
@@ -235,15 +339,19 @@ function RankCardContent({ story: s, rank, playing }: { story: Story; rank: numb
         >
           #{rank}
         </span>
+        {/* Cards are too narrow on phones for the logo and headline; they show
+            the image, rank and views only. */}
         {s.brandLogo && (
-          <span className="absolute bottom-1 left-1 flex h-6 w-14 items-center justify-center rounded-sm bg-white px-1 py-0.5">
+          <span className="absolute bottom-1 left-1 hidden h-6 w-14 items-center justify-center rounded-sm bg-white px-1 py-0.5 roomy:flex">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={s.brandLogo} alt={s.brandName} onError={fallBackToOriginalLogo} className="max-h-full max-w-full object-contain" />
           </span>
         )}
       </div>
-      <div className="flex flex-col gap-1 p-2.5">
-        <p className="line-clamp-2 min-h-[2.5em] text-sm font-semibold leading-tight text-white">{s.title}</p>
+      <div className="flex flex-col gap-1 p-1.5 roomy:p-2.5">
+        <div className="hidden roomy:block">
+          <p className="line-clamp-2 min-h-[2.5em] text-sm font-semibold leading-tight text-white">{s.title}</p>
+        </div>
         <ViewCount views={s.views} className="text-xs text-white/60" />
       </div>
     </div>
@@ -265,7 +373,28 @@ export default function TopStoriesClient({
   periods: PeriodStories[];
   layout?: TopStoriesLayout;
 }) {
-  const [layout, setLayout] = useState<TopStoriesLayout>(initialLayout);
+  const [chosenLayout, setLayout] = useState<TopStoriesLayout>(initialLayout);
+  // Phones (upright or sideways) always get the list layout; the carousel
+  // needs a big screen.
+  const [isPhone, setIsPhone] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(width < 64rem) and (orientation: portrait), (height < 36rem)");
+    const apply = () => setIsPhone(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  const layout: TopStoriesLayout = isPhone ? "list" : chosenLayout;
+  // Upright phones show the list on its own (no image or preview), so a tap
+  // opens the story on its site instead of switching the preview.
+  const [listOnly, setListOnly] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(width < 48rem) and (orientation: portrait)");
+    const apply = () => setListOnly(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
   // Switch layout in place, keeping ?layout= in the address so a reload keeps it.
   const toggleLayout = () => {
     const nextLayout = layout === "list" ? "carousel" : "list";
@@ -317,6 +446,33 @@ export default function TopStoriesClient({
     goTo(advance(periods, pos));
   }, [goTo, periods, pos]);
 
+  // Upright phones show the list on its own; swiping up slides the preview
+  // (image, headline, typed body) over it and swiping down goes back.
+  // (Only upright phones look at it; other screens always show both.)
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Swiping left or right moves to the next or previous period.
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipeStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (listOnly && Math.abs(dy) >= 60 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+      setPreviewOpen(dy < 0);
+      return;
+    }
+    if (periods.length < 2 || Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const step = dx < 0 ? 1 : -1;
+    goTo({ period: (periodIdx + step + periods.length) % periods.length, story: 0 });
+  };
+
   useEffect(() => {
     if (top || paused) return;
     const t = setTimeout(next, EMPTY_HOLD_MS);
@@ -325,10 +481,11 @@ export default function TopStoriesClient({
 
   // The headline card stays put while the body types out beside it.
   const headline = top && (
-    <section key={top.url} className="flex min-h-0 flex-col gap-4">
+    <section key={top.url} className="flex min-h-0 flex-col gap-3 roomy:gap-4">
       <div
-        className={`relative aspect-video max-h-[22vh] w-full overflow-hidden rounded-sm bg-neutral-900 shadow-2xl ring-1 ring-white/10 ${
-          layout === "list" ? "sm:max-h-[46vh]" : "sm:max-h-none"
+        className={`relative aspect-video w-full overflow-hidden rounded-sm bg-neutral-900 shadow-2xl ring-1 ring-white/10 ${
+          // On phones the list layout keeps the image short so the list fits above it.
+          layout === "list" ? "max-h-[16vh] landscape:max-h-[34vh] roomy:max-h-[46vh]" : "max-h-[22vh] landscape:max-h-[24vh] roomy:max-h-none"
         }`}
         // The old image sinks away and the new one rises in: one
         // continuous motion that carries on from "Up next" moving up.
@@ -339,16 +496,18 @@ export default function TopStoriesClient({
         }}
       >
         {top.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={top.imageUrl} alt="" className="h-full w-full object-cover animate-[kenburns_30s_ease-in-out_infinite_alternate]" />
+          <a href={top.url} target="_blank" rel="noopener noreferrer" aria-label={`Read "${top.title}"`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={top.imageUrl} alt="" className="h-full w-full object-cover animate-[kenburns_30s_ease-in-out_infinite_alternate]" />
+          </a>
         )}
       </div>
       {/* Square logo beside the headline. The square is the same size for
           every publication; the logo is fitted inside it. */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 roomy:gap-4">
         {top.brandLogo && (
           <div
-            className="flex h-20 w-20 shrink-0 items-center justify-center rounded-sm bg-white p-2 md:h-24 md:w-24"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-white p-1.5 roomy:h-24 roomy:w-24 roomy:p-2"
             style={stagger(leaving, { name: "popIn", delay: 0.35 }, { name: "exitUp", delay: 0.15 })}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -356,23 +515,25 @@ export default function TopStoriesClient({
           </div>
         )}
         <div className="min-w-0" style={stagger(leaving, { name: "riseIn", delay: 0.5 }, { name: "exitUp", delay: 0.1 })}>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/60 md:text-sm">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60 roomy:text-sm">
             {top.brandName}
           </p>
-          <h1 className="text-xl font-bold leading-tight md:text-2xl xl:text-3xl">
-            <TypedTitle key={top.url} text={top.title} paused={paused || leaving} onDone={markTitleDone} />
+          <h1 className="text-base font-bold leading-tight roomy:text-2xl xwide:text-3xl">
+            <a href={top.url} target="_blank" rel="noopener noreferrer">
+              <TypedTitle key={top.url} text={top.title} paused={paused || leaving} onDone={markTitleDone} />
+            </a>
           </h1>
         </div>
       </div>
       <div
-        className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-base text-white/70 md:mt-4 md:gap-x-7 md:text-xl"
+        className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-white/70 roomy:mt-4 roomy:gap-x-7 roomy:text-xl"
         style={stagger(leaving, { name: "riseIn", delay: 0.7 }, { name: "exitUp", delay: 0.05 })}
       >
         {top.author && <span>By <span className="font-semibold text-white">{top.author}</span></span>}
         {formatDate(top.publishedAt) && <span>{formatDate(top.publishedAt)}</span>}
         <ViewCount views={top.views} className="font-semibold text-white" />
         <span
-          className="ml-auto whitespace-nowrap rounded-sm px-3 py-1 text-sm font-bold uppercase tracking-wider text-white md:text-base"
+          className="ml-auto whitespace-nowrap rounded-sm px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white roomy:px-3 roomy:py-1 roomy:text-base"
           style={{
             backgroundColor: BRAND_RED,
             ...stagger(leaving, { name: "slideInRight", delay: 0.9 }, { name: "exitUp", delay: 0 }),
@@ -390,6 +551,7 @@ export default function TopStoriesClient({
       current={pos.story}
       label={PERIOD_TAGS[period.key] ?? period.label}
       leaving={leavingPeriod}
+      onSelect={(i) => i !== pos.story && goTo({ period: periodIdx, story: i })}
     />
   );
   // The body and "Up next" drift up and away; the next story's panel rises in
@@ -415,8 +577,38 @@ export default function TopStoriesClient({
     </div>
   );
 
+  const selectStory = (i: number) => {
+    if (listOnly) {
+      // Jump straight to the story (no exit animation: the list is what's
+      // on screen) and show its preview.
+      if (i !== pos.story) {
+        setPos({ period: periodIdx, story: i });
+        setTitleDone(false);
+      }
+      setPreviewOpen(true);
+    } else if (i !== pos.story) goTo({ period: periodIdx, story: i });
+  };
+  // Phones switch period by swiping; the dots show which one is up. Big
+  // screens keep the switch in the hidden controls.
+  const periodDots = (
+    <div className="mb-1 flex shrink-0 items-center gap-1.5 wide:hidden" aria-hidden>
+      {periods.map((p, i) => (
+        <span
+          key={p.key}
+          className={`h-1.5 rounded-full transition-all duration-300 ${i === periodIdx ? "w-5 bg-white" : "w-1.5 bg-white/35"}`}
+        />
+      ))}
+    </div>
+  );
+
   return (
-    <div className="relative h-lvh w-full overflow-hidden bg-black text-white">
+    <div
+      // touch-none: the page never scrolls, and it keeps the phone browser's
+      // own swipe-down (pull to refresh) from fighting the swipe gestures.
+      className="relative h-lvh w-full touch-none overflow-hidden overscroll-none bg-black text-white"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       {top?.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -439,22 +631,36 @@ export default function TopStoriesClient({
           layout === "list" ? (
             // List layout: the article (image, headline, typed body) on the
             // left; the period's most-read list on the right.
-            <main className="grid min-h-0 flex-1 grid-rows-[auto_1fr] gap-6 px-4 pt-6 pb-6 md:px-8 md:pt-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,5fr)] lg:grid-rows-1 lg:gap-10 lg:px-16 lg:pb-10 xl:gap-14 xl:px-24">
-              <div className="flex min-h-0 flex-col gap-8">
+            <main className={`grid min-h-0 flex-1 grid-rows-[auto_1fr] gap-6 px-4 pt-6 pb-6 ${previewOpen ? "" : "max-md:portrait:grid-rows-1"} roomy:px-8 roomy:pt-10 wide:grid-cols-[minmax(0,4fr)_minmax(0,5fr)] wide:grid-rows-1 wide:gap-10 wide:px-16 wide:pb-10 xwide:gap-14 xwide:px-24`}>
+              {/* Upright phones show the list alone; swiping up (or tapping a story) adds the preview below it. */}
+              <div className={`flex min-h-0 flex-col gap-4 roomy:gap-8 ${previewOpen ? "" : "max-md:portrait:hidden"}`}>
                 {headline}
                 {body}
               </div>
-              <MostReadList
-                key={period.key}
-                stories={period.stories}
-                current={pos.story}
-                label={PERIOD_TAGS[period.key] ?? period.label}
-                leaving={leavingPeriod}
-              />
+              {listOnly && !previewOpen ? (
+                <PhoneStoryList
+                  key={period.key}
+                  stories={period.stories}
+                  label={PERIOD_TAGS[period.key] ?? period.label}
+                  leaving={leavingPeriod}
+                  onSelect={selectStory}
+                  tabs={periodDots}
+                />
+              ) : (
+                <MostReadList
+                  key={period.key}
+                  stories={period.stories}
+                  current={pos.story}
+                  label={PERIOD_TAGS[period.key] ?? period.label}
+                  leaving={leavingPeriod}
+                  onSelect={selectStory}
+                  tabs={periodDots}
+                />
+              )}
             </main>
           ) : (
-            <main className="grid min-h-0 flex-1 grid-rows-[auto_1fr] gap-6 px-4 pt-6 pb-6 md:px-8 md:pt-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-1 lg:gap-10 lg:px-16 lg:pb-10 xl:gap-14 xl:px-24">
-              <div className="flex min-h-0 flex-col justify-center gap-8">
+            <main className="grid min-h-0 flex-1 grid-rows-[auto_1fr] gap-6 px-4 pt-6 pb-6 roomy:px-8 roomy:pt-10 wide:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] wide:grid-rows-1 wide:gap-10 wide:px-16 wide:pb-10 xwide:gap-14 xwide:px-24">
+              <div className="flex min-h-0 flex-col justify-center gap-4 roomy:gap-8">
                 {headline}
                 {carousel}
               </div>
@@ -476,7 +682,9 @@ export default function TopStoriesClient({
             {PERIOD_BUTTONS[p.key] ?? p.label}
           </button>
         ))}
-        {/* Layout switch: one button showing the layout it switches to. */}
+        {/* Layout switch: one button showing the layout it switches to.
+            Phones only have the list layout, so they don't get it. */}
+        {!isPhone && (
         <button
           onClick={toggleLayout}
           aria-label={layout === "list" ? "Switch to carousel layout" : "Switch to list layout"}
@@ -497,6 +705,7 @@ export default function TopStoriesClient({
             )}
           </svg>
         </button>
+        )}
         <button
           onClick={() => setPaused((v) => !v)}
           className="rounded-lg bg-black/40 px-5 py-3 text-lg text-white hover:bg-black/60"
@@ -624,7 +833,7 @@ function TypedCredits({
           className="max-w-3xl py-2 transition-transform duration-500 ease-out"
           style={{ transform: `translateY(${offset}px)` }}
         >
-          <div className="space-y-8 text-xl leading-[1.75] text-white/90 md:space-y-10 md:text-2xl">
+          <div className="space-y-4 text-base leading-[1.7] text-white/90 roomy:space-y-10 roomy:text-2xl roomy:leading-[1.75]">
             {paragraphs.map((p, i) =>
               p.shown || i === 0 ? (
                 <p key={i} className={i === 0 ? "font-semibold text-white" : undefined}>
@@ -649,7 +858,7 @@ function TypedCredits({
               {story.tags!.map((tag, i) => (
                 <li
                   key={tag}
-                  className="rounded-sm bg-white/15 px-4 py-1.5 text-base text-white animate-[tagIn_0.5s_ease-out_both] md:text-lg"
+                  className="rounded-sm bg-white/15 px-3 py-1 text-sm text-white animate-[tagIn_0.5s_ease-out_both] roomy:px-4 roomy:py-1.5 roomy:text-lg"
                   style={{ animationDelay: `${0.2 + i * 0.15}s` }}
                 >
                   {tag}

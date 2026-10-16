@@ -74,6 +74,14 @@ function logoFor(image: string | undefined): string | null {
 
 type Candidate = { brand: string; path: string; views: number };
 
+// Why stories went missing, so an empty result can say which step failed
+// (Google Analytics or loading the article pages) instead of showing nothing.
+type Diagnostics = {
+  gaFailures: string[];
+  candidates: number;
+  articleFailures: string[];
+};
+
 async function topPathsForBrand(
   client: BetaAnalyticsDataClient,
   brand: string,
@@ -110,7 +118,7 @@ type ArticleDetails = {
   truncated: boolean;
 };
 
-async function fetchArticle(url: string): Promise<ArticleDetails | null> {
+async function fetchArticle(url: string, diag: Diagnostics): Promise<ArticleDetails | null> {
   try {
     const res = await fetch(url, {
       headers: { ...BROWSER_HEADERS, Accept: "text/html" },
@@ -118,7 +126,10 @@ async function fetchArticle(url: string): Promise<ArticleDetails | null> {
       cache: "no-store",
       signal: AbortSignal.timeout(12000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      diag.articleFailures.push(`HTTP ${res.status}`);
+      return null;
+    }
     const $ = cheerio.load(await res.text());
     const title = ($("h1.nf__title").first().text() || $('meta[property="og:title"]').attr("content") || "").trim();
     // Skip promo blocks the site embeds inside the article body (newsletter
@@ -130,7 +141,10 @@ async function fetchArticle(url: string): Promise<ArticleDetails | null> {
       .filter((t) => t.length > 0);
     const body = allParagraphs.slice(0, BODY_PARAGRAPHS);
     const truncated = allParagraphs.length > BODY_PARAGRAPHS;
-    if (!title || body.length === 0) return null;
+    if (!title || body.length === 0) {
+      diag.articleFailures.push("no headline or text on the page");
+      return null;
+    }
     const pub = Number($('meta[name="pubdate"]').attr("content") ?? "");
     // Section (News, Exclusive…), industry (Information Technology…) and
     // market (Singapore…) labels shown above the article's headline.
@@ -155,9 +169,17 @@ async function fetchArticle(url: string): Promise<ArticleDetails | null> {
       tags,
       truncated,
     };
-  } catch {
+  } catch (err) {
+    diag.articleFailures.push(err instanceof Error ? err.name : "fetch error");
     return null;
   }
+}
+
+// "HTTP 403" ×12, "TimeoutError" ×3 …
+function tally(reasons: string[]): string {
+  const counts = new Map<string, number>();
+  for (const r of reasons) counts.set(r, (counts.get(r) ?? 0) + 1);
+  return Array.from(counts, ([r, n]) => `${r} ×${n}`).join(", ");
 }
 
 async function loadTopStories(): Promise<PeriodStories[]> {
@@ -170,11 +192,17 @@ async function loadTopStories(): Promise<PeriodStories[]> {
   const client = new BetaAnalyticsDataClient({ credentials: creds });
   const brands = Object.keys(BRAND_DOMAINS);
   const articleCache = new Map<string, Promise<ArticleDetails | null>>();
+  const diag: Diagnostics = { gaFailures: [], candidates: 0, articleFailures: [] };
 
-  return Promise.all(
+  const periods = await Promise.all(
     PERIODS.map(async (period) => {
       const perBrand = await Promise.all(
-        brands.map((b) => topPathsForBrand(client, b, period.startDate).catch(() => [])),
+        brands.map((b) =>
+          topPathsForBrand(client, b, period.startDate).catch((err) => {
+            diag.gaFailures.push(err instanceof Error ? err.message.slice(0, 80) : String(err));
+            return [];
+          }),
+        ),
       );
       // Crossposts share a path across QSR domains — keep the biggest one.
       const byPath = new Map<string, Candidate>();
@@ -185,11 +213,12 @@ async function loadTopStories(): Promise<PeriodStories[]> {
       const ranked = Array.from(byPath.values())
         .sort((a, b) => b.views - a.views)
         .slice(0, CANDIDATES);
+      diag.candidates += ranked.length;
 
       const enriched = await Promise.all(
         ranked.map(async (c) => {
           const url = `https://${BRAND_DOMAINS[c.brand]}${c.path}`;
-          if (!articleCache.has(url)) articleCache.set(url, fetchArticle(url));
+          if (!articleCache.has(url)) articleCache.set(url, fetchArticle(url, diag));
           const details = await articleCache.get(url)!;
           if (!details) return null;
           const meta = BRAND_PROPERTIES[c.brand];
@@ -211,6 +240,22 @@ async function loadTopStories(): Promise<PeriodStories[]> {
       };
     }),
   );
+
+  // Nothing at all to show means something broke. Throwing (rather than
+  // returning empty lists) keeps the last good copy in the cache instead of
+  // saving the empty one over it, and puts the reason on screen.
+  if (periods.every((p) => p.stories.length === 0)) {
+    const total = brands.length * PERIODS.length;
+    const message =
+      `Top Stories found nothing to show. Google Analytics: ${total - diag.gaFailures.length}/${total} lookups worked` +
+      (diag.gaFailures.length ? ` (${tally(diag.gaFailures)})` : "") +
+      `, ${diag.candidates} candidate articles. Article pages: ${diag.articleFailures.length} failed` +
+      (diag.articleFailures.length ? ` (${tally(diag.articleFailures)})` : "") +
+      ".";
+    console.error(`[top-stories] ${message}`);
+    throw new Error(message);
+  }
+  return periods;
 }
 
 export default async function TopStoriesPage({

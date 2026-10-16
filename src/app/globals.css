@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/* Screen-size variants for pages that must also work on a phone turned
+   sideways. Later ones win over earlier ones, like md → lg → xl. */
+/* Large type and spacing: only when the screen is big both ways, so a
+   sideways phone keeps the compact sizes. */
+@custom-variant roomy (@media (width >= 48rem) and (height >= 36rem));
+/* Side-by-side layouts: big screens, and phones turned sideways. */
+@custom-variant wide {
+  @media (width >= 64rem) {
+    @slot;
+  }
+  @media (orientation: landscape) and (width >= 40rem) {
+    @slot;
+  }
+}
+/* Extra-large screens. */
+@custom-variant xwide (@media (width >= 80rem));
 :root {
   --background: #ffffff;
   --foreground: #171717;
