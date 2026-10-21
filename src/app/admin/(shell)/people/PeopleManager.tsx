@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { humanize } from "@/lib/util/format";
 import ToggleCheckbox from "../_widgets/ToggleCheckbox";
+import { Plus } from "lucide-react";
 
 type ClientPerson = {
   username: string;
@@ -309,9 +310,10 @@ export default function PeopleManager({ people }: { people: ClientPerson[] }) {
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="self-start rounded-lg bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:opacity-90"
+          className="self-start inline-flex items-center gap-1.5 rounded-lg bg-foreground text-background px-3.5 py-2 text-sm font-medium hover:opacity-90"
         >
-          + Add person
+          <Plus size={16} strokeWidth={2.25} />
+          Add person
         </button>
       )}
       {showAdd && (

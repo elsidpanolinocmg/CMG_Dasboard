@@ -11,9 +11,12 @@ const SETTINGS_LABEL = "YouTube channel in rotations";
 
 /**
  * The site-wide YouTube channel slide: one channel whose videos come up
- * between pages on every rotating dashboard, every `everyPages` pages. On
+ * between pages on every rotating dashboard: on the birthday schedule
+ * ("auto") or every `everyPages` pages ("fixed"). On
  * dashboards that don't flip pages, a "page" is one minute.
  */
+export type SlideSpacing = "auto" | "fixed";
+
 export interface YouTubeChannelSetting {
   enabled: boolean;
   channelId: string;
@@ -21,6 +24,9 @@ export interface YouTubeChannelSetting {
   mode: YouTubeChannelMode;
   days: number;
   slideSeconds: number;
+  /** "auto": slot in with birthdays, spread once per page cycle. */
+  spacing: SlideSpacing;
+  /** spacing "fixed" only. */
   everyPages: number;
   pageKeys: string[];
   /** Turn YouTube's subtitles on for the videos. */
@@ -36,6 +42,7 @@ export const YOUTUBE_CHANNEL_DEFAULTS: YouTubeChannelSetting = {
   mode: "cycle",
   days: DEFAULT_YOUTUBE_DAYS,
   slideSeconds: DEFAULT_SLIDE_SECONDS,
+  spacing: "fixed",
   everyPages: 3,
   pageKeys: BIRTHDAY_PAGE_KEYS.map((p) => p.key),
   subtitles: false,
@@ -65,6 +72,7 @@ export function normalizeSetting(raw: Partial<YouTubeChannelSetting> | undefined
     mode: MODES.includes(r.mode as YouTubeChannelMode) ? (r.mode as YouTubeChannelMode) : d.mode,
     days: clampInt(r.days, 1, 365, d.days),
     slideSeconds: clampInt(r.slideSeconds, 10, MAX_SLIDE_SECONDS, d.slideSeconds),
+    spacing: r.spacing === "auto" || r.spacing === "fixed" ? r.spacing : d.spacing,
     everyPages: clampInt(r.everyPages, 1, 100, d.everyPages),
     subtitles: typeof r.subtitles === "boolean" ? r.subtitles : d.subtitles,
     includeInNext: typeof r.includeInNext === "boolean" ? r.includeInNext : d.includeInNext,

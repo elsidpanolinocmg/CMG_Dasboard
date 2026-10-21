@@ -6,6 +6,8 @@ import RemoveButton from "../_widgets/RemoveButton";
 import TestBindingButton from "./TestBindingButton";
 import BindingDetails from "./BindingDetails";
 import { specFor } from "./bindingSpecs";
+import { Pencil } from "lucide-react";
+import IconButton from "../_widgets/IconButton";
 
 const PURPOSE_LABELS: Record<string, string> = {
   ceo_money: "CEO · Money sheet",
@@ -277,13 +279,7 @@ function Row({ row }: { row: ClientBinding }) {
                 purpose={row.purpose}
                 dataSourceKind={row.dataSourceKind}
               />
-              <button
-                type="button"
-                onClick={startEdit}
-                className="rounded border border-black/15 dark:border-white/15 px-2.5 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                Edit
-              </button>
+              <IconButton icon={Pencil} label="Edit" onClick={startEdit} />
               <RemoveButton
                 entity="bindings"
                 payload={{

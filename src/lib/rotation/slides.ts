@@ -79,7 +79,9 @@ async function channelSlide(pageKey: string): Promise<BirthdaySlideEntry | null>
     mediaPath: youTubeEmbedBase(ids[0]),
     youtubeIds: ids,
     holdMs: s.slideSeconds * 1000,
-    everyPages: s.everyPages,
+    // Auto leaves everyPages off, so each dashboard schedules the slide
+    // exactly like a birthday.
+    ...(s.spacing === "fixed" ? { everyPages: s.everyPages } : {}),
     hideGreeting: true,
     inNext: s.includeInNext,
     subtitles: s.subtitles,

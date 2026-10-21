@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { LoaderCircle, Trash2 } from "lucide-react";
 
 export default function RemoveButton({
   entity,
@@ -57,9 +58,11 @@ export default function RemoveButton({
             setBusy(false);
           }
         }}
-        className="text-xs px-2 py-1 rounded border border-black/15 dark:border-white/15 hover:bg-red-500/10 hover:border-red-500/40 disabled:opacity-50"
+        title={label}
+        aria-label={name ? `${label} ${name}` : label}
+        className="grid h-8 w-8 place-items-center rounded-md opacity-55 hover:opacity-100 hover:bg-red-500/10 hover:text-red-600 disabled:opacity-40"
       >
-        {busy ? "…" : label}
+        {busy ? <LoaderCircle size={15} className="animate-spin" /> : <Trash2 size={15} />}
       </button>
     </span>
   );

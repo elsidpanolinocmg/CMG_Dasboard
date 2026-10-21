@@ -36,6 +36,7 @@ export default function YouTubeChannelForm({ initial, pages, maxMinutes }: Props
   const [mode, setMode] = useState(initial.mode);
   const [days, setDays] = useState(initial.days);
   const [minutes, setMinutes] = useState(initial.slideSeconds / 60);
+  const [spacing, setSpacing] = useState(initial.spacing);
   const [everyPages, setEveryPages] = useState(initial.everyPages);
   const [pageKeys, setPageKeys] = useState<Set<string>>(new Set(initial.pageKeys));
   const [subtitles, setSubtitles] = useState(initial.subtitles);
@@ -61,7 +62,9 @@ export default function YouTubeChannelForm({ initial, pages, maxMinutes }: Props
     if (!(minutes > 0 && minutes <= maxMinutes)) {
       return setError(`Minutes on screen must be between 0 and ${maxMinutes}`);
     }
-    if (!(everyPages >= 1)) return setError("Pages between videos must be at least 1");
+    if (spacing === "fixed" && !(everyPages >= 1)) {
+      return setError("Pages between videos must be at least 1");
+    }
 
     setBusy(true);
     // Only send the link when it changed, so a save doesn't re-check YouTube.
@@ -75,6 +78,7 @@ export default function YouTubeChannelForm({ initial, pages, maxMinutes }: Props
         mode,
         days,
         slideSeconds: Math.round(minutes * 60),
+        spacing,
         everyPages,
         subtitles,
         includeInNext,
@@ -195,18 +199,49 @@ export default function YouTubeChannelForm({ initial, pages, maxMinutes }: Props
               onChange={(e) => setMinutes(Number(e.target.value))}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="opacity-70">Show after every … pages</span>
+        </div>
+
+        <div className="flex flex-col gap-1 text-sm">
+          <span className="opacity-70">How often</span>
+          <label className="flex items-start gap-2">
             <input
-              type="number"
-              min={1}
-              className={INPUT}
-              value={everyPages}
-              onChange={(e) => setEveryPages(Number(e.target.value))}
+              type="radio"
+              checked={spacing === "auto"}
+              onChange={() => setSpacing("auto")}
+              className="mt-0.5"
             />
-            <span className="text-[11px] opacity-50">
-              On dashboards that don&apos;t flip pages (leaderboards, shorts, videos),
-              one page counts as one minute.
+            <span>
+              Automatic, on the same schedule as birthdays
+              <span className="block text-[11px] opacity-50">
+                Spread evenly so it comes up once per full cycle of pages; every 5 minutes on
+                dashboards that don&apos;t flip pages.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2">
+            <input
+              type="radio"
+              checked={spacing === "fixed"}
+              onChange={() => setSpacing("fixed")}
+              className="mt-0.5"
+            />
+            <span className="flex flex-col gap-1">
+              <span className="flex items-center gap-2">
+                After every
+                <input
+                  type="number"
+                  min={1}
+                  disabled={spacing !== "fixed"}
+                  className={`${INPUT} w-16`}
+                  value={everyPages}
+                  onChange={(e) => setEveryPages(Number(e.target.value))}
+                />
+                pages
+              </span>
+              <span className="text-[11px] opacity-50">
+                On dashboards that don&apos;t flip pages (leaderboards, shorts, videos), one
+                page counts as one minute.
+              </span>
             </span>
           </label>
         </div>

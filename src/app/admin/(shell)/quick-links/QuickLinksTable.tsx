@@ -5,6 +5,8 @@ import { useState, useSyncExternalStore } from "react";
 import RemoveButton from "../_widgets/RemoveButton";
 import QuickLinkFields, { isoToLocal, type QuickLinkDraft } from "./QuickLinkFields";
 import { saveQuickLink } from "./saveQuickLink";
+import { Pencil } from "lucide-react";
+import IconButton from "../_widgets/IconButton";
 
 export type ClientQuickLink = {
   id: string;
@@ -201,17 +203,15 @@ function Row({ row }: { row: ClientQuickLink }) {
       <ScheduleCell row={row} />
       <td className="px-3 py-2 text-right">
         <div className="flex justify-end items-center gap-2 flex-wrap">
-          <button
-            type="button"
+          <IconButton
+            icon={Pencil}
+            label="Edit"
             onClick={() => {
               setDraft(draftFrom(row));
               setError(null);
               setEditing(true);
             }}
-            className="rounded border border-black/15 dark:border-white/15 px-2.5 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5"
-          >
-            Edit
-          </button>
+          />
           <RemoveButton
             entity="quick-links"
             payload={{ id: row.id }}

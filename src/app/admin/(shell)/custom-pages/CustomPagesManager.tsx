@@ -6,6 +6,8 @@ import RemoveButton from "../_widgets/RemoveButton";
 import CustomPageEditor from "./CustomPageEditor";
 import { youTubeThumbnail } from "@/lib/youtube";
 import type { CustomPageMediaKind, YouTubeChannelMode } from "@/lib/entities/customPage";
+import { Pencil, Plus } from "lucide-react";
+import IconButton from "../_widgets/IconButton";
 
 export type ClientCustomPage = {
   id: string;
@@ -129,13 +131,7 @@ export default function CustomPagesManager({
                   </td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex justify-end items-center gap-2 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => setEditingId(p.id)}
-                        className="rounded border border-black/15 dark:border-white/15 px-2.5 py-1 text-xs hover:bg-black/5 dark:hover:bg-white/5"
-                      >
-                        Edit
-                      </button>
+                      <IconButton icon={Pencil} label="Edit" onClick={() => setEditingId(p.id)} />
                       <RemoveButton entity="custom-pages" payload={{ id: p.id }} describe={p.title} />
                     </div>
                   </td>
@@ -150,9 +146,10 @@ export default function CustomPagesManager({
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="self-start rounded-lg bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:opacity-90"
+          className="self-start inline-flex items-center gap-1.5 rounded-lg bg-foreground text-background px-3.5 py-2 text-sm font-medium hover:opacity-90"
         >
-          + Add custom page
+          <Plus size={16} strokeWidth={2.25} />
+          Add custom page
         </button>
       )}
     </div>

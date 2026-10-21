@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import BirthdayEditor from "./BirthdayEditor";
+import { Pencil, Trash2, Plus } from "lucide-react";
+import IconButton from "../_widgets/IconButton";
 
 export type ClientBirthday = {
   id: string;
@@ -145,22 +147,17 @@ export default function BirthdaysManager({
                       {b.active ? "Active" : "Inactive"}
                     </button>
                   </td>
-                  <td className="px-3 py-2 text-right">
-                    <button
-                      type="button"
-                      onClick={() => setEditingId(b.id)}
-                      className="text-xs underline-offset-2 hover:underline mr-3"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
+                  <td className="px-3 py-2">
+                    <div className="flex justify-end items-center gap-1">
+                    <IconButton icon={Pencil} label="Edit" onClick={() => setEditingId(b.id)} />
+                    <IconButton
+                      icon={Trash2}
+                      label="Delete"
+                      tone="danger"
                       disabled={busyId === b.id}
                       onClick={() => onDelete(b)}
-                      className="text-xs text-red-600 hover:underline underline-offset-2"
-                    >
-                      Delete
-                    </button>
+                    />
+                    </div>
                   </td>
                 </tr>
               ),
@@ -173,9 +170,10 @@ export default function BirthdaysManager({
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="self-start rounded-lg bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:opacity-90"
+          className="self-start inline-flex items-center gap-1.5 rounded-lg bg-foreground text-background px-3.5 py-2 text-sm font-medium hover:opacity-90"
         >
-          + Add birthday
+          <Plus size={16} strokeWidth={2.25} />
+          Add birthday
         </button>
       )}
     </div>

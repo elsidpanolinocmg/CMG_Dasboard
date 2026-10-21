@@ -16,6 +16,10 @@ export const ttls = {
   BIZZCON_STALE: 1 * DAY,
   LEADERBOARD: 1 * HOUR,
   LEADERBOARD_STALE: 15 * MINUTE,
+  // Windows end at yesterday, so the ranking only moves once a day; an hour
+  // keeps it fresh after midnight without re-scraping on every view.
+  TOP_STORIES: 1 * HOUR,
+  TOP_STORIES_STALE: 15 * MINUTE,
   SPONSORSHIP: 1 * HOUR,
   SPONSORSHIP_STALE: 15 * MINUTE,
   EDITORIAL_PAGEVIEWS: 1 * HOUR,
