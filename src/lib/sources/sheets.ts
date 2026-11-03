@@ -14,15 +14,18 @@ export interface SheetRows {
   headers: string[];
 }
 
-function buildA1(opts: SheetReadOptions): string {
-  if (opts.range) {
-    if (opts.range.startsWith("!")) {
-      return `${opts.sheetName ? `'${opts.sheetName}'` : ""}${opts.range}`;
-    }
-    return opts.range;
-  }
-  if (opts.sheetName) return `'${opts.sheetName}'!A1:Z2000`;
-  return "A1:Z2000";
+/**
+ * Combines a tab and a range into what the Sheets API expects. A range with no
+ * tab of its own reads from `sheetName`; without this, Google falls back to the
+ * spreadsheet's first tab and returns the wrong data with no error. A range that
+ * names its own tab ('Sales'!A1:E500) is used exactly as written.
+ */
+export function buildA1(opts: Pick<SheetReadOptions, "sheetName" | "range">): string {
+  const tab = opts.sheetName ? `'${opts.sheetName.replace(/'/g, "''")}'` : "";
+  const range = opts.range?.trim() || "A1:Z2000";
+  if (range.includes("!") && !range.startsWith("!")) return range;
+  const cells = range.replace(/^!/, "");
+  return tab ? `${tab}!${cells}` : cells;
 }
 
 export async function readSheet(opts: SheetReadOptions): Promise<SheetRows> {

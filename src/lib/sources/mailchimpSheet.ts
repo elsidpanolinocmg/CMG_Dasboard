@@ -107,13 +107,22 @@ function unsubscribeRate(members: number | null, unsubs: number | null): number 
   return (unsubs / denominator) * 100;
 }
 
-type ResolvedSheet = { spreadsheetId: string; tab: string; gid: number | null };
+type ResolvedSheet = {
+  spreadsheetId: string;
+  tab: string;
+  gid: number | null;
+  range: string | null;
+};
+
+/** What's read when the binding doesn't set a range. */
+const DEFAULT_RANGE = "A1:Z500";
 
 /** The spreadsheet the binding points at, or null when nothing is configured. */
 async function resolveSheet(): Promise<ResolvedSheet | null> {
   let spreadsheetId = process.env.MAILCHIMP_STATS_SHEET_ID?.trim() || "";
   let tab = process.env.MAILCHIMP_STATS_SHEET_TAB?.trim() || DEFAULT_TAB;
   let gid: number | null = DEFAULT_GID;
+  let range: string | null = null;
   try {
     const binding = await resolveBinding(
       MAILCHIMP_SCOPE,
@@ -121,22 +130,25 @@ async function resolveSheet(): Promise<ResolvedSheet | null> {
       "google_sheets",
     );
     const config = binding?.config as
-      | { spreadsheetId?: unknown; sheetName?: unknown; gid?: unknown }
+      | { spreadsheetId?: unknown; sheetName?: unknown; gid?: unknown; range?: unknown }
       | undefined;
     if (typeof config?.spreadsheetId === "string" && config.spreadsheetId.trim()) {
       spreadsheetId = config.spreadsheetId.trim();
-      // Only take the binding's tab and gid when the binding also supplied the
-      // sheet; either one from a different workbook means nothing here.
+      // Only take the binding's tab, gid and range when the binding also supplied
+      // the sheet; any of them from a different workbook means nothing here.
       gid = typeof config.gid === "number" && Number.isFinite(config.gid) ? config.gid : null;
       if (typeof config.sheetName === "string" && config.sheetName.trim()) {
         tab = config.sheetName.trim();
+      }
+      if (typeof config.range === "string" && config.range.trim()) {
+        range = config.range.trim();
       }
     }
   } catch {
     // A settings-store outage falls back to the environment variables rather
     // than taking the dashboard down.
   }
-  return spreadsheetId ? { spreadsheetId, tab, gid } : null;
+  return spreadsheetId ? { spreadsheetId, tab, gid, range } : null;
 }
 
 /**
@@ -189,7 +201,7 @@ export async function loadMailchimpSheet(): Promise<MailchimpSheetSnapshot> {
   const sheet = await readSheet({
     spreadsheetId,
     sheetName: tab,
-    range: `'${tab}'!A1:Z500`,
+    range: resolved.range ?? DEFAULT_RANGE,
   });
 
   const warnings: string[] = [];
@@ -219,6 +231,9 @@ export async function loadMailchimpSheet(): Promise<MailchimpSheetSnapshot> {
   for (const raw of sheet.rows) {
     const title = cell(raw, idx.title);
     if (title === "") continue;
+    // The sheet ends with its own TOTAL row. It isn't an audience, and the
+    // dashboard adds up its own total, so keeping it would double every figure.
+    if (normalizeHeader(title) === "total") continue;
 
     const subscribers = num(cell(raw, idx.subscribers));
     const unsubCount = num(cell(raw, idx.unsubCount));
