@@ -70,7 +70,7 @@ const BIZZCON_PEOPLE_ROWS: LayoutSpec = {
     "A TOTAL column is used as the person's total when present; otherwise the quarters are added up.",
     "Names are matched against the staff roster — anyone not recognised is left off the board rather than shown under a stray spelling.",
     "A row whose first cell reads TOTAL is skipped, and blank amounts count as zero.",
-    "Only the range A1:J40 is read, so the board holds up to about 39 people and 9 columns.",
+    "Reads A1:J40 unless the binding sets a range, so by default the board holds up to about 39 people and 9 columns.",
   ],
   columns: [
     { column: "A", name: "PIC — salesperson's name" },
@@ -84,7 +84,7 @@ const BIZZCON_PEOPLE_COLUMNS: LayoutSpec = {
     "One column per salesperson, used when the headings are names rather than quarters.",
     "The header row carries the names, then a TOTAL column, and optionally one containing \"MONTHLY\".",
     "Rows beneath are weeks; a row labelled TOTAL carries the running totals and a row labelled with a quarter carries that quarter's.",
-    "Only the range A1:J40 is read.",
+    "Reads A1:J40 unless the binding sets a range.",
   ],
   columns: [
     { column: "A", name: "Row label", note: "a week, or TOTAL, or a quarter name" },
@@ -247,7 +247,8 @@ export const BINDING_SPECS: Record<string, BindingSpec> = {
       ],
       notes: [
         "Columns are matched by header name, not position, so inserting a column is safe. Renaming one is not.",
-        "The first row is the header row; every row below it with a Title is an audience.",
+        "The first row is the header row; every row below it with a Title is an audience, except one titled TOTAL.",
+        "Leave Range empty unless you need it: a fixed end row silently drops any publication added below it.",
         "Blank cells render as \"—\" rather than zero, so a missing figure never reads as a real measurement.",
         "The dashboard does not call the Mailchimp API at all — whatever this sheet says is what it shows.",
         "The sheet's own job runs daily, so the dashboard caches a reading for six hours. Refresh on the board clears that cache; it does not make the sheet's job run again.",
@@ -337,7 +338,10 @@ export const KIND_CONFIG: Record<string, { field: string; required?: boolean; no
     { field: "spreadsheetId", required: true, note: "The long code in the sheet's URL, between /d/ and /edit." },
     { field: "sheetName", note: "Worksheet tab name. Leave empty to use the binding's own default tabs." },
     { field: "gid", note: "Numeric tab id from the URL after #gid=. Only used for the Open sheet link." },
-    { field: "range", note: "A1 range such as A1:Z2000. Leave empty to read the default range." },
+    {
+      field: "range",
+      note: "Cells to read from the tab above, such as A1:Z2000. Start at column A and the header row. Leave empty for the default. Used by the Awards and Bizzcon leaderboards and Mailchimp; the CEO dashboards ignore it because they read fixed layouts.",
+    },
   ],
   vimeo: [{ field: "tag", note: "Only videos carrying this Vimeo tag are pulled in." }],
   ga4: [

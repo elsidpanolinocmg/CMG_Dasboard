@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCache, cacheKeys, ttls } from "@/lib/cache";
 import { findOne } from "@/lib/repos/dataSourceBindings";
 import { getSheetsClient } from "@/lib/sources/googleOAuth";
+import { buildA1 } from "@/lib/sources/sheets";
 import * as peopleRepo from "@/lib/repos/people";
 import { normalizeKey } from "@/lib/util/normalizeKey";
 
@@ -58,7 +59,8 @@ function resolveCanonical(
   return { canonical: name, matched: false };
 }
 
-const RANGE_SUFFIX = "!A1:J40";
+/** What's read when the binding doesn't set a range. */
+const DEFAULT_RANGE = "A1:J40";
 
 function parseCurrency(raw: unknown): Cell {
   if (raw == null) return null;
@@ -119,6 +121,7 @@ async function buildPayload(): Promise<Payload> {
     spreadsheetId?: string;
     gid?: number;
     sheetName?: string;
+    range?: string;
   };
   if (!cfg.spreadsheetId) throw new Error("Bizzcon leaderboard binding missing spreadsheetId");
 
@@ -130,7 +133,10 @@ async function buildPayload(): Promise<Payload> {
       : null);
   if (!tabName) throw new Error("Bizzcon leaderboard binding needs sheetName or gid");
 
-  const range = `'${tabName.replace(/'/g, "''")}'${RANGE_SUFFIX}`;
+  const range = buildA1({
+    sheetName: tabName,
+    range: cfg.range?.trim() || DEFAULT_RANGE,
+  });
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: cfg.spreadsheetId,
