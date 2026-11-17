@@ -1,9 +1,25 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import Player from "@vimeo/player";
+import VimeoPlayer from "@vimeo/player";
+import { useVideoFallback } from "@/lib/hooks/useVideoFallback";
+import { BackupPlayer } from "@/lib/video/BackupPlayer";
 
 const EXCLUDED_TITLES_FILTER = /Awards|Event Highlights/i;
+
+// The parts of a player this rotator uses. Implemented by the Vimeo SDK player
+// and by BackupPlayer (our R2 copy, used only where Vimeo can't be reached).
+interface Player {
+  ready(): Promise<unknown>;
+  play(): Promise<unknown>;
+  pause(): Promise<unknown>;
+  getCurrentTime(): Promise<number>;
+  getTextTracks(): Promise<{ kind: string; language: string }[]>;
+  enableTextTrack(language: string, kind?: string): Promise<unknown>;
+  on(event: "playing", handler: () => void): void;
+  off(event: "playing", handler: () => void): void;
+  destroy(): Promise<unknown>;
+}
 
 interface Cue { start: number; end: number; text: string; }
 
@@ -104,6 +120,22 @@ export default function EditorialVideosRotator({
   // each video actually played, so counter === videos.length means we
   // loaded every video once.
   const rotationsInCycle = useRef(0);
+
+  // Vimeo unreachable here (e.g. blocked in Indonesia): play our backup copies
+  // instead. Starts false, so everyone else gets Vimeo exactly as before.
+  const useBackup = useVideoFallback();
+  const useBackupRef = useRef(useBackup);
+  useBackupRef.current = useBackup;
+
+  useEffect(() => {
+    if (!useBackup || !videos.current.length) return;
+    cleanup();
+    showingA.current = true;
+    containerB.current?.classList.remove("active");
+    showInitial();
+    intervalRef.current = window.setInterval(nextVideo, displayTime * 1000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useBackup]);
 
   const urlList = Array.isArray(xmlUrl) ? xmlUrl : xmlUrl ? [xmlUrl] : [];
   const urlKey = urlList.join("|");
@@ -320,17 +352,24 @@ export default function EditorialVideosRotator({
     playerRef.current = null;
     container.innerHTML = "";
 
-    const player = new Player(container, {
-      id: Number(id),
-      // preloads use autoplay:false so ready()→pause() race can't happen
-      autoplay: !paused,
-      muted: true,
-      controls: false,
-      loop: true,   // loop short videos so they never freeze on the last frame
-      transparent: true,
-      width: container.offsetWidth || 1280,
-      height: container.offsetHeight || 720,
-    });
+    const player: Player = useBackupRef.current
+      ? new BackupPlayer(container, {
+          id: Number(id),
+          autoplay: !paused,
+          muted: true,
+          loop: true,
+        })
+      : (new VimeoPlayer(container, {
+          id: Number(id),
+          // preloads use autoplay:false so ready()→pause() race can't happen
+          autoplay: !paused,
+          muted: true,
+          controls: false,
+          loop: true,   // loop short videos so they never freeze on the last frame
+          transparent: true,
+          width: container.offsetWidth || 1280,
+          height: container.offsetHeight || 720,
+        }) as unknown as Player);
 
     playerRef.current = player;
 

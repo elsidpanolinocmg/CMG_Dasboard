@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { backupEmbedUrl, useVideoFallback } from "@/lib/hooks/useVideoFallback";
 
 interface Props {
   xmlUrl: string;
@@ -23,6 +24,9 @@ export default function VideoRotatorXml({
   const currentIndex = useRef(startIndex);
   const showingA = useRef(true);
   const intervalRef = useRef<number | null>(null);
+  // Vimeo unreachable here (e.g. Indonesia): load our backup player instead.
+  const useBackup = useVideoFallback();
+  const useBackupRef = useRef(useBackup);
 
   useEffect(() => {
     if (!xmlUrl) return;
@@ -49,6 +53,18 @@ export default function VideoRotatorXml({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [xmlUrl, displayTime]);
 
+  // Switch the players over once the check says Vimeo can't be reached.
+  useEffect(() => {
+    useBackupRef.current = useBackup;
+    if (!useBackup || !videos.current.length) return;
+    cleanup();
+    showingA.current = true;
+    iframeB.current?.classList.remove("active");
+    showInitial();
+    intervalRef.current = window.setInterval(nextVideo, displayTime * 1000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useBackup]);
+
   const cleanup = () => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -69,7 +85,9 @@ export default function VideoRotatorXml({
     if (!f) return;
     const id = extract(link);
     if (!id) return;
-    f.src = `https://player.vimeo.com/video/${id}?autoplay=1&muted=1&background=1`;
+    f.src = useBackupRef.current
+      ? backupEmbedUrl(id, { autoplay: 1, muted: 1, background: 1 })
+      : `https://player.vimeo.com/video/${id}?autoplay=1&muted=1&background=1`;
   };
 
   const showInitial = () => {

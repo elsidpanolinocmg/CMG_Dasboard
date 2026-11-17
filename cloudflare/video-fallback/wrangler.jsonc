@@ -1,0 +1,19 @@
+{
+  // Cloudflare Worker: cmg-video-fallback
+  // Backup copies of CMG Vimeo videos in R2, played only by viewers who can't reach Vimeo.
+  // Deploy (from this folder): npx wrangler deploy   (needs CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID)
+  // Secret (once): npx wrangler secret put VIMEO_TOKEN   (the VIMEO_BACKUP_TOKEN value)
+  "name": "cmg-video-fallback",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "cmg-video-backup" }],
+  "triggers": { "crons": ["*/10 * * * *"] },
+  "vars": {
+    // Videos uploaded within this many days are copied ahead of time by the 10-minute check.
+    // Older videos are copied the first time a blocked viewer asks for them.
+    "PRECOPY_DAYS": "90",
+    // How many videos the 10-minute check copies per run (keeps each run short).
+    "COPIES_PER_RUN": "4"
+  }
+}

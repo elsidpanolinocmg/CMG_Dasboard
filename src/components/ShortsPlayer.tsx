@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { backupEmbedUrl, useVideoFallback } from "@/lib/hooks/useVideoFallback";
 
 export interface Video {
   id: string;
@@ -45,6 +46,9 @@ export default function ShortsPlayer({
   const [cols, setCols] = useState(SLOTS);
   const iframeRefs = useRef<(HTMLIFrameElement | null)[]>([]);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Vimeo unreachable here (e.g. Indonesia): our backup player page, which also
+  // posts Vimeo-style "ended" messages so wait mode keeps working.
+  const useBackup = useVideoFallback();
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
@@ -202,7 +206,11 @@ export default function ShortsPlayer({
                 ref={(el) => {
                   iframeRefs.current[slot] = el;
                 }}
-                src={`https://player.vimeo.com/video/${video.id}?badge=0&autopause=0&autoplay=1&muted=1&controls=0&loop=${loopParam}&player_id=${playerId}&app_id=58479&api=1`}
+                src={
+                  useBackup
+                    ? backupEmbedUrl(video.id, { autoplay: 1, muted: 1, controls: 0, loop: loopParam, player_id: playerId })
+                    : `https://player.vimeo.com/video/${video.id}?badge=0&autopause=0&autoplay=1&muted=1&controls=0&loop=${loopParam}&player_id=${playerId}&app_id=58479&api=1`
+                }
                 title={video.title}
                 className="absolute inset-0 w-full h-full"
                 frameBorder="0"

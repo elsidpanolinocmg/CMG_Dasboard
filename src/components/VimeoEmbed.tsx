@@ -1,5 +1,7 @@
 "use client";
 
+import { backupEmbedUrl, useVideoFallback } from "@/lib/hooks/useVideoFallback";
+
 interface VimeoEmbedProps {
   videoId: string;
   title?: string;
@@ -35,13 +37,19 @@ export default function VimeoEmbed({
   if (muted) params.set("muted", "1");
   if (loop) params.set("loop", "1");
 
+  // Vimeo unreachable here (e.g. Indonesia): our backup player page instead.
+  const useBackup = useVideoFallback();
+  const src = useBackup
+    ? backupEmbedUrl(videoId, { autoplay: autoplay ? 1 : 0, muted: muted ? 1 : 0, loop: loop ? 1 : 0 })
+    : `https://player.vimeo.com/video/${videoId}?${params}`;
+
   return (
     <div
       className={`relative w-full overflow-hidden ${className}`}
       style={{ paddingBottom: ASPECT_PADDING[aspectRatio] }}
     >
       <iframe
-        src={`https://player.vimeo.com/video/${videoId}?${params}`}
+        src={src}
         title={title}
         className="absolute inset-0 w-full h-full"
         allow="autoplay; fullscreen; picture-in-picture"
