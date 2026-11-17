@@ -41,8 +41,9 @@ export default {
 
     let m;
     if ((m = url.pathname.match(/^\/v\/(\d+)\.mp4$/))) return serveVideo(m[1], request, env, ctx);
-    if ((m = url.pathname.match(/^\/embed\/(\d+)\/?$/))) return embedPage(m[1], url);
+    if ((m = url.pathname.match(/^\/embed\/(\d+)\/?$/))) return embedPage(m[1], url, env);
     if ((m = url.pathname.match(/^\/captions\/(\d+)\.vtt$/))) return serveCaptions(m[1], env, ctx);
+    if (url.pathname.startsWith("/t/")) return serveThumb(url, request, ctx);
     if (url.pathname === "/" || url.pathname === "/health") {
       return new Response("cmg-video-fallback ok", { headers: { "content-type": "text/plain" } });
     }
@@ -58,11 +59,30 @@ export default {
 
 async function serveVideo(id, request, env, ctx) {
   const key = VIDEO_KEY(id);
+  const rangeHeader = request.headers.get("range");
 
-  // 1) Already backed up: serve from R2, honouring Range so players can seek and stream.
-  const range = parseRange(request.headers.get("range"));
+  // 0) Fastest: a copy in the Cloudflare data centre near the viewer (e.g. Jakarta).
+  //    TV browsers fetch video in many small pieces; each piece from R2 has a
+  //    noticeable delay, which made playback stutter. From the edge cache it's instant.
+  const edgeKey = edgeCacheKey(id);
+  const cached = await caches.default.match(
+    new Request(edgeKey.url, { headers: rangeHeader ? { range: rangeHeader } : {} }),
+  );
+  if (cached) {
+    const headers = new Headers(cached.headers);
+    for (const [k, v] of Object.entries(CORS)) headers.set(k, v);
+    headers.set("x-backup-source", "edge");
+    return new Response(request.method === "HEAD" ? null : cached.body, { status: cached.status, headers });
+  }
+
+  // 1) Backed up: serve from R2, honouring Range so players can seek and stream,
+  //    and fill the edge cache in the background for the next pieces / viewers.
+  const range = parseRange(rangeHeader);
   const obj = await env.BUCKET.get(key, range ? { range } : {});
-  if (obj) return r2Response(obj, request, range);
+  if (obj) {
+    if (obj.size <= EDGE_CACHE_MAX_BYTES) ctx.waitUntil(fillEdgeCache(id, env));
+    return r2Response(obj, request, range);
+  }
 
   // 2) Not yet: stream it from Vimeo now, and copy it to R2 in the background.
   const file = await vimeoFile(id, env);
@@ -74,7 +94,6 @@ async function serveVideo(id, request, env, ctx) {
   else ctx.waitUntil(env.BUCKET.put(PENDING_KEY(id), "1"));
 
   const upstreamHeaders = {};
-  const rangeHeader = request.headers.get("range");
   if (rangeHeader) upstreamHeaders.range = rangeHeader;
   const upstream = await fetch(file.link, { headers: upstreamHeaders });
   const headers = new Headers(CORS);
@@ -89,6 +108,33 @@ async function serveVideo(id, request, env, ctx) {
     status: upstream.status,
     headers,
   });
+}
+
+const EDGE_CACHE_MAX_BYTES = 450e6; // Cloudflare's cache takes files up to 512 MB
+const edgeCacheKey = (id) => new Request(`https://video.charltonmedia.com/__edge/v/${id}.mp4`);
+
+// Put the whole file into this data centre's cache (once; a short lock stops
+// the many small requests of one TV from each starting their own copy).
+async function fillEdgeCache(id, env) {
+  const cache = caches.default;
+  const lockKey = new Request(`https://cmg-video-fallback.internal/edge-lock/${id}`);
+  if (await cache.match(lockKey)) return;
+  await cache.put(lockKey, new Response("1", { headers: { "cache-control": "max-age=120" } }));
+  try {
+    const full = await env.BUCKET.get(VIDEO_KEY(id));
+    if (!full) return;
+    const headers = new Headers({
+      "content-type": "video/mp4",
+      "content-length": String(full.size),
+      "accept-ranges": "bytes",
+      etag: full.httpEtag,
+      "cache-control": "public, max-age=604800",
+    });
+    await cache.put(edgeCacheKey(id), new Response(full.body, { headers }));
+  } catch (err) {
+    console.log(`edge cache fill failed ${id}: ${err.message}`);
+    await cache.delete(lockKey);
+  }
 }
 
 // "bytes=START-END", "bytes=START-" or "bytes=-SUFFIX" -> an R2 range; anything else -> whole file.
@@ -136,7 +182,7 @@ async function vimeoFile(id, env) {
   const hit = await cache.match(cacheKey);
   if (hit) return hit.json();
 
-  const res = await fetch(`${VIMEO_API}/videos/${id}?fields=name,created_time,duration,files`, {
+  const res = await fetch(`${VIMEO_API}/videos/${id}?fields=name,created_time,duration,files,pictures.sizes`, {
     headers: vimeoHeaders(env),
   });
   if (!res.ok) {
@@ -153,6 +199,7 @@ async function vimeoFile(id, env) {
     rendition: file.rendition,
     name: v.name || "",
     created: v.created_time || "",
+    poster: pickPoster(v.pictures),
   };
   await cache.put(
     cacheKey,
@@ -161,6 +208,15 @@ async function vimeoFile(id, env) {
     }),
   );
   return out;
+}
+
+// Thumbnail around 960 px wide, served through our /t/ proxy (i.vimeocdn.com is blocked too).
+function pickPoster(pictures) {
+  const sizes = (pictures && pictures.sizes) || [];
+  if (!sizes.length) return "";
+  const best = sizes.filter((s) => s.width <= 1280).sort((a, b) => b.width - a.width)[0] || sizes[0];
+  const m = /^https:\/\/i\.vimeocdn\.com\/(video\/[^?#]+)(\?[^#]*)?/.exec(best.link || "");
+  return m ? `/t/${m[1]}${m[2] || ""}` : "";
 }
 
 function pick720(files) {
@@ -293,6 +349,32 @@ function vimeoHeaders(env) {
   };
 }
 
+/* ---------------- thumbnails ---------------- */
+
+// /t/<path>?<query>  ->  https://i.vimeocdn.com/<path>?<query>
+// Vimeo thumbnails (i.vimeocdn.com) for pages shown to blocked viewers.
+// Only that one host is ever fetched, and results are cached at the edge.
+async function serveThumb(url, request, ctx) {
+  const path = url.pathname.slice(3);
+  if (!/^video\/[\w.-]+$/.test(path)) return new Response("Not found", { status: 404 });
+  const upstream = `https://i.vimeocdn.com/${path}${url.search}`;
+  const cache = caches.default;
+  const cacheKey = new Request(upstream);
+  let res = await cache.match(cacheKey);
+  if (!res) {
+    const r = await fetch(upstream);
+    if (!r.ok || !(r.headers.get("content-type") || "").startsWith("image/")) {
+      return new Response("Not found", { status: 404 });
+    }
+    res = new Response(r.body, r);
+    res.headers.set("cache-control", "public, max-age=604800");
+    ctx.waitUntil(cache.put(cacheKey, res.clone()));
+  }
+  const out = new Response(res.body, res);
+  out.headers.set("access-control-allow-origin", "*");
+  return out;
+}
+
 /* ---------------- player page ---------------- */
 
 function flag(url, name, dflt) {
@@ -301,7 +383,7 @@ function flag(url, name, dflt) {
   return v === "1" || v === "true";
 }
 
-function embedPage(id, url) {
+async function embedPage(id, url, env) {
   const background = flag(url, "background", false);
   const autoplay = flag(url, "autoplay", background);
   const muted = flag(url, "muted", background || autoplay);
@@ -309,9 +391,18 @@ function embedPage(id, url) {
   const controls = flag(url, "controls", !background);
   const playerId = (url.searchParams.get("player_id") || "").replace(/[^\w-]/g, "").slice(0, 64);
 
+  // Like Vimeo: show the thumbnail, and only download the video when it plays
+  // (saves mobile data for readers who never press play).
+  let poster = "";
+  if (!autoplay) {
+    const info = await vimeoFile(id, env).catch(() => null);
+    poster = (info && info.poster) || "";
+  }
+
   const attrs = [
     "playsinline",
-    "preload=\"auto\"",
+    autoplay ? "preload=\"auto\"" : "preload=\"none\"",
+    poster ? `poster="${poster.replace(/"/g, "&quot;")}"` : "",
     autoplay ? "autoplay" : "",
     muted ? "muted" : "",
     loop ? "loop" : "",
@@ -326,7 +417,7 @@ function embedPage(id, url) {
 <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}video{width:100%;height:100%;display:block;object-fit:contain;background:#000}</style>
 </head><body>
 <video id="v" ${attrs} src="/v/${id}.mp4" crossorigin="anonymous">
-<track kind="captions" srclang="en" label="Captions" src="/captions/${id}.vtt"${background ? "" : " default"}>
+<track kind="captions" srclang="en" label="Captions" src="/captions/${id}.vtt">
 </video>
 <script>
 (function(){
@@ -343,7 +434,7 @@ function embedPage(id, url) {
   return new Response(html, {
     headers: {
       "content-type": "text/html; charset=utf-8",
-      "cache-control": "public, max-age=3600",
+      "cache-control": "public, max-age=300",
     },
   });
 }
