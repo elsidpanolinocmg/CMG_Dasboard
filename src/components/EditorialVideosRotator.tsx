@@ -7,6 +7,10 @@ import { BackupPlayer } from "@/lib/video/BackupPlayer";
 
 const EXCLUDED_TITLES_FILTER = /Awards|Event Highlights/i;
 
+// How long a backup copy (our R2 720p file) may take to start before the
+// stuck-video checks skip it. Vimeo videos keep the original 2–2.5 s checks.
+const BACKUP_STARTUP_MS = 15_000;
+
 // The parts of a player this rotator uses. Implemented by the Vimeo SDK player
 // and by BackupPlayer (our R2 copy, used only where Vimeo can't be reached).
 interface Player {
@@ -279,6 +283,12 @@ export default function EditorialVideosRotator({
     // fresh. We piggyback on the caption poll — there's no second timer.
     let lastPolledTime = -1;
     let stalledTicks = 0;
+    // Backup copies are plain 720p files: on a TV they can take several seconds
+    // to start (Vimeo starts at low quality, so it's quicker). Don't treat that
+    // start-up wait as a stall; only count once playback has begun, or after
+    // BACKUP_STARTUP_MS with nothing playing at all.
+    let started = !useBackupRef.current;
+    let startupTicks = 0;
 
     captionTimer.current = window.setInterval(async () => {
       if (captionPlayer.current !== player) return;
@@ -296,6 +306,10 @@ export default function EditorialVideosRotator({
         // A loop:true wrap (duration → 0) isn't a stall because the
         // diff jumps, not stays near zero.
         if (tvModeRef.current) {
+          if (!started) {
+            if (now > 0.1) started = true;
+            else if (++startupTicks < BACKUP_STARTUP_MS / 250) return;
+          }
           if (lastPolledTime >= 0 && Math.abs(now - lastPolledTime) < 0.05) {
             stalledTicks++;
             if (stalledTicks >= 8) {
@@ -451,8 +465,10 @@ export default function EditorialVideosRotator({
 
     if (!incomingPlayer) { doSwitch(); return; }
 
-    // Fallback: switch anyway after 4 s if the video never fires 'playing'
-    const fallback = setTimeout(doSwitch, 4000);
+    // Fallback: switch anyway after 4 s if the video never fires 'playing'.
+    // Backup copies start slower on TVs, so keep the current video on screen
+    // longer rather than crossfading to a black, not-yet-playing one.
+    const fallback = setTimeout(doSwitch, useBackupRef.current ? BACKUP_STARTUP_MS : 4000);
 
     const handler = () => {
       clearTimeout(fallback);
@@ -492,7 +508,8 @@ export default function EditorialVideosRotator({
           nextVideo();
         }
       } catch {}
-    }, 2500);
+      // Backup copies get longer to start (see BACKUP_STARTUP_MS).
+    }, useBackupRef.current ? BACKUP_STARTUP_MS : 2500);
   };
 
   /* ---------- INITIAL ---------- */
