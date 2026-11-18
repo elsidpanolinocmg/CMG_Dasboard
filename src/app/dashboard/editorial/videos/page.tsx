@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import EditorialVideosRotator from "@/components/EditorialVideosRotator";
 import EditorialVideosTicker from "@/components/EditorialVideosTicker";
 import DashboardControls from "@/components/DashboardControls";
@@ -32,6 +32,12 @@ export default function EditorialVideosPage() {
   const [tvMode, setTvMode] = useState(false);
   const [rotatorEpoch, setRotatorEpoch] = useState(0);
   const [rotatorMounted, setRotatorMounted] = useState(true);
+  // ?tvdebug=noticker hides the news ticker (test switch for TV playback problems).
+  const tickerBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("tvdebug") || "";
+    if (v.split(",").includes("noticker") && tickerBox.current) tickerBox.current.style.display = "none";
+  }, [brands.length]);
 
   const handleCycleReload = () => {
     setRotatorMounted(false);
@@ -125,7 +131,9 @@ export default function EditorialVideosPage() {
           )}
         </div>
       </div>
-      <EditorialVideosTicker />
+      <div ref={tickerBox} className="contents">
+        <EditorialVideosTicker />
+      </div>
       <DashboardControls>
         <Link
           href="/dashboard/editorial"

@@ -11,6 +11,17 @@ const EXCLUDED_TITLES_FILTER = /Awards|Event Highlights/i;
 // stuck-video checks skip it. Vimeo videos keep the original 2–2.5 s checks.
 const BACKUP_STARTUP_MS = 15_000;
 
+// Test switches for tracking down TV playback problems, e.g.
+// ?tvdebug=nocap,nonext,nofade  (nocap = no captions, nonext = don't load the
+// next video in advance, nofade = no crossfade). Off unless in the link.
+const tvDebug = (flag: string) => {
+  try {
+    return (new URLSearchParams(window.location.search).get("tvdebug") || "").split(",").includes(flag);
+  } catch {
+    return false;
+  }
+};
+
 // The parts of a player this rotator uses. Implemented by the Vimeo SDK player
 // and by BackupPlayer (our R2 copy, used only where Vimeo can't be reached).
 interface Player {
@@ -129,6 +140,10 @@ export default function EditorialVideosRotator({
   // instead. Starts false, so everyone else gets Vimeo exactly as before.
   const useBackup = useVideoFallback();
   const useBackupRef = useRef(useBackup);
+  const videoArea = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (tvDebug("nofade")) videoArea.current?.classList.add("nofade");
+  }, []);
   useBackupRef.current = useBackup;
 
   useEffect(() => {
@@ -404,6 +419,7 @@ export default function EditorialVideosRotator({
     player.ready().then(async () => {
       if (!alive()) return;
       if (!paused) player.play().catch(() => {});
+      if (tvDebug("nocap")) return;
 
       try {
         const tracks = await player.getTextTracks();
@@ -526,7 +542,7 @@ export default function EditorialVideosRotator({
     if (titleBox.current) titleBox.current.textContent = first.title;
 
     // Preload next video paused so it doesn't compete for bandwidth
-    loadInto(containerB.current, playerB, next.link, true);
+    if (!tvDebug("nonext")) loadInto(containerB.current, playerB, next.link, true);
 
     // The first video never goes through activateAndSwitch, so wire its
     // caption sync up directly. cuesA may still be empty here (VTT fetches
@@ -576,15 +592,22 @@ export default function EditorialVideosRotator({
       }, 200);
     }
 
+    // nonext test switch: nothing was loaded in advance, so load it now.
+    const noNext = tvDebug("nonext");
+    if (noNext) {
+      if (showingA.current) loadInto(containerB.current, playerB, current.link, true);
+      else loadInto(containerA.current, playerA, current.link, true);
+    }
+
     if (showingA.current) {
       activateAndSwitch(playerB.current, containerB, containerA, () => {
         destroyPlayer(playerA);
-        loadInto(containerA.current, playerA, next.link, true);
+        if (!noNext) loadInto(containerA.current, playerA, next.link, true);
       });
     } else {
       activateAndSwitch(playerA.current, containerA, containerB, () => {
         destroyPlayer(playerB);
-        loadInto(containerB.current, playerB, next.link, true);
+        if (!noNext) loadInto(containerB.current, playerB, next.link, true);
       });
     }
 
@@ -642,6 +665,10 @@ export default function EditorialVideosRotator({
           transition: opacity 1s ease-in-out, visibility 0s;
         }
 
+        .video-area.nofade .video-layer {
+          transition: none !important;
+        }
+
         .video-layer iframe {
           width: 100% !important;
           height: 100% !important;
@@ -690,7 +717,7 @@ export default function EditorialVideosRotator({
       `}</style>
 
       <div className="video-wrapper">
-        <div className={useBackup ? "video-area backup" : "video-area"}>
+        <div ref={videoArea} className={useBackup ? "video-area backup" : "video-area"}>
           <div ref={containerA} className="video-layer" />
           <div ref={containerB} className="video-layer" />
           <div ref={captionBox} className="caption-overlay" />
