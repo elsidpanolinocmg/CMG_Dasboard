@@ -297,8 +297,11 @@ export default function EditorialVideosRotator({
         if (captionPlayer.current !== player) return;
 
         const active = cuesRef.current.find(c => now >= c.start && now <= c.end);
-        if (captionBox.current) {
-          captionBox.current.textContent = active?.text ?? "";
+        // Only touch the page when the caption actually changes: rewriting it
+        // 4x a second forces TV browsers to redraw over the playing video.
+        const text = active?.text ?? "";
+        if (captionBox.current && captionBox.current.textContent !== text) {
+          captionBox.current.textContent = text;
         }
 
         // Stall detector (TV mode only). If currentTime hasn't advanced
@@ -627,6 +630,18 @@ export default function EditorialVideosRotator({
           z-index: 1;
         }
 
+        /* Backup copies (plain <video>): once the fade is over, hide the
+           inactive layer completely so the TV only draws the playing video,
+           not the paused next one underneath. */
+        .video-area.backup .video-layer {
+          visibility: hidden;
+          transition: opacity 1s ease-in-out, visibility 0s linear 1s;
+        }
+        .video-area.backup .video-layer.active {
+          visibility: visible;
+          transition: opacity 1s ease-in-out, visibility 0s;
+        }
+
         .video-layer iframe {
           width: 100% !important;
           height: 100% !important;
@@ -675,7 +690,7 @@ export default function EditorialVideosRotator({
       `}</style>
 
       <div className="video-wrapper">
-        <div className="video-area">
+        <div className={useBackup ? "video-area backup" : "video-area"}>
           <div ref={containerA} className="video-layer" />
           <div ref={containerB} className="video-layer" />
           <div ref={captionBox} className="caption-overlay" />

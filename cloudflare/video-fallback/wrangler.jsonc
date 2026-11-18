@@ -14,6 +14,11 @@
     // Older videos are copied the first time a blocked viewer asks for them.
     "PRECOPY_DAYS": "90",
     // How many videos the 10-minute check copies per run (keeps each run short).
-    "COPIES_PER_RUN": "4"
+    "COPIES_PER_RUN": "4",
+    // Sizes the 10-minute check copies ahead of time (540 = smaller copies, on demand via ?q=540).
+    "PRECOPY_QUALITIES": "720",
+    // The dashboard only plays the newest videos, so 540p copies just the last 30 days ahead
+    // of time; older ones are copied the first time a TV plays them.
+    "PRECOPY_DAYS_540": "30"
   }
 }
