@@ -531,6 +531,12 @@ export default function EditorialVideosRotator({
     }, useBackupRef.current ? BACKUP_STARTUP_MS : 2500);
   };
 
+  // Backup copies: don't keep the next video waiting underneath. Samsung TV /
+  // smart-monitor browsers stutter with a second <video> on the page, even a
+  // paused one (tested 2026-11-18: smooth only without it). Load it at switch
+  // time instead. Vimeo players keep the preload.
+  const loadNextLate = () => useBackupRef.current || tvDebug("nonext");
+
   /* ---------- INITIAL ---------- */
   const showInitial = () => {
     const first = videos.current[currentIndex.current];
@@ -541,8 +547,9 @@ export default function EditorialVideosRotator({
 
     if (titleBox.current) titleBox.current.textContent = first.title;
 
-    // Preload next video paused so it doesn't compete for bandwidth
-    if (!tvDebug("nonext")) loadInto(containerB.current, playerB, next.link, true);
+    // Preload next video paused so it doesn't compete for bandwidth.
+    // Not for backup copies: see loadNextLate.
+    if (!loadNextLate()) loadInto(containerB.current, playerB, next.link, true);
 
     // The first video never goes through activateAndSwitch, so wire its
     // caption sync up directly. cuesA may still be empty here (VTT fetches
@@ -592,8 +599,9 @@ export default function EditorialVideosRotator({
       }, 200);
     }
 
-    // nonext test switch: nothing was loaded in advance, so load it now.
-    const noNext = tvDebug("nonext");
+    // Nothing was loaded in advance (see loadNextLate), so load it now. The
+    // current video keeps playing until this one is playing, then they swap.
+    const noNext = loadNextLate();
     if (noNext) {
       if (showingA.current) loadInto(containerB.current, playerB, current.link, true);
       else loadInto(containerA.current, playerA, current.link, true);
