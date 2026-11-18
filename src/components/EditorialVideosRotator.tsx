@@ -653,16 +653,17 @@ export default function EditorialVideosRotator({
           z-index: 1;
         }
 
-        /* Backup copies (plain <video>): once the fade is over, hide the
-           inactive layer completely so the TV only draws the playing video,
-           not the paused next one underneath. */
+        /* Backup copies (plain <video>): no crossfade, and the inactive layer
+           is hidden completely. Samsung TV / smart-monitor browsers stuttered
+           with the fade while the next video waited underneath (tested
+           2026-11-18: smooth with either removed). The switch already waits
+           for the next video to be playing, so a straight cut has no black flash. */
         .video-area.backup .video-layer {
           visibility: hidden;
-          transition: opacity 1s ease-in-out, visibility 0s linear 1s;
+          transition: none;
         }
         .video-area.backup .video-layer.active {
           visibility: visible;
-          transition: opacity 1s ease-in-out, visibility 0s;
         }
 
         .video-area.nofade .video-layer {
