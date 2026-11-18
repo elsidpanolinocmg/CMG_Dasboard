@@ -22,17 +22,19 @@ export function backupEmbedUrl(id: string | number, params: Record<string, strin
 }
 
 const PROBE_TIMEOUT_MS = 6000;
-const FORCE_KEY = "videoFallback"; // ?videoFallback=1 (or 0) to force on/off for testing; remembered on this device
+// ?videoFallback=1 (or 0) in the page link forces the backup on (or off) for
+// testing. Only the current link counts: nothing is saved, so opening the page
+// without it goes straight back to the normal check.
+const FORCE_KEY = "videoFallback";
 
 let decision: Promise<boolean> | null = null;
 
 function forced(): boolean | null {
   try {
     const q = new URLSearchParams(window.location.search).get(FORCE_KEY);
-    if (q === "1" || q === "0") localStorage.setItem(FORCE_KEY, q);
-    if (q === "clear") localStorage.removeItem(FORCE_KEY);
-    const v = localStorage.getItem(FORCE_KEY);
-    return v === "1" ? true : v === "0" ? false : null;
+    // Clean up the setting older versions saved on the device.
+    localStorage.removeItem(FORCE_KEY);
+    return q === "1" ? true : q === "0" ? false : null;
   } catch {
     return null;
   }
@@ -68,14 +70,16 @@ async function vimeoUnreachable(): Promise<boolean> {
   }
 }
 
-/** Decided once per page load and shared by every player on the page. */
+/**
+ * The link's ?videoFallback= wins, checked on every page (the dashboard moves
+ * between pages without reloading). Otherwise the country + Vimeo check runs
+ * once and is shared by every player.
+ */
 export function shouldUseVideoBackup(): Promise<boolean> {
+  const f = forced();
+  if (f !== null) return Promise.resolve(f);
   if (!decision) {
-    const f = forced();
-    decision =
-      f !== null
-        ? Promise.resolve(f)
-        : Promise.all([countryListed(), vimeoUnreachable()]).then(([a, b]) => a || b);
+    decision = Promise.all([countryListed(), vimeoUnreachable()]).then(([a, b]) => a || b);
   }
   return decision;
 }
