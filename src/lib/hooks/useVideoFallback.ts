@@ -22,9 +22,11 @@ export function backupEmbedUrl(id: string | number, params: Record<string, strin
 }
 
 const PROBE_TIMEOUT_MS = 6000;
-// ?videoFallback=1 (or 0) in the page link forces the backup on (or off) for
-// testing. Only the current link counts: nothing is saved, so opening the page
-// without it goes straight back to the normal check.
+// Testing switch in the page link:
+//   ?videoFallback=1      backup for this link only (nothing saved)
+//   ?videoFallback=0      Vimeo for this link only
+//   ?videoFallback=save   backup on this device until cleared (e.g. a TV)
+//   ?videoFallback=clear  forget the saved choice, back to the automatic check
 const FORCE_KEY = "videoFallback";
 
 let decision: Promise<boolean> | null = null;
@@ -32,9 +34,12 @@ let decision: Promise<boolean> | null = null;
 function forced(): boolean | null {
   try {
     const q = new URLSearchParams(window.location.search).get(FORCE_KEY);
-    // Clean up the setting older versions saved on the device.
-    localStorage.removeItem(FORCE_KEY);
-    return q === "1" ? true : q === "0" ? false : null;
+    if (q === "save") localStorage.setItem(FORCE_KEY, "1");
+    if (q === "clear") localStorage.removeItem(FORCE_KEY);
+    if (q === "1" || q === "save") return true;
+    if (q === "0") return false;
+    // Only "save" is remembered (older versions saved "0" too).
+    return localStorage.getItem(FORCE_KEY) === "1" ? true : null;
   } catch {
     return null;
   }

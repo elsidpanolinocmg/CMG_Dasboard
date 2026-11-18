@@ -117,7 +117,7 @@ All are Drupal sites on Cloudflare's Pro plan (Snippets need Pro). Ordered by mo
 
 ### Test as if you were in Indonesia
 - **Website:** add `?videoFallback=1` to any page, for example `https://sbr.com.sg/?videoFallback=1`. Nothing is remembered.
-- **Dashboard:** add `?videoFallback=1` to a dashboard link. Only that link uses the backup; nothing is saved, so opening the page without it goes back to automatic. `?videoFallback=0` forces Vimeo.
+- **Dashboard:** add `?videoFallback=1` to a dashboard link: only that link uses the backup, nothing is saved. `?videoFallback=0` forces Vimeo for that link. `?videoFallback=save` keeps the backup on that device until `?videoFallback=clear`.
 
 To check it's the backup: right-click the video. A plain browser menu means backup. On websites, the player address starts with `video.charltonmedia.com`.
 
