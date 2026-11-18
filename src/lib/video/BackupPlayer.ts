@@ -26,7 +26,10 @@ export class BackupPlayer {
     v.loop = opts.loop ?? true;
     v.autoplay = !!opts.autoplay;
     v.playsInline = true;
-    v.preload = "auto";
+    // A paused preload (the rotator's "next" video) only fetches its first frame
+    // and details. Downloading it in full while another video plays made the
+    // playing one stutter on TVs; it switches to full download in play().
+    v.preload = opts.autoplay ? "auto" : "metadata";
     v.setAttribute("muted", "");
     v.setAttribute("playsinline", "");
     v.style.cssText = "width:100%;height:100%;display:block;object-fit:contain;background:#000";
@@ -48,6 +51,7 @@ export class BackupPlayer {
 
   play(): Promise<void> {
     if (!this.video) return Promise.reject(new Error("destroyed"));
+    this.video.preload = "auto";
     return this.video.play();
   }
 
