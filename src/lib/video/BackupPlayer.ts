@@ -1,6 +1,6 @@
 "use client";
 
-import { backupVideoUrl } from "@/lib/hooks/useVideoFallback";
+import { backupPosterUrl, backupVideoUrl } from "@/lib/hooks/useVideoFallback";
 
 // Stand-in for the @vimeo/player Player, playing our backup copy in a plain
 // <video> element. Implements only the methods EditorialVideosRotator uses, with
@@ -22,6 +22,8 @@ export class BackupPlayer {
   constructor(container: HTMLElement, opts: BackupPlayerOptions) {
     const v = document.createElement("video");
     v.src = backupVideoUrl(opts.id);
+    // Thumbnail shown until the first frame plays (instead of a black box).
+    v.poster = backupPosterUrl(opts.id);
     v.muted = opts.muted ?? true;
     v.loop = opts.loop ?? true;
     v.autoplay = !!opts.autoplay;

@@ -13,6 +13,7 @@
 //                                player.vimeo.com/video/<id>. Options (query):
 //                                autoplay, muted, loop, controls, background, player_id, q
 //   GET /captions/<vimeoId>.vtt captions (WebVTT) for the video, if it has any.
+//   GET /p/<vimeoId>.jpg        the video's thumbnail.
 //   cron every 10 minutes       copies videos uploaded in the last PRECOPY_DAYS days,
 //                                in each size listed in PRECOPY_QUALITIES.
 //
@@ -52,6 +53,7 @@ export default {
     if ((m = url.pathname.match(/^\/embed\/(\d+)\/?$/))) return embedPage(m[1], url, env);
     if ((m = url.pathname.match(/^\/captions\/(\d+)\.vtt$/))) return serveCaptions(m[1], env, ctx);
     if (url.pathname.startsWith("/t/")) return serveThumb(url, request, ctx);
+    if ((m = url.pathname.match(/^\/p\/(\d+)\.jpg$/))) return servePoster(m[1], request, env, ctx);
     if (url.pathname === "/tvtest") return tvTestPage(url);
     if (url.pathname === "/" || url.pathname === "/health") {
       return new Response("cmg-video-fallback ok", { headers: { "content-type": "text/plain" } });
@@ -393,6 +395,13 @@ async function serveThumb(url, request, ctx) {
   const out = new Response(res.body, res);
   out.headers.set("access-control-allow-origin", "*");
   return out;
+}
+
+// /p/<vimeoId>.jpg  the video's thumbnail (shown on the dashboard between videos).
+async function servePoster(id, request, env, ctx) {
+  const info = await vimeoFile(id, env).catch(() => null);
+  if (!info || !info.poster) return new Response("Not found", { status: 404, headers: CORS });
+  return serveThumb(new URL(info.poster, "https://video.charltonmedia.com"), request, ctx);
 }
 
 /* ---------------- player page ---------------- */

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import VimeoPlayer from "@vimeo/player";
-import { useVideoFallback } from "@/lib/hooks/useVideoFallback";
+import { backupPosterUrl, useVideoFallback } from "@/lib/hooks/useVideoFallback";
 import { BackupPlayer } from "@/lib/video/BackupPlayer";
 
 const EXCLUDED_TITLES_FILTER = /Awards|Event Highlights/i;
@@ -537,6 +537,13 @@ export default function EditorialVideosRotator({
   // time instead. Vimeo players keep the preload.
   const loadNextLate = () => useBackupRef.current || tvDebug("nonext");
 
+  // Fetch the next backup video's thumbnail ahead of time (an image, so it
+  // costs the TV nothing) so it appears instantly at the switch.
+  const preloadPoster = (link: string) => {
+    const id = extractVimeoId(link);
+    if (id) new Image().src = backupPosterUrl(id);
+  };
+
   /* ---------- INITIAL ---------- */
   const showInitial = () => {
     const first = videos.current[currentIndex.current];
@@ -548,8 +555,9 @@ export default function EditorialVideosRotator({
     if (titleBox.current) titleBox.current.textContent = first.title;
 
     // Preload next video paused so it doesn't compete for bandwidth.
-    // Not for backup copies: see loadNextLate.
+    // Not for backup copies: see loadNextLate (just its thumbnail instead).
     if (!loadNextLate()) loadInto(containerB.current, playerB, next.link, true);
+    else if (useBackupRef.current) preloadPoster(next.link);
 
     // The first video never goes through activateAndSwitch, so wire its
     // caption sync up directly. cuesA may still be empty here (VTT fetches
@@ -599,7 +607,28 @@ export default function EditorialVideosRotator({
       }, 200);
     }
 
-    // Nothing was loaded in advance (see loadNextLate), so load it now. The
+    // Backup copies on TVs: Samsung browsers play only one video at a time, so
+    // a second one starting (even hidden) blacks out the current one. Stop the
+    // current video first, then start the next one in its place; its thumbnail
+    // shows until it plays (video -> thumbnail -> video, never black).
+    if (useBackupRef.current) {
+      const [inRef, inBox, outRef, outBox, inCues] = showingA.current
+        ? [playerB, containerB, playerA, containerA, cuesB]
+        : [playerA, containerA, playerB, containerB, cuesA];
+      stopCaptionSync();
+      destroyPlayer(outRef);
+      if (outBox.current) outBox.current.innerHTML = "";
+      loadInto(inBox.current, inRef, current.link);
+      inBox.current?.classList.add("active");
+      outBox.current?.classList.remove("active");
+      watchPlayback(inRef.current);
+      if (inRef.current) startCaptionSync(inRef.current, inCues);
+      preloadPoster(next.link);
+      showingA.current = !showingA.current;
+      return;
+    }
+
+    // tvdebug=nonext: nothing was loaded in advance, so load it now. The
     // current video keeps playing until this one is playing, then they swap.
     const noNext = loadNextLate();
     if (noNext) {

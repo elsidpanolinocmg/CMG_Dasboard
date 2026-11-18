@@ -14,6 +14,8 @@ export const VIDEO_BACKUP_BASE = (
 ).replace(/\/$/, "");
 
 export const backupVideoUrl = (id: string | number) => `${VIDEO_BACKUP_BASE}/v/${id}.mp4`;
+// The video's thumbnail (through our server, since Vimeo's image host is blocked too).
+export const backupPosterUrl = (id: string | number) => `${VIDEO_BACKUP_BASE}/p/${id}.jpg`;
 
 export function backupEmbedUrl(id: string | number, params: Record<string, string | number> = {}) {
   const q = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]));
